@@ -1,0 +1,106 @@
+name: Build APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+
+    steps:
+      - name: Free disk space
+        run: |
+          df -h /
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/share/boost /opt/hostedtoolcache/CodeQL /usr/local/.ghcup /usr/share/swift /usr/local/lib/android/sdk/ndk/25.* /usr/local/lib/android/sdk/ndk/26.* || true
+          sudo apt-get clean || true
+          docker image prune -af >/dev/null 2>&1 || true
+          df -h /
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Install Android SDK components
+        run: |
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null || true
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-36" "build-tools;36.0.0" "ndk;27.2.12479018" "cmake;3.22.1" >/dev/null
+
+      - name: Decode signing keystore
+        env:
+          KS_B64: ${{ secrets.KEYSTORE_BASE64 }}
+        run: |
+          if [ -z "$KS_B64" ]; then echo "KEYSTORE_BASE64 secret missing"; exit 1; fi
+          echo "$KS_B64" | base64 -d > TMessagesProj/config/release.keystore
+
+      - name: Inject own Telegram API keys (if provided)
+        env:
+          APP_ID: ${{ secrets.APP_ID }}
+          APP_HASH: ${{ secrets.APP_HASH }}
+        run: |
+          F=TMessagesProj/src/main/java/org/telegram/messenger/BuildVars.java
+          if [ -n "$APP_ID" ] && [ -n "$APP_HASH" ]; then
+            sed -i "s/public static int APP_ID = [0-9]*;/public static int APP_ID = ${APP_ID};/" "$F"
+            sed -i "s/public static String APP_HASH = \"[0-9a-f]*\";/public static String APP_HASH = \"${APP_HASH}\";/" "$F"
+            echo "own API keys injected"
+          else
+            echo "WARNING: APP_ID/APP_HASH secrets not set, using sample keys (login may be rate-limited)"
+          fi
+
+      - name: Limit ABIs to arm64 (faster, smaller)
+        run: sed -i 's/abiFilters "armeabi-v7a", "arm64-v8a", "x86", "x86_64"/abiFilters "arm64-v8a"/' TMessagesProj_App/build.gradle
+
+      - name: Build release APK
+        env:
+          ORG_GRADLE_PROJECT_RELEASE_STORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          ORG_GRADLE_PROJECT_RELEASE_KEY_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          ORG_GRADLE_PROJECT_RELEASE_KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+        run: |
+          set -o pipefail
+          chmod +x gradlew
+          ./gradlew :TMessagesProj_App:assembleAfatRelease --no-daemon --stacktrace 2>&1 | tee build.log
+
+      - name: Publish build errors to ci-logs branch
+        if: failure()
+        env:
+          APP_HASH: ${{ secrets.APP_HASH }}
+          KS_PW: ${{ secrets.KEYSTORE_PASSWORD }}
+        run: |
+          grep -v -E "^\s+at (org\.gradle|java\.|jdk\.|sun\.|com\.google\.common)" build.log > build-clean.log
+          [ -n "$APP_HASH" ] && sed -i "s/$APP_HASH/***/g" build-clean.log || true
+          [ -n "$KS_PW" ] && sed -i "s/$KS_PW/***/g" build-clean.log || true
+          {
+            echo "run: ${GITHUB_RUN_ID}  sha: ${GITHUB_SHA}"
+            grep -n -A12 -E "What went wrong" build-clean.log | head -120
+            grep -n -E "\.java:[0-9]+: error|error: |cannot find symbol|CMake Error|ninja: error|Could not resolve|No space left" build-clean.log | head -200
+            echo "=== tail of cleaned log ==="
+            tail -n 60 build-clean.log
+          } > ci-error.txt
+          mkdir /tmp/cilogs && cp ci-error.txt /tmp/cilogs/ci-error.txt && cd /tmp/cilogs
+          git init -q && git checkout -q -b ci-logs
+          git config user.name "github-actions" && git config user.email "actions@github.com"
+          git add . && git commit -q -m "ci error log for run ${GITHUB_RUN_ID}"
+          git push -f "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${GITHUB_REPOSITORY}.git" ci-logs
+
+      - name: Find APK
+        id: find_apk
+        run: |
+          APK_PATH=$(find TMessagesProj_App/build/outputs/apk -name "*.apk" | head -n 1)
+          echo "apk_path=$APK_PATH" >> "$GITHUB_OUTPUT"
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: paradoksgram-apk
+          path: ${{ steps.find_apk.outputs.apk_path }}
+          retention-days: 14
