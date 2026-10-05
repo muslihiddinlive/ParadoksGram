@@ -62,8 +62,26 @@ jobs:
       - name: Limit ABIs to arm64 (faster, smaller)
         run: sed -i 's/abiFilters "armeabi-v7a", "arm64-v8a", "x86", "x86_64"/abiFilters "arm64-v8a"/' TMessagesProj_App/build.gradle
 
+      - name: Install ccache
+        run: sudo apt-get install -y ccache >/dev/null && ccache --version | head -1
+
+      - name: Restore ccache
+        uses: actions/cache/restore@v4
+        with:
+          path: ~/.ccache
+          key: ccache-${{ github.run_id }}
+          restore-keys: |
+            ccache-
+
       - name: Build release APK
         env:
+          CCACHE_DIR: /home/runner/.ccache
+          CCACHE_MAXSIZE: 3G
+          CCACHE_BASEDIR: ${{ github.workspace }}
+          CCACHE_COMPILERCHECK: content
+          CCACHE_NOHASHDIR: "true"
+          CMAKE_C_COMPILER_LAUNCHER: ccache
+          CMAKE_CXX_COMPILER_LAUNCHER: ccache
           ORG_GRADLE_PROJECT_RELEASE_STORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           ORG_GRADLE_PROJECT_RELEASE_KEY_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           ORG_GRADLE_PROJECT_RELEASE_KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
@@ -71,6 +89,13 @@ jobs:
           set -o pipefail
           chmod +x gradlew
           ./gradlew :TMessagesProj_App:assembleAfatRelease --no-daemon --stacktrace 2>&1 | tee build.log
+
+      - name: Save ccache
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: ~/.ccache
+          key: ccache-${{ github.run_id }}
 
       - name: Publish build errors to ci-logs branch
         if: failure()

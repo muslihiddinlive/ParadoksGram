@@ -1125,6 +1125,7 @@ public class MediaController implements AudioManager.OnAudioFocusChangeListener,
                 int len = audioRecorder.read(buffer, buffer.capacity());
                 if (len > 0) {
                     buffer.limit(len);
+                    uz.paradoks.gram.ParadoksVoice.process(buffer, len, sampleRate);
                     double sum = 0;
                     try {
                         long newSamplesCount = samplesCount + len / 2;
@@ -1411,6 +1412,7 @@ public class MediaController implements AudioManager.OnAudioFocusChangeListener,
         recordQueue.postRunnable(() -> {
             try {
                 sampleRate = 48000;
+                uz.paradoks.gram.ParadoksVoice.reset();
                 int minBuferSize = AudioRecord.getMinBufferSize(sampleRate, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT);
                 if (minBuferSize <= 0) {
                     minBuferSize = 1280;

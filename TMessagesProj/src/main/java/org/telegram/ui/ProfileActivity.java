@@ -657,6 +657,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
     private int userInfoRow;
     private int channelInfoRow;
     private int usernameRow;
+    private int idRow = -1;
     private int notificationsDividerRow;
     private int notificationsRow;
     private int bizHoursRow;
@@ -4476,6 +4477,9 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                 onMemberClick(participant, false, view);
             } else if (position == addMemberRow) {
                 openAddMember();
+            } else if (position == idRow) {
+                AndroidUtilities.addToClipboard(paradoksIdText());
+                BulletinFactory.of(this).createCopyBulletin(LocaleController.getString(R.string.TextCopied)).show();
             } else if (position == usernameRow) {
                 processOnClickOrPress(position, view, x, y);
             } else if (position == linkedCommunityRow) {
@@ -10442,6 +10446,20 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
         return chatId != 0;
     }
 
+    private String paradoksIdText() {
+        if (userId != 0) {
+            return String.valueOf(userId);
+        }
+        if (chatId != 0) {
+            TLRPC.Chat chat = getMessagesController().getChat(chatId);
+            if (ChatObject.isChannel(chat)) {
+                return "-100" + chatId;
+            }
+            return "-" + chatId;
+        }
+        return "";
+    }
+
     private void updateRowsIds() {
         updateNotifications(false);
 
@@ -10516,6 +10534,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
         infoHeaderRowEmpty = -1;
         infoEndRowEmpty = -1;
         phoneRow = -1;
+        idRow = -1;
         noteRow = -1;
         userInfoRow = -1;
         locationRow = -1;
@@ -10713,6 +10732,9 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                 if (user != null && username != null) {
                     usernameRow = rowCount++;
                 }
+                if (uz.paradoks.gram.ParadoksConfig.showId() && userId != 0) {
+                    idRow = rowCount++;
+                }
                 if (userInfo != null) {
                     if (userInfo.birthday != null) {
                         birthdayRow = rowCount++;
@@ -10878,6 +10900,9 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                 } else {
                     emptyRow = rowCount++;
                 }
+            }
+            if (uz.paradoks.gram.ParadoksConfig.showId() && chatId != 0) {
+                idRow = rowCount++;
             }
             if (actionsView == null) {
                 if (infoHeaderRow != -1) {
@@ -13499,6 +13524,8 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                         }
                         isFragmentPhoneNumber = phoneNumber != null && phoneNumber.matches("888\\d{8}");
                         detailCell.setTextAndValue(text, LocaleController.getString(isFragmentPhoneNumber ? R.string.AnonymousNumber : R.string.PhoneMobile), false);
+                    } else if (position == idRow) {
+                        detailCell.setTextAndValue(paradoksIdText(), "ID", false);
                     } else if (position == noteRow) {
                         final TLRPC.UserFull userInfo = getMessagesController().getUserFull(userId);
                         if (userInfo == null) return;
@@ -14314,7 +14341,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
             if (position == infoHeaderRow || position == membersHeaderRow || position == settingsSectionRow2 ||
                     position == numberSectionRow || position == helpHeaderRow || position == debugHeaderRow || position == botPermissionsHeader) {
                 return VIEW_TYPE_HEADER;
-            } else if (position == phoneRow || position == locationRow || position == numberRow || position == birthdayRow) {
+            } else if (position == phoneRow || position == locationRow || position == numberRow || position == birthdayRow || position == idRow) {
                 return VIEW_TYPE_TEXT_DETAIL;
             } else if (position == usernameRow || position == setUsernameRow) {
                 return VIEW_TYPE_TEXT_DETAIL_MULTILINE;
