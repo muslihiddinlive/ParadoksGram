@@ -22,6 +22,16 @@ jobs:
           docker image prune -af >/dev/null 2>&1 || true
           df -h /
 
+      - name: Add swap (avoid runner running out of memory)
+        run: |
+          sudo swapoff -a || true
+          sudo fallocate -l 8G /swapfile
+          sudo chmod 600 /swapfile
+          sudo mkswap /swapfile >/dev/null
+          sudo swapon /swapfile
+          free -h
+          df -h /
+
       - name: Checkout (with submodules)
         uses: actions/checkout@v4
         with:
