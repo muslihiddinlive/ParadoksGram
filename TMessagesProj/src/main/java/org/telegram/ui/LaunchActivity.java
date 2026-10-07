@@ -443,6 +443,7 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
         flagSecureReason.attach();
 
         super.onCreate(savedInstanceState);
+        AndroidUtilities.runOnUIThread(() -> uz.paradoks.gram.ParadoksCrash.showIfAny(LaunchActivity.this), 1500);
         if (Build.VERSION.SDK_INT >= 24) {
             AndroidUtilities.isInMultiwindow = isInMultiWindowMode();
         }
