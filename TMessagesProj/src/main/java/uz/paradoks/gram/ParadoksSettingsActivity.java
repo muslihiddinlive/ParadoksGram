@@ -36,6 +36,8 @@ public class ParadoksSettingsActivity extends BaseFragment {
     private int rowCount;
     private int generalHeaderRow;
     private int showIdRow;
+    private int keepDeletedRow;
+    private int trackEditsRow;
     private int showIdInfoRow;
     private int voiceHeaderRow;
     private int voiceEffectRow;
@@ -48,6 +50,8 @@ public class ParadoksSettingsActivity extends BaseFragment {
         rowCount = 0;
         generalHeaderRow = rowCount++;
         showIdRow = rowCount++;
+        keepDeletedRow = rowCount++;
+        trackEditsRow = rowCount++;
         showIdInfoRow = rowCount++;
         voiceHeaderRow = rowCount++;
         voiceEffectRow = rowCount++;
@@ -88,6 +92,18 @@ public class ParadoksSettingsActivity extends BaseFragment {
             if (position == showIdRow) {
                 boolean value = !ParadoksConfig.showId();
                 ParadoksConfig.setShowId(value);
+                if (view instanceof TextCheckCell) {
+                    ((TextCheckCell) view).setChecked(value);
+                }
+            } else if (position == keepDeletedRow) {
+                boolean value = !ParadoksConfig.keepDeleted();
+                ParadoksConfig.setKeepDeleted(value);
+                if (view instanceof TextCheckCell) {
+                    ((TextCheckCell) view).setChecked(value);
+                }
+            } else if (position == trackEditsRow) {
+                boolean value = !ParadoksConfig.trackEdits();
+                ParadoksConfig.setTrackEdits(value);
                 if (view instanceof TextCheckCell) {
                     ((TextCheckCell) view).setChecked(value);
                 }
@@ -140,7 +156,7 @@ public class ParadoksSettingsActivity extends BaseFragment {
         public int getItemViewType(int position) {
             if (position == generalHeaderRow || position == voiceHeaderRow) {
                 return TYPE_HEADER;
-            } else if (position == showIdRow) {
+            } else if (position == showIdRow || position == keepDeletedRow || position == trackEditsRow) {
                 return TYPE_CHECK;
             } else if (position == voiceEffectRow) {
                 return TYPE_VALUE;
@@ -182,7 +198,13 @@ public class ParadoksSettingsActivity extends BaseFragment {
                 }
                 case TYPE_CHECK: {
                     TextCheckCell cell = (TextCheckCell) holder.itemView;
-                    cell.setTextAndCheck("ID ni ko'rsatish", ParadoksConfig.showId(), false);
+                    if (position == showIdRow) {
+                        cell.setTextAndCheck("ID ni ko'rsatish", ParadoksConfig.showId(), true);
+                    } else if (position == keepDeletedRow) {
+                        cell.setTextAndCheck("O'chirilgan xabarlarni saqlash", ParadoksConfig.keepDeleted(), true);
+                    } else {
+                        cell.setTextAndCheck("Tahrirlar tarixini saqlash", ParadoksConfig.trackEdits(), false);
+                    }
                     break;
                 }
                 case TYPE_VALUE: {
@@ -198,7 +220,7 @@ public class ParadoksSettingsActivity extends BaseFragment {
                     TextInfoPrivacyCell cell = (TextInfoPrivacyCell) holder.itemView;
                     cell.setBackgroundDrawable(Theme.getThemedDrawableByKey(context, R.drawable.greydivider_bottom, Theme.key_windowBackgroundGrayShadow));
                     if (position == showIdInfoRow) {
-                        cell.setText("Profil sahifasida foydalanuvchi ID si, kanal/guruh ID si (-100 bilan) ko'rsatiladi. Bosilsa nusxa olinadi.");
+                        cell.setText("ID: profilda foydalanuvchi/kanal ID si (kanalda -100 bilan) ko'rsatiladi, bosilsa nusxa olinadi. O'chirilgan xabar chatda qoladi va \"o'chirilgan\" belgisi bilan ko'rinadi (belgi chatni qayta ochganda yoki aylantirganda paydo bo'ladi). Tahrirlangan xabar eski variantlari xabar menyusidagi \"Tahrirlar tarixi\" bandida ko'rinadi. Faqat ushbu o'rnatishdan keyingi o'zgarishlar saqlanadi.");
                     } else {
                         cell.setText("Ovozli xabar yozayotganda tanlangan effekt qo'llanadi. Yuborilgan xabar effekt bilan chiqadi.");
                     }

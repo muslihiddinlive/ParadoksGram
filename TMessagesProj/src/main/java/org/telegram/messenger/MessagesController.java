@@ -17596,6 +17596,9 @@ public class MessagesController extends BaseController implements NotificationCe
     }
 
     protected void deleteMessagesByPush(long dialogId, ArrayList<Integer> ids, long channelId) {
+        if (uz.paradoks.gram.ParadoksDeleted.keepByPush(currentAccount, channelId == 0 ? 0 : -channelId, ids)) {
+            return;
+        }
         getMessagesStorage().getStorageQueue().postRunnable(() -> {
             AndroidUtilities.runOnUIThread(() -> {
                 getNotificationCenter().postNotificationName(NotificationCenter.messagesDeleted, ids, channelId, false);
@@ -19469,6 +19472,10 @@ public class MessagesController extends BaseController implements NotificationCe
                 }
 
                 MessageObject.getDialogId(message);
+                try {
+                    uz.paradoks.gram.ParadoksEdits.onEdited(currentAccount, message, getMessagesStorage().getMessage(message.dialog_id, message.id));
+                } catch (Throwable ignore) {
+                }
 
                 ConcurrentHashMap<Long, Integer> read_max = message.out ? dialogs_read_outbox_max : dialogs_read_inbox_max;
                 Integer value = read_max.get(message.dialog_id);
@@ -21000,6 +21007,12 @@ public class MessagesController extends BaseController implements NotificationCe
         LongSparseIntArray markAsReadMessagesOutboxFinal = markAsReadMessagesOutbox;
         LongSparseArray<ArrayList<Integer>> markContentAsReadMessagesFinal = markContentAsReadMessages;
         SparseIntArray markAsReadEncryptedFinal = markAsReadEncrypted;
+        if (deletedMessages != null) {
+            uz.paradoks.gram.ParadoksDeleted.filter(currentAccount, deletedMessages);
+            if (deletedMessages.size() == 0) {
+                deletedMessages = null;
+            }
+        }
         LongSparseArray<ArrayList<Integer>> deletedMessagesFinal = deletedMessages;
         LongSparseArray<ArrayList<Integer>> deletedQuickRepliesMessagesFinal = deletedQuickReplyMessages;
         LongSparseArray<ArrayList<Integer>> scheduledDeletedMessagesFinal = scheduledDeletedMessages;

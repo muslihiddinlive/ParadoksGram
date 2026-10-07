@@ -20,6 +20,22 @@ public final class ParadoksConfig {
         prefs().edit().putBoolean("show_id", value).apply();
     }
 
+    public static boolean keepDeleted() {
+        return prefs().getBoolean("keep_deleted", true);
+    }
+
+    public static void setKeepDeleted(boolean value) {
+        prefs().edit().putBoolean("keep_deleted", value).apply();
+    }
+
+    public static boolean trackEdits() {
+        return prefs().getBoolean("track_edits", true);
+    }
+
+    public static void setTrackEdits(boolean value) {
+        prefs().edit().putBoolean("track_edits", value).apply();
+    }
+
     /** 0 = off, 1 = robot, 2 = cave, 3 = villager */
     public static int getVoiceEffect() {
         return prefs().getInt("voice_effect", 0);

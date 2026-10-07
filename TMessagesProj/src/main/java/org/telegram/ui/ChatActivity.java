@@ -33375,6 +33375,10 @@ public class ChatActivity extends BaseFragment implements
                 presentFragment(fragment);
                 break;
             }
+            case 9001: {
+                uz.paradoks.gram.ParadoksEdits.showHistory(this, currentAccount, selectedObject.messageOwner);
+                break;
+            }
             case OPTION_COPY: {
                 final TL_iv.RichMessage copyRichMessage = selectedObject.messageOwner != null ? selectedObject.messageOwner.rich_message : null;
                 if (selectedObject.isDice()) {
@@ -46224,6 +46228,11 @@ public class ChatActivity extends BaseFragment implements
                     items.add(LocaleController.getString(R.string.Copy));
                     options.add(OPTION_COPY);
                     icons.add(R.drawable.msg_copy);
+                }
+                if (uz.paradoks.gram.ParadoksEdits.hasHistory(currentAccount, selectedObject.messageOwner)) {
+                    items.add("Tahrirlar tarixi");
+                    options.add(9001);
+                    icons.add(R.drawable.msg_recent);
                 }
                 if (!isThreadChat() && chatMode != MODE_SCHEDULED && currentChat != null && primaryMessage != null && (currentChat.has_link || primaryMessage.hasReplies()) && currentChat.megagroup && primaryMessage.canViewThread()) {
                     if (primaryMessage.hasReplies()) {
