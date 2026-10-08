@@ -579,6 +579,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
     private final static int statistics = 19;
     private final static int start_secret_chat = 20;
     private final static int gallery_menu_save = 21;
+    private final static int paradoks_save_all = 9101;
     private final static int view_discussion = 22;
     private final static int delete_topic = 23;
     private final static int report = 24;
@@ -2783,6 +2784,8 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                     showDialog(builder.create());
                 } else if (id == bot_privacy) {
                     BotWebViewAttachedSheet.openPrivacy(currentAccount, userId);
+                } else if (id == paradoks_save_all) {
+                    paradoksSaveAllAvatars();
                 } else if (id == gallery_menu_save) {
                     if (getParentActivity() == null) {
                         return;
@@ -3142,8 +3145,10 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                     if (otherItem != null) {
                         if (!isPeerNoForwards()) {
                             otherItem.showSubItem(gallery_menu_save);
+                            otherItem.showSubItem(paradoks_save_all);
                         } else {
                             otherItem.hideSubItem(gallery_menu_save);
+                            otherItem.hideSubItem(paradoks_save_all);
                         }
                         if (imageUpdater != null) {
                             otherItem.showSubItem(edit_avatar);
@@ -8449,8 +8454,10 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                         if (otherItem != null) {
                             if (!isPeerNoForwards()) {
                                 otherItem.showSubItem(gallery_menu_save);
+                                otherItem.showSubItem(paradoks_save_all);
                             } else {
                                 otherItem.hideSubItem(gallery_menu_save);
+                                otherItem.hideSubItem(paradoks_save_all);
                             }
                             if (imageUpdater != null) {
                                 otherItem.showSubItem(add_photo);
@@ -8549,6 +8556,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                         NotificationCenter.getGlobalInstance().postNotificationName(NotificationCenter.needCheckSystemBarColors, true);
                         if (otherItem != null) {
                             otherItem.hideSubItem(gallery_menu_save);
+                            otherItem.hideSubItem(paradoks_save_all);
                             if (imageUpdater != null) {
                                 otherItem.hideSubItem(set_as_main);
                                 otherItem.hideSubItem(edit_avatar);
@@ -10444,6 +10452,65 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
 
     public boolean isChat() {
         return chatId != 0;
+    }
+
+    private void paradoksSaveAllAvatars() {
+        if (getParentActivity() == null || avatarsViewPager == null || isPeerNoForwards()) {
+            return;
+        }
+        if (Build.VERSION.SDK_INT >= 23 && (Build.VERSION.SDK_INT <= 28 || BuildVars.NO_SCOPED_STORAGE) && getParentActivity().checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+            getParentActivity().requestPermissions(new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE}, BasePermissionsActivity.REQUEST_CODE_EXTERNAL_STORAGE);
+            return;
+        }
+        final ArrayList<ImageLocation> locations = new ArrayList<>();
+        int count = avatarsViewPager.getRealCount();
+        for (int i = 0; i < count; i++) {
+            ImageLocation location = avatarsViewPager.getImageLocation(i);
+            if (location != null && location.location != null && location.imageType != FileLoader.IMAGE_TYPE_ANIMATION) {
+                locations.add(location);
+            }
+        }
+        if (locations.isEmpty()) {
+            android.widget.Toast.makeText(getParentActivity(), "Saqlanadigan rasm topilmadi", android.widget.Toast.LENGTH_SHORT).show();
+            return;
+        }
+        final Object parent = userId != 0 ? getMessagesController().getUser(userId) : getMessagesController().getChat(chatId);
+        for (ImageLocation location : locations) {
+            File file = FileLoader.getInstance(currentAccount).getPathToAttach(location.location, null, true);
+            if (file == null || !file.exists()) {
+                FileLoader.getInstance(currentAccount).loadFile(location, parent, null, FileLoader.PRIORITY_NORMAL, 1);
+            }
+        }
+        android.widget.Toast.makeText(getParentActivity(), locations.size() + " ta rasm yuklanmoqda...", android.widget.Toast.LENGTH_SHORT).show();
+
+        final boolean[] saved = new boolean[locations.size()];
+        final int[] attempts = {0};
+        final Runnable[] poll = new Runnable[1];
+        poll[0] = () -> {
+            if (getParentActivity() == null) {
+                return;
+            }
+            int done = 0;
+            for (int i = 0; i < locations.size(); i++) {
+                if (saved[i]) {
+                    done++;
+                    continue;
+                }
+                File file = FileLoader.getInstance(currentAccount).getPathToAttach(locations.get(i).location, null, true);
+                if (file != null && file.exists() && file.length() > 0) {
+                    saved[i] = true;
+                    done++;
+                    MediaController.saveFile(file.toString(), getParentActivity(), 0, null, null, uri -> {
+                    });
+                }
+            }
+            if (done < locations.size() && ++attempts[0] < 45) {
+                AndroidUtilities.runOnUIThread(poll[0], 1000);
+            } else {
+                android.widget.Toast.makeText(getParentActivity(), done + " / " + locations.size() + " ta rasm galereyaga saqlandi", android.widget.Toast.LENGTH_LONG).show();
+            }
+        };
+        AndroidUtilities.runOnUIThread(poll[0], 1000);
     }
 
     private String paradoksIdText() {
@@ -12347,13 +12414,16 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
         if (imageUpdater != null) {
             otherItem.addSubItem(set_as_main, R.drawable.msg_openprofile, LocaleController.getString(R.string.SetAsMain));
             otherItem.addSubItem(gallery_menu_save, R.drawable.msg_gallery, LocaleController.getString(R.string.SaveToGallery));
+            otherItem.addSubItem(paradoks_save_all, R.drawable.msg_gallery, "Barcha rasmlarni saqlash");
             //otherItem.addSubItem(edit_avatar, R.drawable.photo_paint, LocaleController.getString(R.string.EditPhoto));
             otherItem.addSubItem(delete_avatar, R.drawable.msg_delete, LocaleController.getString(R.string.Delete));
         } else {
             otherItem.addSubItem(gallery_menu_save, R.drawable.msg_gallery, LocaleController.getString(R.string.SaveToGallery));
+            otherItem.addSubItem(paradoks_save_all, R.drawable.msg_gallery, "Barcha rasmlarni saqlash");
         }
         if (isPeerNoForwards()) {
             otherItem.hideSubItem(gallery_menu_save);
+            otherItem.hideSubItem(paradoks_save_all);
         }
 
         if (userId != 0 && !isBot && !myProfile) {
@@ -12365,6 +12435,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
         }
         if (!isPulledDown) {
             otherItem.hideSubItem(gallery_menu_save);
+            otherItem.hideSubItem(paradoks_save_all);
             otherItem.hideSubItem(set_as_main);
             otherItem.showSubItem(add_photo);
             otherItem.hideSubItem(edit_avatar);
