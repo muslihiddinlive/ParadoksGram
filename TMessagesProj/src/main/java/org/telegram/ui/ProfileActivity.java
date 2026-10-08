@@ -580,6 +580,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
     private final static int start_secret_chat = 20;
     private final static int gallery_menu_save = 21;
     private final static int paradoks_save_all = 9101;
+    private final static int paradoks_save_stories = 9102;
     private final static int view_discussion = 22;
     private final static int delete_topic = 23;
     private final static int report = 24;
@@ -2786,6 +2787,8 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                     BotWebViewAttachedSheet.openPrivacy(currentAccount, userId);
                 } else if (id == paradoks_save_all) {
                     paradoksSaveAllAvatars();
+                } else if (id == paradoks_save_stories) {
+                    paradoksSaveStories();
                 } else if (id == gallery_menu_save) {
                     if (getParentActivity() == null) {
                         return;
@@ -3146,9 +3149,11 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                         if (!isPeerNoForwards()) {
                             otherItem.showSubItem(gallery_menu_save);
                             otherItem.showSubItem(paradoks_save_all);
+                            otherItem.showSubItem(paradoks_save_stories);
                         } else {
                             otherItem.hideSubItem(gallery_menu_save);
                             otherItem.hideSubItem(paradoks_save_all);
+                            otherItem.hideSubItem(paradoks_save_stories);
                         }
                         if (imageUpdater != null) {
                             otherItem.showSubItem(edit_avatar);
@@ -8455,9 +8460,11 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                             if (!isPeerNoForwards()) {
                                 otherItem.showSubItem(gallery_menu_save);
                                 otherItem.showSubItem(paradoks_save_all);
+                                otherItem.showSubItem(paradoks_save_stories);
                             } else {
                                 otherItem.hideSubItem(gallery_menu_save);
                                 otherItem.hideSubItem(paradoks_save_all);
+                                otherItem.hideSubItem(paradoks_save_stories);
                             }
                             if (imageUpdater != null) {
                                 otherItem.showSubItem(add_photo);
@@ -8557,6 +8564,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                         if (otherItem != null) {
                             otherItem.hideSubItem(gallery_menu_save);
                             otherItem.hideSubItem(paradoks_save_all);
+                            otherItem.hideSubItem(paradoks_save_stories);
                             if (imageUpdater != null) {
                                 otherItem.hideSubItem(set_as_main);
                                 otherItem.hideSubItem(edit_avatar);
@@ -10514,6 +10522,108 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
         AndroidUtilities.runOnUIThread(poll[0], 1000);
     }
 
+    /** Saves the user's/channel's active stories that are not protected by their owner. */
+    private void paradoksSaveStories() {
+        if (getParentActivity() == null || isPeerNoForwards()) {
+            return;
+        }
+        if (Build.VERSION.SDK_INT >= 23 && (Build.VERSION.SDK_INT <= 28 || BuildVars.NO_SCOPED_STORAGE) && getParentActivity().checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+            getParentActivity().requestPermissions(new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE}, BasePermissionsActivity.REQUEST_CODE_EXTERNAL_STORAGE);
+            return;
+        }
+        final long dialogId = userId != 0 ? userId : -chatId;
+        org.telegram.tgnet.tl.TL_stories.PeerStories peerStories = getMessagesController().getStoriesController().getStories(dialogId);
+        if (peerStories == null || peerStories.stories == null || peerStories.stories.isEmpty()) {
+            android.widget.Toast.makeText(getParentActivity(), "Faol story topilmadi", android.widget.Toast.LENGTH_SHORT).show();
+            return;
+        }
+        final ArrayList<org.telegram.tgnet.tl.TL_stories.StoryItem> items = new ArrayList<>();
+        int protectedCount = 0;
+        for (org.telegram.tgnet.tl.TL_stories.StoryItem item : peerStories.stories) {
+            if (item == null || item instanceof org.telegram.tgnet.tl.TL_stories.TL_storyItemSkipped || item.media == null) {
+                continue;
+            }
+            if (item.noforwards) {
+                protectedCount++;
+                continue;
+            }
+            items.add(item);
+        }
+        if (items.isEmpty()) {
+            android.widget.Toast.makeText(getParentActivity(), protectedCount > 0 ? "Story'lar egasi tomonidan himoyalangan, saqlab bo'lmaydi" : "Saqlanadigan story topilmadi", android.widget.Toast.LENGTH_LONG).show();
+            return;
+        }
+        final int skippedProtected = protectedCount;
+        for (org.telegram.tgnet.tl.TL_stories.StoryItem item : items) {
+            File file = paradoksStoryFile(item);
+            if (file != null && file.exists() && file.length() > 0) {
+                continue;
+            }
+            TLRPC.Document document = item.media.getDocument();
+            if (document != null) {
+                FileLoader.getInstance(currentAccount).loadFile(document, item, FileLoader.PRIORITY_NORMAL, 0);
+            } else if (item.media.photo != null) {
+                TLRPC.PhotoSize size = FileLoader.getClosestPhotoSizeWithSize(item.media.photo.sizes, Integer.MAX_VALUE);
+                FileLoader.getInstance(currentAccount).loadFile(ImageLocation.getForPhoto(size, item.media.photo), item, null, FileLoader.PRIORITY_NORMAL, 1);
+            }
+        }
+        android.widget.Toast.makeText(getParentActivity(), items.size() + " ta story yuklanmoqda...", android.widget.Toast.LENGTH_SHORT).show();
+
+        final boolean[] saved = new boolean[items.size()];
+        final int[] attempts = {0};
+        final Runnable[] poll = new Runnable[1];
+        poll[0] = () -> {
+            if (getParentActivity() == null) {
+                return;
+            }
+            int done = 0;
+            for (int i = 0; i < items.size(); i++) {
+                if (saved[i]) {
+                    done++;
+                    continue;
+                }
+                org.telegram.tgnet.tl.TL_stories.StoryItem item = items.get(i);
+                File file = paradoksStoryFile(item);
+                if (file != null && file.exists() && file.length() > 0) {
+                    saved[i] = true;
+                    done++;
+                    boolean video = item.media.getDocument() != null && MessageObject.isVideoDocument(item.media.getDocument());
+                    MediaController.saveFile(file.toString(), getParentActivity(), video ? 1 : 0, null, null, uri -> {
+                    });
+                }
+            }
+            if (done < items.size() && ++attempts[0] < 150) {
+                AndroidUtilities.runOnUIThread(poll[0], 1000);
+            } else {
+                String text = done + " / " + items.size() + " ta story galereyaga saqlandi";
+                if (skippedProtected > 0) {
+                    text += " (" + skippedProtected + " tasi himoyalangan)";
+                }
+                android.widget.Toast.makeText(getParentActivity(), text, android.widget.Toast.LENGTH_LONG).show();
+            }
+        };
+        AndroidUtilities.runOnUIThread(poll[0], 1000);
+    }
+
+    private File paradoksStoryFile(org.telegram.tgnet.tl.TL_stories.StoryItem item) {
+        if (item.media == null) {
+            return null;
+        }
+        TLRPC.Document document = item.media.getDocument();
+        if (document != null) {
+            return FileLoader.getInstance(currentAccount).getPathToAttach(document);
+        }
+        if (item.media.photo != null) {
+            TLRPC.PhotoSize size = FileLoader.getClosestPhotoSizeWithSize(item.media.photo.sizes, Integer.MAX_VALUE);
+            File file = FileLoader.getInstance(currentAccount).getPathToAttach(size, true);
+            if (!file.exists()) {
+                file = FileLoader.getInstance(currentAccount).getPathToAttach(size, false);
+            }
+            return file;
+        }
+        return null;
+    }
+
     private File paradoksAvatarFile(ImageLocation location) {
         boolean video = location.imageType == FileLoader.IMAGE_TYPE_ANIMATION;
         File file = FileLoader.getInstance(currentAccount).getPathToAttach(location.location, video ? "mp4" : null, true);
@@ -12425,15 +12535,18 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
             otherItem.addSubItem(set_as_main, R.drawable.msg_openprofile, LocaleController.getString(R.string.SetAsMain));
             otherItem.addSubItem(gallery_menu_save, R.drawable.msg_gallery, LocaleController.getString(R.string.SaveToGallery));
             otherItem.addSubItem(paradoks_save_all, R.drawable.msg_gallery, "Barcha rasmlarni saqlash");
+            otherItem.addSubItem(paradoks_save_stories, R.drawable.msg_gallery, "Story'larni saqlash");
             //otherItem.addSubItem(edit_avatar, R.drawable.photo_paint, LocaleController.getString(R.string.EditPhoto));
             otherItem.addSubItem(delete_avatar, R.drawable.msg_delete, LocaleController.getString(R.string.Delete));
         } else {
             otherItem.addSubItem(gallery_menu_save, R.drawable.msg_gallery, LocaleController.getString(R.string.SaveToGallery));
             otherItem.addSubItem(paradoks_save_all, R.drawable.msg_gallery, "Barcha rasmlarni saqlash");
+            otherItem.addSubItem(paradoks_save_stories, R.drawable.msg_gallery, "Story'larni saqlash");
         }
         if (isPeerNoForwards()) {
             otherItem.hideSubItem(gallery_menu_save);
             otherItem.hideSubItem(paradoks_save_all);
+            otherItem.hideSubItem(paradoks_save_stories);
         }
 
         if (userId != 0 && !isBot && !myProfile) {
@@ -12446,6 +12559,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
         if (!isPulledDown) {
             otherItem.hideSubItem(gallery_menu_save);
             otherItem.hideSubItem(paradoks_save_all);
+            otherItem.hideSubItem(paradoks_save_stories);
             otherItem.hideSubItem(set_as_main);
             otherItem.showSubItem(add_photo);
             otherItem.hideSubItem(edit_avatar);
