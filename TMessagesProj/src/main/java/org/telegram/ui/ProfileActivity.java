@@ -10466,7 +10466,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
         int count = avatarsViewPager.getRealCount();
         for (int i = 0; i < count; i++) {
             ImageLocation location = avatarsViewPager.getImageLocation(i);
-            if (location != null && location.location != null && location.imageType != FileLoader.IMAGE_TYPE_ANIMATION) {
+            if (location != null && location.location != null) {
                 locations.add(location);
             }
         }
@@ -10476,12 +10476,13 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
         }
         final Object parent = userId != 0 ? getMessagesController().getUser(userId) : getMessagesController().getChat(chatId);
         for (ImageLocation location : locations) {
-            File file = FileLoader.getInstance(currentAccount).getPathToAttach(location.location, null, true);
+            File file = paradoksAvatarFile(location);
             if (file == null || !file.exists()) {
-                FileLoader.getInstance(currentAccount).loadFile(location, parent, null, FileLoader.PRIORITY_NORMAL, 1);
+                boolean video = location.imageType == FileLoader.IMAGE_TYPE_ANIMATION;
+                FileLoader.getInstance(currentAccount).loadFile(location, parent, video ? "mp4" : null, FileLoader.PRIORITY_NORMAL, 1);
             }
         }
-        android.widget.Toast.makeText(getParentActivity(), locations.size() + " ta rasm yuklanmoqda...", android.widget.Toast.LENGTH_SHORT).show();
+        android.widget.Toast.makeText(getParentActivity(), locations.size() + " ta rasm/video yuklanmoqda...", android.widget.Toast.LENGTH_SHORT).show();
 
         final boolean[] saved = new boolean[locations.size()];
         final int[] attempts = {0};
@@ -10496,7 +10497,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                     done++;
                     continue;
                 }
-                File file = FileLoader.getInstance(currentAccount).getPathToAttach(locations.get(i).location, null, true);
+                File file = paradoksAvatarFile(locations.get(i));
                 if (file != null && file.exists() && file.length() > 0) {
                     saved[i] = true;
                     done++;
@@ -10504,13 +10505,22 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                     });
                 }
             }
-            if (done < locations.size() && ++attempts[0] < 45) {
+            if (done < locations.size() && ++attempts[0] < 150) {
                 AndroidUtilities.runOnUIThread(poll[0], 1000);
             } else {
-                android.widget.Toast.makeText(getParentActivity(), done + " / " + locations.size() + " ta rasm galereyaga saqlandi", android.widget.Toast.LENGTH_LONG).show();
+                android.widget.Toast.makeText(getParentActivity(), done + " / " + locations.size() + " ta rasm/video galereyaga saqlandi", android.widget.Toast.LENGTH_LONG).show();
             }
         };
         AndroidUtilities.runOnUIThread(poll[0], 1000);
+    }
+
+    private File paradoksAvatarFile(ImageLocation location) {
+        boolean video = location.imageType == FileLoader.IMAGE_TYPE_ANIMATION;
+        File file = FileLoader.getInstance(currentAccount).getPathToAttach(location.location, video ? "mp4" : null, true);
+        if (video && (file == null || !file.exists())) {
+            file = new File(FileLoader.getDirectory(FileLoader.MEDIA_DIR_IMAGE), FileLoader.getAttachFileName(location.location, "mp4"));
+        }
+        return file;
     }
 
     private String paradoksIdText() {
