@@ -36,6 +36,14 @@ public final class ParadoksConfig {
         prefs().edit().putBoolean("track_edits", value).apply();
     }
 
+    public static boolean ghostMode() {
+        return prefs().getBoolean("ghost_mode", false);
+    }
+
+    public static void setGhostMode(boolean value) {
+        prefs().edit().putBoolean("ghost_mode", value).apply();
+    }
+
     /** 0 = off, 1 = robot, 2 = cave, 3 = villager */
     public static int getVoiceEffect() {
         return prefs().getInt("voice_effect", 0);

@@ -38,6 +38,7 @@ public class ParadoksSettingsActivity extends BaseFragment {
     private int showIdRow;
     private int keepDeletedRow;
     private int trackEditsRow;
+    private int ghostModeRow;
     private int showIdInfoRow;
     private int voiceHeaderRow;
     private int voiceEffectRow;
@@ -52,6 +53,7 @@ public class ParadoksSettingsActivity extends BaseFragment {
         showIdRow = rowCount++;
         keepDeletedRow = rowCount++;
         trackEditsRow = rowCount++;
+        ghostModeRow = rowCount++;
         showIdInfoRow = rowCount++;
         voiceHeaderRow = rowCount++;
         voiceEffectRow = rowCount++;
@@ -107,6 +109,12 @@ public class ParadoksSettingsActivity extends BaseFragment {
                 if (view instanceof TextCheckCell) {
                     ((TextCheckCell) view).setChecked(value);
                 }
+            } else if (position == ghostModeRow) {
+                boolean value = !ParadoksConfig.ghostMode();
+                ParadoksConfig.setGhostMode(value);
+                if (view instanceof TextCheckCell) {
+                    ((TextCheckCell) view).setChecked(value);
+                }
             } else if (position == voiceEffectRow) {
                 showVoiceEffectDialog();
             }
@@ -156,7 +164,7 @@ public class ParadoksSettingsActivity extends BaseFragment {
         public int getItemViewType(int position) {
             if (position == generalHeaderRow || position == voiceHeaderRow) {
                 return TYPE_HEADER;
-            } else if (position == showIdRow || position == keepDeletedRow || position == trackEditsRow) {
+            } else if (position == showIdRow || position == keepDeletedRow || position == trackEditsRow || position == ghostModeRow) {
                 return TYPE_CHECK;
             } else if (position == voiceEffectRow) {
                 return TYPE_VALUE;
@@ -202,8 +210,10 @@ public class ParadoksSettingsActivity extends BaseFragment {
                         cell.setTextAndCheck("ID ni ko'rsatish", ParadoksConfig.showId(), true);
                     } else if (position == keepDeletedRow) {
                         cell.setTextAndCheck("O'chirilgan xabarlarni saqlash", ParadoksConfig.keepDeleted(), true);
+                    } else if (position == trackEditsRow) {
+                        cell.setTextAndCheck("Tahrirlar tarixini saqlash", ParadoksConfig.trackEdits(), true);
                     } else {
-                        cell.setTextAndCheck("Tahrirlar tarixini saqlash", ParadoksConfig.trackEdits(), false);
+                        cell.setTextAndCheck("👻 Ghost mode", ParadoksConfig.ghostMode(), false);
                     }
                     break;
                 }
@@ -220,7 +230,7 @@ public class ParadoksSettingsActivity extends BaseFragment {
                     TextInfoPrivacyCell cell = (TextInfoPrivacyCell) holder.itemView;
                     cell.setBackgroundDrawable(Theme.getThemedDrawableByKey(context, R.drawable.greydivider_bottom, Theme.key_windowBackgroundGrayShadow));
                     if (position == showIdInfoRow) {
-                        cell.setText("ID: profilda foydalanuvchi/kanal ID si (kanalda -100 bilan) ko'rsatiladi, bosilsa nusxa olinadi. O'chirilgan xabar chatda qoladi va \"o'chirilgan\" belgisi bilan ko'rinadi (belgi chatni qayta ochganda yoki aylantirganda paydo bo'ladi). Tahrirlangan xabar eski variantlari xabar menyusidagi \"Tahrirlar tarixi\" bandida ko'rinadi. Faqat ushbu o'rnatishdan keyingi o'zgarishlar saqlanadi.");
+                        cell.setText("ID: profilda foydalanuvchi/kanal ID si (kanalda -100 bilan) ko'rsatiladi, bosilsa nusxa olinadi. O'chirilgan xabar chatda qoladi va \"o'chirilgan\" belgisi bilan ko'rinadi. Tahrirlangan xabar eski variantlari xabar menyusidagi \"Tahrirlar tarixi\" bandida ko'rinadi. Ghost mode: o'qilganlik belgisi yuborilmaydi, siz online ko'rinmaysiz, yozayotgan belgisi ham chiqmaydi.");
                     } else {
                         cell.setText("Ovozli xabar yozayotganda tanlangan effekt qo'llanadi. Yuborilgan xabar effekt bilan chiqadi.");
                     }

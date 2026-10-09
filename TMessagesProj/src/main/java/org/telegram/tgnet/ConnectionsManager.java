@@ -395,6 +395,18 @@ public class ConnectionsManager extends BaseController {
         if (BuildVars.LOGS_ENABLED) {
             FileLog.d("send request " + object + " with token = " + requestToken);
         }
+        // ParadoksGhost: drop read receipts and typing packets; force offline status
+        if (uz.paradoks.gram.ParadoksGhost.shouldDropRequest(object)) {
+            if (onComplete != null) {
+                TLRPC.TL_messages_affectedMessages fake = new TLRPC.TL_messages_affectedMessages();
+                fake.pts = 0;
+                fake.pts_count = 0;
+                Utilities.stageQueue.postRunnable(() -> onComplete.run(fake, null));
+            }
+            return;
+        }
+        uz.paradoks.gram.ParadoksGhost.forceOffline(object);
+        // end ParadoksGhost
         try {
             NativeByteBuffer buffer = new NativeByteBuffer(object.getObjectSize());
             object.serializeToStream(buffer);
