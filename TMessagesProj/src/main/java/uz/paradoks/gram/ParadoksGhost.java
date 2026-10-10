@@ -19,28 +19,18 @@ import org.telegram.tgnet.tl.TL_account;
  */
 public final class ParadoksGhost {
 
-    // TL constructor IDs we intercept
-    private static final int CID_READ_HISTORY    = TLRPC.TL_messages_readHistory.constructor;
-    private static final int CID_CHANNELS_READ   = TLRPC.TL_channels_readHistory.constructor;
-    private static final int CID_READ_ENC        = TLRPC.TL_messages_readEncryptedHistory.constructor;
-    private static final int CID_READ_CONTENTS   = TLRPC.TL_messages_readMessageContents.constructor;
-    private static final int CID_READ_DISCUSSION = TLRPC.TL_messages_readDiscussion.constructor;
-    private static final int CID_SET_TYPING      = TLRPC.TL_messages_setTyping.constructor;
-    private static final int CID_UPDATE_STATUS   = TL_account.updateStatus.constructor; // 0x6628562c
-
     /**
      * Returns true if the outgoing request must be silently dropped.
      * Called from ConnectionsManager.sendRequestInternal before native_sendRequest.
      */
     public static boolean shouldDropRequest(TLObject object) {
         if (object == null || !ParadoksConfig.ghostMode()) return false;
-        int cid = object.getConstructor();
-        return cid == CID_READ_HISTORY
-                || cid == CID_CHANNELS_READ
-                || cid == CID_READ_ENC
-                || cid == CID_READ_CONTENTS
-                || cid == CID_READ_DISCUSSION
-                || cid == CID_SET_TYPING;
+        return object instanceof TLRPC.TL_messages_readHistory
+                || object instanceof TLRPC.TL_channels_readHistory
+                || object instanceof TLRPC.TL_messages_readEncryptedHistory
+                || object instanceof TLRPC.TL_messages_readMessageContents
+                || object instanceof TLRPC.TL_messages_readDiscussion
+                || object instanceof TLRPC.TL_messages_setTyping;
     }
 
     /**
@@ -49,7 +39,7 @@ public final class ParadoksGhost {
      */
     public static void forceOffline(TLObject object) {
         if (object == null || !ParadoksConfig.ghostMode()) return;
-        if (object.getConstructor() == CID_UPDATE_STATUS) {
+        if (object instanceof TL_account.updateStatus) {
             ((TL_account.updateStatus) object).offline = true;
         }
     }
