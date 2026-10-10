@@ -1,0 +1,81 @@
+run: 38014144538  sha: 75821b7737e437374cbbfb868bfc8368e72a82ed
+2589:* What went wrong:
+2590-Execution failed for task ':TMessagesProj:compileReleaseJavaWithJavac'.
+2591-> Compilation failed; see the compiler output below.
+2592-  /home/runner/work/ParadoksGram/ParadoksGram/TMessagesProj/src/main/java/uz/paradoks/gram/ParadoksGhost.java:37: error: cannot find symbol
+2593-          int cid = object.getConstructor();
+2594-                          ^
+2595-    symbol:   method getConstructor()
+2596-    location: variable object of type TLObject
+2597-  /home/runner/work/ParadoksGram/ParadoksGram/TMessagesProj/src/main/java/uz/paradoks/gram/ParadoksGhost.java:52: error: cannot find symbol
+2598-          if (object.getConstructor() == CID_UPDATE_STATUS) {
+2599-                    ^
+2600-    symbol:   method getConstructor()
+2601-    location: variable object of type TLObject
+2567:/home/runner/work/ParadoksGram/ParadoksGram/TMessagesProj/src/main/java/uz/paradoks/gram/ParadoksGhost.java:37: error: cannot find symbol
+2572:/home/runner/work/ParadoksGram/ParadoksGram/TMessagesProj/src/main/java/uz/paradoks/gram/ParadoksGhost.java:52: error: cannot find symbol
+2592:  /home/runner/work/ParadoksGram/ParadoksGram/TMessagesProj/src/main/java/uz/paradoks/gram/ParadoksGhost.java:37: error: cannot find symbol
+2597:  /home/runner/work/ParadoksGram/ParadoksGram/TMessagesProj/src/main/java/uz/paradoks/gram/ParadoksGhost.java:52: error: cannot find symbol
+2615:/home/runner/work/ParadoksGram/ParadoksGram/TMessagesProj/src/main/java/uz/paradoks/gram/ParadoksGhost.java:37: error: cannot find symbol
+2620:/home/runner/work/ParadoksGram/ParadoksGram/TMessagesProj/src/main/java/uz/paradoks/gram/ParadoksGhost.java:52: error: cannot find symbol
+=== tail of cleaned log ===
+Note: Recompile with -Xlint:unchecked for details.
+2 errors
+
+> Task :TMessagesProj:compileReleaseJavaWithJavac FAILED
+
+[Incubating] Problems report is available at: file:///home/runner/work/ParadoksGram/ParadoksGram/build/reports/problems/problems-report.html
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':TMessagesProj:compileReleaseJavaWithJavac'.
+> Compilation failed; see the compiler output below.
+  /home/runner/work/ParadoksGram/ParadoksGram/TMessagesProj/src/main/java/uz/paradoks/gram/ParadoksGhost.java:37: error: cannot find symbol
+          int cid = object.getConstructor();
+                          ^
+    symbol:   method getConstructor()
+    location: variable object of type TLObject
+  /home/runner/work/ParadoksGram/ParadoksGram/TMessagesProj/src/main/java/uz/paradoks/gram/ParadoksGhost.java:52: error: cannot find symbol
+          if (object.getConstructor() == CID_UPDATE_STATUS) {
+                    ^
+    symbol:   method getConstructor()
+    location: variable object of type TLObject
+  Note: Some input files use or override a deprecated API.
+  Note: Recompile with -Xlint:deprecation for details.
+  Note: Some input files use unchecked or unsafe operations.
+  Note: Recompile with -Xlint:unchecked for details.
+  2 errors
+
+* Try:
+> Check your code and dependencies to fix the compilation error(s)
+> Run with --scan to get full insights.
+
+* Exception is:
+org.gradle.api.tasks.TaskExecutionException: Execution failed for task ':TMessagesProj:compileReleaseJavaWithJavac'.
+Caused by: org.gradle.api.internal.tasks.compile.CompilationFailedException: Compilation failed; see the compiler output below.
+/home/runner/work/ParadoksGram/ParadoksGram/TMessagesProj/src/main/java/uz/paradoks/gram/ParadoksGhost.java:37: error: cannot find symbol
+        int cid = object.getConstructor();
+                        ^
+  symbol:   method getConstructor()
+  location: variable object of type TLObject
+/home/runner/work/ParadoksGram/ParadoksGram/TMessagesProj/src/main/java/uz/paradoks/gram/ParadoksGhost.java:52: error: cannot find symbol
+        if (object.getConstructor() == CID_UPDATE_STATUS) {
+                  ^
+  symbol:   method getConstructor()
+  location: variable object of type TLObject
+Note: Some input files use or override a deprecated API.
+Note: Recompile with -Xlint:deprecation for details.
+Note: Some input files use unchecked or unsafe operations.
+Note: Recompile with -Xlint:unchecked for details.
+2 errors
+
+
+Deprecated Gradle features were used in this build, making it incompatible with Gradle 9.0.
+
+You can use '--warning-mode all' to show the individual deprecation warnings and determine if they come from your own scripts or plugins.
+
+For more on this, please refer to https://docs.gradle.org/8.13/userguide/command_line_interface.html#sec:command_line_warnings in the Gradle documentation.
+
+BUILD FAILED in 16m 51s
+311 actionable tasks: 311 executed
