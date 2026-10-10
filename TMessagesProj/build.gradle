@@ -250,7 +250,9 @@ def getProps(String propName) {
         return "";
     }
 }
-apply plugin: 'com.google.gms.google-services'
+// google-services plugin removed: this is a library module (namespace org.telegram.messenger),
+// not the app module. Firebase is configured in TMessagesProj_App where it belongs.
+// apply plugin: 'com.google.gms.google-services'
 
 task checkVisibility {
     doFirst {
