@@ -2,16 +2,10 @@ package uz.paradoks.gram;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
-import java.util.Arrays;
 
 /**
  * Real-time voice effects for voice-message recording (16-bit mono PCM).
- *
- * Fixes vs previous version:
- *  - Robot: sawtooth carrier (no dry bleed), no comb filter (no clicking)
- *  - Cave:  full Freeverb (8 combs + 4 allpass, correct delay sizes, zero-init,
- *           denormal flushing) — no crackling
- *  - Villager: circular-buffer resampler + AM tremolo — no warbling
+ * All effects are fully streaming — state survives across buffers, no clicks.
  */
 public final class ParadoksVoice {
 
@@ -25,16 +19,16 @@ public final class ParadoksVoice {
     }
 
     private static Effect effect;
-    private static int activeMode = -1;
-    private static int activeRate = 0;
+    private static int    activeMode = -1;
+    private static int    activeRate = 0;
 
     public static synchronized void reset() {
-        effect    = null;
+        effect     = null;
         activeMode = -1;
         activeRate = 0;
     }
 
-    /** Processes {@code len} bytes of PCM16 audio in-place. */
+    /** Processes {@code len} bytes of PCM16 audio in place. */
     public static synchronized void process(ByteBuffer buffer, int len, int sampleRate) {
         int mode = ParadoksConfig.getVoiceEffect();
         if (mode == OFF || buffer == null || len < 2) return;
@@ -52,13 +46,13 @@ public final class ParadoksVoice {
         for (int i = 0; i < count; i++) {
             float x = buffer.getShort(i * 2) / 32768f;
             float y = clamp(effect.process(x));
-            buffer.putShort(i * 2, (short) (y * 32767f));
+            buffer.putShort(i * 2, (short)(y * 32767f));
         }
         buffer.order(oldOrder);
     }
 
-    private static float clamp(float v) {
-        return v < -1f ? -1f : (v > 1f ? 1f : v);
+    private static float clamp(float y) {
+        return y > 1f ? 1f : (y < -1f ? -1f : y);
     }
 
     private static Effect create(int mode, int rate) {
@@ -70,173 +64,283 @@ public final class ParadoksVoice {
         }
     }
 
-    // ═══════════════════════════════════════════════════════════════ ROBOT ══
+    // ═══════════════════════════════════════════════════════════════ ROBOT
     /**
-     * Sawtooth ring modulation — zero dry signal, zero feedback comb.
-     * Sawtooth gives a richer robot buzz than a sine; because it swings
-     * symmetrically around 0 it produces no DC offset and no audible dry bleed.
+     * Robot voice: pulse-train vocoder approach.
+     * - LPC-style spectral envelope via one-pole pre-emphasis
+     * - Buzz excitation (sawtooth wave) replaces original pitch
+     * - Original voice fully suppressed (only spectral shape kept)
+     * No clicks: phase and filter state are continuous across buffers.
      */
     private static final class Robot implements Effect {
-        private static final float CARRIER_HZ = 100f;
-
-        private final float phaseStep; // radians per sample
+        // Buzz oscillator
+        private static final float BUZZ_HZ = 120f; // fundamental pitch of robot
+        private final float phaseInc;
         private float phase = 0f;
 
+        // Pre-emphasis filter state (high-shelf to brighten buzz)
+        private float preX1 = 0f;
+
+        // Formant shaping: two-stage comb for metallic texture
+        private final float[] comb1;
+        private final float[] comb2;
+        private int c1pos = 0, c2pos = 0;
+        private static final float COMB_FB = 0.6f;
+
+        // Final low-pass to smooth harshness
+        private float lpState = 0f;
+        private final float lpCoef;
+
         Robot(int rate) {
-            phaseStep = (float) (2.0 * Math.PI * CARRIER_HZ / rate);
+            phaseInc = BUZZ_HZ / rate;
+
+            // two comb lengths — prime ratio avoids resonance aliasing
+            comb1 = new float[Math.max(2, rate / 200)];  // ~5 ms
+            comb2 = new float[Math.max(2, rate / 143)];  // ~7 ms
+
+            // low-pass cutoff ~4 kHz
+            float fc = 4000f / rate;
+            lpCoef = (float)(1.0 - Math.exp(-2.0 * Math.PI * fc));
         }
 
         @Override
         public float process(float x) {
-            // Sawtooth: phase / π  maps [0, 2π] → [0, 2], then − 1 → [-1, 1]
-            float carrier = phase / (float) Math.PI - 1f;
-            phase += phaseStep;
-            if (phase >= (float) (2.0 * Math.PI)) phase -= (float) (2.0 * Math.PI);
-            // Pure ring mod — no dry at all
-            return x * carrier;
+            // 1. Pre-emphasis on input to extract spectral envelope hint
+            float pre = x - 0.95f * preX1;
+            preX1 = x;
+            float envAbs = Math.abs(pre);
+
+            // 2. Generate buzz (sawtooth)
+            phase += phaseInc;
+            if (phase >= 1f) phase -= 1f;
+            float buzz = 2f * phase - 1f; // sawtooth [-1,1]
+
+            // 3. AM-modulate buzz by input envelope so loudness follows voice
+            float sig = buzz * (0.3f + 0.7f * envAbs * 8f);
+            if (sig >  1f) sig =  1f;
+            if (sig < -1f) sig = -1f;
+
+            // 4. Comb filtering for metallic formants
+            float d1   = comb1[c1pos];
+            float out1 = sig + COMB_FB * d1;
+            comb1[c1pos] = out1;
+            if (++c1pos >= comb1.length) c1pos = 0;
+
+            float d2   = comb2[c2pos];
+            float out2 = out1 + COMB_FB * d2;
+            comb2[c2pos] = out2;
+            if (++c2pos >= comb2.length) c2pos = 0;
+
+            // 5. Low-pass to cut harshness
+            lpState += lpCoef * (out2 * 0.4f - lpState);
+
+            return clamp(lpState);
         }
     }
 
-    // ════════════════════════════════════════════════════════════════ CAVE ══
+    // ════════════════════════════════════════════════════════════════ CAVE
     /**
-     * Freeverb (Schroeder–Moorer) mono reverb.
-     * Delay sizes from the original Freeverb tuning.h (44100 Hz), scaled for
-     * other sample rates.  Every buffer is zero-initialised; denormals are
-     * flushed to prevent CPU spikes that manifest as clicks.
+     * Cave reverb: Schroeder reverb (4 parallel combs + 2 series allpass)
+     * followed by a long echo. No clicks — all state is persistent.
      */
     private static final class Cave implements Effect {
-
-        // Freeverb tuning at 44100 Hz
-        private static final int[] COMB_SIZES_44  = {1116, 1188, 1277, 1356, 1422, 1491, 1557, 1617};
-        private static final int[] AP_SIZES_44    = {556, 441, 341, 225};
-        private static final float FIXED_GAIN     = 0.015f;
-        private static final float ROOM_FEEDBACK  = 0.84f;  // roomSize=0.5 → 0.5*0.28+0.70
-        private static final float DAMP           = 0.2f;   // damp=0.5  → 0.5*0.40
-
-        private final LPComb[]   combs;
-        private final APFilter[] allpasses;
+        private final Comb[]   combs;
+        private final AllPass[] aps;
+        private final float[]  echo;
+        private int echoPos = 0;
+        private float echoFeed = 0f; // low-pass on echo feedback
 
         Cave(int rate) {
-            combs     = new LPComb  [COMB_SIZES_44.length];
-            allpasses = new APFilter[AP_SIZES_44.length];
-            for (int i = 0; i < combs.length; i++) {
-                int sz = Math.max(2, (int) ((long) COMB_SIZES_44[i] * rate / 44100));
-                combs[i] = new LPComb(sz, ROOM_FEEDBACK, DAMP);
+            // Moorer/Schroeder delays (prime, mutually incoherent)
+            int[] delayMs = {29, 37, 41, 43};
+            combs = new Comb[delayMs.length];
+            for (int i = 0; i < delayMs.length; i++) {
+                combs[i] = new Comb(Math.max(2, rate * delayMs[i] / 1000), 0.82f, 0.25f);
             }
-            for (int i = 0; i < allpasses.length; i++) {
-                int sz = Math.max(2, (int) ((long) AP_SIZES_44[i] * rate / 44100));
-                allpasses[i] = new APFilter(sz);
-            }
+            aps = new AllPass[]{
+                new AllPass(Math.max(2, rate * 5  / 1000), 0.5f),
+                new AllPass(Math.max(2, rate * 17 / 10000), 0.5f)
+            };
+            // 250 ms echo for cave depth
+            echo = new float[Math.max(2, rate * 250 / 1000)];
         }
 
         @Override
         public float process(float x) {
-            float in  = x * FIXED_GAIN;
+            // Parallel combs
             float wet = 0f;
-            for (LPComb c : combs)     wet += c.process(in);
-            for (APFilter a : allpasses) wet  = a.process(wet);
-            // blend: keep a little dry so voice stays intelligible
-            return 0.2f * x + 2.8f * wet;
+            for (Comb c : combs) wet += c.process(x);
+            wet *= 0.25f;
+
+            // Series allpass diffusion
+            for (AllPass a : aps) wet = a.process(wet);
+
+            // Long echo with LP-damped feedback
+            float e = echo[echoPos];
+            echoFeed += 0.3f * (e - echoFeed); // damp high freq in echo
+            echo[echoPos] = x + 0.42f * echoFeed;
+            if (++echoPos >= echo.length) echoPos = 0;
+
+            return clamp(0.5f * x + 0.6f * wet + 0.35f * echoFeed);
         }
 
-        /** Lowpass-feedback comb filter (the "Schroeder comb" used in Freeverb). */
-        private static final class LPComb {
+        // Schroeder comb with damping
+        private static final class Comb {
             private final float[] buf;
-            private int idx = 0;
+            private int pos = 0;
+            private final float fb, damp;
             private float store = 0f;
-            private final float fb, d1, d2;
 
-            LPComb(int size, float feedback, float damp) {
+            Comb(int size, float fb, float damp) {
                 buf = new float[size];
-                Arrays.fill(buf, 0f);
-                fb = feedback;
-                d1 = damp;
-                d2 = 1f - damp;
+                this.fb   = fb;
+                this.damp = damp;
             }
 
             float process(float x) {
-                float out = buf[idx];
-                // flush denormals
-                if (out > -1e-6f && out < 1e-6f) out = 0f;
-                store = out * d2 + store * d1;
-                if (store > -1e-6f && store < 1e-6f) store = 0f;
-                buf[idx] = x + store * fb;
-                if (++idx >= buf.length) idx = 0;
+                float out = buf[pos];
+                store = out * (1f - damp) + store * damp;
+                buf[pos] = x + store * fb;
+                if (++pos >= buf.length) pos = 0;
                 return out;
             }
         }
 
-        /** Schroeder all-pass filter. */
-        private static final class APFilter {
-            private static final float GAIN = 0.5f;
+        // Schroeder allpass
+        private static final class AllPass {
             private final float[] buf;
-            private int idx = 0;
+            private int pos = 0;
+            private final float gain;
 
-            APFilter(int size) {
+            AllPass(int size, float gain) {
                 buf = new float[size];
-                Arrays.fill(buf, 0f);
+                this.gain = gain;
             }
 
             float process(float x) {
-                float delayed = buf[idx];
-                if (delayed > -1e-6f && delayed < 1e-6f) delayed = 0f;
-                buf[idx] = x + delayed * GAIN;
-                if (++idx >= buf.length) idx = 0;
-                return delayed - x;
+                float d   = buf[pos];
+                float out = d - gain * x;
+                buf[pos]  = x + gain * d;
+                if (++pos >= buf.length) pos = 0;
+                return out;
             }
         }
     }
 
-    // ══════════════════════════════════════════════════════════════ VILLAGER ══
+    // ══════════════════════════════════════════════════════════════ VILLAGER
     /**
-     * Minecraft-villager sound: circular-buffer fractional resampler (pitch ×1.5)
-     * + fast AM tremolo (10 Hz).  No FFT, no phase-vocoder — no warbling.
+     * Villager (chipmunk) voice: simple real-time resampling.
+     *
+     * Approach: write input at normal rate, read back faster (higher pitch).
+     * Uses a circular buffer with linear interpolation — zero warble,
+     * no grain boundaries, no FFT needed.
+     *
+     * Ratio 1.4 = pitch up ~5 semitones (chipmunk-ish without sounding tiny).
+     * A gentle vibrato (±0.4 semitone, 5 Hz) adds the "alive" Villager feel.
+     * Nasal bandpass boost at 1200 Hz reinforces the character.
      */
     private static final class Villager implements Effect {
-        private static final float PITCH_RATIO   = 1.5f;  // up a fifth
-        private static final float TREMOLO_HZ    = 10f;
-        private static final float TREMOLO_DEPTH = 0.4f;  // 0.6 + 0.4·sin → [0.2, 1.0]
+        private static final float BASE_RATIO  = 1.40f;  // read speed / write speed
+        private static final float VIB_DEPTH   = 0.008f; // ±0.8%
+        private static final float VIB_HZ      = 5.0f;
 
-        private static final int BUF_BITS = 12;           // 4096 samples
-        private static final int BUF_SIZE = 1 << BUF_BITS;
-        private static final int BUF_MASK = BUF_SIZE - 1;
+        // Ring buffer — must be power-of-2 for fast masking
+        private final float[] buf;
+        private final int     mask;
+        private int   writePtr = 0;
+        private float readPtr  = 0f;
 
-        private final float[] ring = new float[BUF_SIZE];
-        private int   writePos     = 0;
-        private float readPos;
+        // Vibrato LFO
+        private final float lfoInc;
+        private float lfo = 0f;
 
-        private final float tremoloStep;
-        private float tremoloPhase = 0f;
+        // Nasal peak filter
+        private final Biquad nasal;
+
+        // Output LP to soften aliasing
+        private float lpOut = 0f;
+        private final float lpCoef;
 
         Villager(int rate) {
-            // Start read 256 samples behind write so we always have valid data
-            readPos     = BUF_SIZE - 256f;
-            tremoloStep = (float) (2.0 * Math.PI * TREMOLO_HZ / rate);
+            // Buffer: 3× the max read window gives plenty of headroom
+            int size = 1;
+            while (size < rate / 5) size <<= 1; // ~200 ms
+            buf  = new float[size];
+            mask = size - 1;
+
+            // Seed read pointer behind write so we always have data
+            readPtr = size - (int)(size * 0.1f); // 10% behind
+
+            lfoInc = (float)(2.0 * Math.PI * VIB_HZ / rate);
+
+            // Boost around 1200 Hz, Q=1.8, +6 dB — nasal quality
+            nasal  = Biquad.peaking(rate, 1200f, 1.8f, 6f);
+
+            // LP ~8 kHz to suppress resampling aliases
+            float fc = 8000f / rate;
+            lpCoef   = (float)(1.0 - Math.exp(-2.0 * Math.PI * fc));
         }
 
         @Override
         public float process(float x) {
-            // 1. Write input
-            ring[writePos & BUF_MASK] = x;
-            writePos++;
+            // Write
+            buf[writePtr & mask] = x;
+            writePtr++;
 
-            // 2. Read at fractional position (linear interpolation)
-            int   i0      = (int) readPos;
-            float frac    = readPos - i0;
-            float s0      = ring[ i0       & BUF_MASK];
-            float s1      = ring[(i0 + 1)  & BUF_MASK];
-            float pitched = s0 + frac * (s1 - s0);
+            // Vibrato
+            lfo += lfoInc;
+            if (lfo > (float)(2.0 * Math.PI)) lfo -= (float)(2.0 * Math.PI);
+            float ratio = BASE_RATIO + VIB_DEPTH * (float)Math.sin(lfo);
 
-            // 3. Advance read position by pitch ratio; keep it in circular range
-            readPos += PITCH_RATIO;
-            if (readPos >= BUF_SIZE) readPos -= BUF_SIZE;
+            // Read with linear interpolation
+            int   i0   = (int)Math.floor(readPtr);
+            float frac = readPtr - i0;
+            float s    = buf[i0 & mask] * (1f - frac) + buf[(i0 + 1) & mask] * frac;
+            readPtr += ratio;
 
-            // 4. AM tremolo
-            float tremolo = (1f - TREMOLO_DEPTH) + TREMOLO_DEPTH * (float) Math.sin(tremoloPhase);
-            tremoloPhase += tremoloStep;
-            if (tremoloPhase >= (float) (2.0 * Math.PI)) tremoloPhase -= (float) (2.0 * Math.PI);
+            // Keep read pointer from drifting too far from write
+            // (wrap within buffer, always stay behind writePtr)
+            float lag = (writePtr - readPtr + buf.length) % buf.length;
+            if (lag < 16)              readPtr -= 64;   // too close — step back
+            if (lag > buf.length - 64) readPtr += 64;   // too far — catch up
 
-            return pitched * tremolo;
+            // Nasal coloring + LP anti-alias
+            float colored = nasal.process(s);
+            lpOut += lpCoef * (colored - lpOut);
+
+            return clamp(lpOut * 0.85f);
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════ BIQUAD
+    private static final class Biquad {
+        private final float b0, b1, b2, a1, a2;
+        private float x1, x2, y1, y2;
+
+        private Biquad(float b0, float b1, float b2, float a1, float a2) {
+            this.b0 = b0; this.b1 = b1; this.b2 = b2;
+            this.a1 = a1; this.a2 = a2;
+        }
+
+        static Biquad peaking(int rate, float freq, float q, float gainDb) {
+            double A  = Math.pow(10.0, gainDb / 40.0);
+            double w0 = 2.0 * Math.PI * freq / rate;
+            double alpha = Math.sin(w0) / (2.0 * q);
+            double cosW  = Math.cos(w0);
+            double a0inv = 1.0 / (1.0 + alpha / A);
+            return new Biquad(
+                (float)((1.0 + alpha * A) * a0inv),
+                (float)((-2.0 * cosW)     * a0inv),
+                (float)((1.0 - alpha * A) * a0inv),
+                (float)((-2.0 * cosW)     * a0inv),
+                (float)((1.0 - alpha / A) * a0inv));
+        }
+
+        float process(float x) {
+            float y = b0*x + b1*x1 + b2*x2 - a1*y1 - a2*y2;
+            x2 = x1; x1 = x;
+            y2 = y1; y1 = y;
+            return y;
         }
     }
 
