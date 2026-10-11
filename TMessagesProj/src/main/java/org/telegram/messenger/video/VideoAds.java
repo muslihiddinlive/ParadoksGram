@@ -199,6 +199,10 @@ public static VideoAds make(
             return;
         }
 
+        if (uz.paradoks.gram.ParadoksConfig.hideSponsored()) { // ParadoksGram: no video ads
+            return;
+        }
+
         loading = true;
 
         TLRPC.TL_messages_getSponsoredMessages req = new TLRPC.TL_messages_getSponsoredMessages();
