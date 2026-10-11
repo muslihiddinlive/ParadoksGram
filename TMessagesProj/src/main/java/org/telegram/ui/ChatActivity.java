@@ -1672,6 +1672,8 @@ public class ChatActivity extends BaseFragment implements
     private final static int open_forum = 61;
 
     private final static int translate = 62;
+    private final static int paradoks_mark_read = 9201;
+    private final static int paradoks_lock = 9202;
     private final static int scheduled = 63;
     private final static int edit_quick_reply = 64;
 
@@ -3353,6 +3355,7 @@ public class ChatActivity extends BaseFragment implements
     @Override
     public void onFragmentDestroy() {
         super.onFragmentDestroy();
+        uz.paradoks.gram.ParadoksLock.onChatClosed(currentAccount, dialog_id); // ParadoksGram
         if (messageMetricsView != null) {
             messageMetricsView.finish();
         }
@@ -3960,6 +3963,13 @@ public class ChatActivity extends BaseFragment implements
                     getSendMessagesHelper().sendMessage(SendMessagesHelper.SendMessageParams.of("/settings", dialog_id, null, null, null, false, null, null, null, true, 0, 0, null, false));
                 } else if (id == search) {
                     openSearchWithText(isSupportedTags() ? "" : null);
+                } else if (id == paradoks_mark_read) {
+                    boolean sent = uz.paradoks.gram.ParadoksGhost.markReadNow(currentAccount, dialog_id);
+                    if (getParentActivity() != null) {
+                        android.widget.Toast.makeText(getParentActivity(), sent ? "O'qilgan deb belgilandi" : "Belgilash uchun xabar topilmadi", android.widget.Toast.LENGTH_SHORT).show();
+                    }
+                } else if (id == paradoks_lock) {
+                    uz.paradoks.gram.ParadoksLock.toggleChat(ChatActivity.this, currentAccount, dialog_id);
                 } else if (id == translate) {
                     getMessagesController().getTranslateController().setHideTranslateDialog(getDialogId(), false, true);
                     if (!getMessagesController().getTranslateController().toggleTranslatingDialog(getDialogId(), true)) {
@@ -4417,6 +4427,10 @@ public class ChatActivity extends BaseFragment implements
             }
             translateItem = headerItem.lazilyAddSubItem(translate, R.drawable.msg_translate, LocaleController.getString(R.string.TranslateMessage));
             updateTranslateItemVisibility();
+            if (uz.paradoks.gram.ParadoksConfig.ghostReadSwitch()) { // ParadoksGram: manual read receipt
+                headerItem.lazilyAddSubItem(paradoks_mark_read, R.drawable.msg_markread, "O'qilgan deb belgilash");
+            }
+            headerItem.lazilyAddSubItem(paradoks_lock, R.drawable.msg_secret, "Chat qulfi");
             if (currentChat != null && !currentChat.creator && !ChatObject.hasAdminRights(currentChat)) {
                 headerItem.lazilyAddSubItem(report, R.drawable.msg_report, LocaleController.getString(R.string.ReportChat));
             }
@@ -29769,6 +29783,7 @@ public class ChatActivity extends BaseFragment implements
     @Override
     public void onResume() {
         super.onResume();
+        uz.paradoks.gram.ParadoksLock.onChatResume(this, currentAccount, dialog_id); // ParadoksGram
         checkShowBlur(false);
         activityResumeTime = System.currentTimeMillis();
         if (openImport && getSendMessagesHelper().getImportingHistory(dialog_id) != null) {
