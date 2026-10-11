@@ -37,6 +37,7 @@ public class ParadoksSettingsActivity extends BaseFragment {
     private int generalHeaderRow;
     private int showIdRow;
     private int keepDeletedRow;
+    private int keepMediaRow;
     private int trackEditsRow;
     private int hideSponsoredRow;
     private int deletedRadarRow;
@@ -65,6 +66,7 @@ public class ParadoksSettingsActivity extends BaseFragment {
         generalHeaderRow = rowCount++;
         showIdRow = rowCount++;
         keepDeletedRow = rowCount++;
+        keepMediaRow = rowCount++;
         trackEditsRow = rowCount++;
         hideSponsoredRow = rowCount++;
         deletedRadarRow = rowCount++;
@@ -126,6 +128,12 @@ public class ParadoksSettingsActivity extends BaseFragment {
             } else if (position == keepDeletedRow) {
                 boolean value = !ParadoksConfig.keepDeleted();
                 ParadoksConfig.setKeepDeleted(value);
+                if (view instanceof TextCheckCell) {
+                    ((TextCheckCell) view).setChecked(value);
+                }
+            } else if (position == keepMediaRow) {
+                boolean value = !ParadoksConfig.keepDeletedMedia();
+                ParadoksConfig.setKeepDeletedMedia(value);
                 if (view instanceof TextCheckCell) {
                     ((TextCheckCell) view).setChecked(value);
                 }
@@ -253,7 +261,7 @@ public class ParadoksSettingsActivity extends BaseFragment {
         public int getItemViewType(int position) {
             if (position == generalHeaderRow || position == ghostHeaderRow || position == lockHeaderRow || position == voiceHeaderRow) {
                 return TYPE_HEADER;
-            } else if (position == showIdRow || position == keepDeletedRow || position == trackEditsRow || position == hideSponsoredRow
+            } else if (position == showIdRow || position == keepDeletedRow || position == keepMediaRow || position == trackEditsRow || position == hideSponsoredRow
                     || position == ghostReadRow || position == ghostTypingRow || position == ghostOnlineRow || position == ghostStoriesRow || position == ghostScheduleRow) {
                 return TYPE_CHECK;
             } else if (position == voiceEffectRow || position == deletedRadarRow || position == ghostStartRow || position == ghostEndRow || position == lockPinRow) {
@@ -310,6 +318,8 @@ public class ParadoksSettingsActivity extends BaseFragment {
                         cell.setTextAndCheck("ID ni ko'rsatish", ParadoksConfig.showId(), true);
                     } else if (position == keepDeletedRow) {
                         cell.setTextAndCheck("O'chirilgan xabarlarni saqlash", ParadoksConfig.keepDeleted(), true);
+                    } else if (position == keepMediaRow) {
+                        cell.setTextAndCheck("O'chirilgan media'ni saqlash", ParadoksConfig.keepDeletedMedia(), true);
                     } else if (position == trackEditsRow) {
                         cell.setTextAndCheck("Tahrirlar tarixini saqlash", ParadoksConfig.trackEdits(), true);
                     } else if (position == hideSponsoredRow) {
@@ -350,7 +360,7 @@ public class ParadoksSettingsActivity extends BaseFragment {
                     TextInfoPrivacyCell cell = (TextInfoPrivacyCell) holder.itemView;
                     cell.setBackgroundDrawable(Theme.getThemedDrawableByKey(context, R.drawable.greydivider_bottom, Theme.key_windowBackgroundGrayShadow));
                     if (position == showIdInfoRow) {
-                        cell.setText("ID: profilda foydalanuvchi/kanal ID si ko'rsatiladi, bosilsa nusxa olinadi. O'chirilgan xabar chatda qoladi va \"o'chirilgan\" belgisi bilan ko'rinadi, ro'yxati radarda. Tahrirlangan xabar eski variantlari xabar menyusidagi \"Tahrirlar tarixi\" bandida. Reklama: kanal va botlardagi \"Sponsored\" xabarlar ko'rsatilmaydi.");
+                        cell.setText("ID: profilda foydalanuvchi/kanal ID si ko'rsatiladi, bosilsa nusxa olinadi. O'chirilgan xabar chatda qoladi va \"o'chirilgan\" belgisi bilan ko'rinadi, ro'yxati radarda. O'chirilgan rasm, video va fayllar nusxasi ilovaning o'z papkasida saqlanadi (kesh tozalansa ham yo'qolmaydi, 150 MB gacha). Tahrirlangan xabar eski variantlari xabar menyusidagi \"Tahrirlar tarixi\" bandida. Reklama: kanal va botlardagi \"Sponsored\" xabarlar ko'rsatilmaydi.");
                     } else if (position == ghostInfoRow) {
                         cell.setText("Har bir qismni alohida yoqish mumkin. Jadval yoqilsa, yuqoridagi tanlanganlar faqat belgilangan vaqt oralig'ida ishlaydi (masalan 22:00 dan 08:00 gacha). Ghost o'qilgan belgisi yoqilganda chat menyusidagi \"O'qilgan deb belgilash\" orqali kerakli chatni qo'lda o'qilgan qilish mumkin.");
                     } else if (position == lockInfoRow) {

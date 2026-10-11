@@ -13,6 +13,7 @@ import androidx.recyclerview.widget.RecyclerView;
 import org.telegram.SQLite.SQLiteCursor;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ChatObject;
+import org.telegram.messenger.MediaController;
 import org.telegram.messenger.MessageObject;
 import org.telegram.messenger.MessagesController;
 import org.telegram.messenger.MessagesStorage;
@@ -44,6 +45,8 @@ public class ParadoksDeletedActivity extends BaseFragment {
         String chatName;
         String sender;
         String text;
+        String mediaPath;
+        int mediaKind;
     }
 
     private final ArrayList<Item> items = new ArrayList<>();
@@ -82,17 +85,36 @@ public class ParadoksDeletedActivity extends BaseFragment {
                 return;
             }
             Item item = items.get(position);
-            Bundle args = new Bundle();
-            if (item.dialogId > 0) {
-                args.putLong("user_id", item.dialogId);
-            } else {
-                args.putLong("chat_id", -item.dialogId);
+            if (item.mediaPath != null && getParentActivity() != null) {
+                org.telegram.ui.ActionBar.AlertDialog.Builder builder = new org.telegram.ui.ActionBar.AlertDialog.Builder(getParentActivity());
+                builder.setTitle("Saqlangan media");
+                builder.setItems(new CharSequence[]{"Chatda ochish", "Galereya/yuklamalarga saqlash"}, (d, which) -> {
+                    if (which == 0) {
+                        openChat(item);
+                    } else {
+                        java.io.File f = new java.io.File(item.mediaPath);
+                        MediaController.saveFile(item.mediaPath, getParentActivity(), item.mediaKind, f.getName(), null);
+                    }
+                });
+                builder.setNegativeButton(org.telegram.messenger.LocaleController.getString(R.string.Cancel), null);
+                showDialog(builder.create());
+                return;
             }
-            args.putInt("message_id", item.messageId);
-            presentFragment(new ChatActivity(args));
+            openChat(item);
         });
         fragmentView = contentView;
         return fragmentView;
+    }
+
+    private void openChat(Item item) {
+        Bundle args = new Bundle();
+        if (item.dialogId > 0) {
+            args.putLong("user_id", item.dialogId);
+        } else {
+            args.putLong("chat_id", -item.dialogId);
+        }
+        args.putInt("message_id", item.messageId);
+        presentFragment(new ChatActivity(args));
     }
 
     private void load() {
@@ -118,6 +140,11 @@ public class ParadoksDeletedActivity extends BaseFragment {
                 for (long[] row : rows) {
                     Item item = lookup(account, row[0], (int) row[1], row[2]);
                     if (item != null) {
+                        String[] media = ParadoksDb.get().queryMedia(account, row[0], (int) row[1]);
+                        if (media != null && new java.io.File(media[0]).exists()) {
+                            item.mediaPath = media[0];
+                            item.mediaKind = Integer.parseInt(media[1]);
+                        }
                         result.add(item);
                     }
                 }
@@ -222,7 +249,7 @@ public class ParadoksDeletedActivity extends BaseFragment {
             String when = new SimpleDateFormat("dd.MM.yyyy HH:mm", Locale.getDefault()).format(new Date(item.deletedAt * 1000L));
             String title = item.sender.equals(item.chatName) ? item.chatName : (item.sender + "  ›  " + item.chatName);
             String text = item.text.length() > 140 ? item.text.substring(0, 140) + "…" : item.text;
-            cell.setTextAndValue(title, text + "\n🗑 " + when, position != items.size() - 1);
+            cell.setTextAndValue(title, (item.mediaPath != null ? "📎 " : "") + text + "\n🗑 " + when, position != items.size() - 1);
         }
     }
 }

@@ -87,6 +87,7 @@ public final class ParadoksDeleted {
                 ParadoksDb.get().insertDeleted(account, dialogKey, id);
             }
         });
+        ParadoksMedia.saveFor(account, dialogKey, copy);
     }
 
     public static boolean isDeleted(int account, MessageObject object) {

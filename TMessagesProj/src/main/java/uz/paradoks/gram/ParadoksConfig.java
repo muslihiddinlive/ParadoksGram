@@ -28,6 +28,14 @@ public final class ParadoksConfig {
         prefs().edit().putBoolean("keep_deleted", value).apply();
     }
 
+    public static boolean keepDeletedMedia() {
+        return prefs().getBoolean("keep_deleted_media", true);
+    }
+
+    public static void setKeepDeletedMedia(boolean value) {
+        prefs().edit().putBoolean("keep_deleted_media", value).apply();
+    }
+
     public static boolean trackEdits() {
         return prefs().getBoolean("track_edits", true);
     }
