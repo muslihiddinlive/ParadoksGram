@@ -68,14 +68,12 @@ public final class ParadoksVoice {
 
     // ═══════════════════════════════════════════════════════════════ ROBOT
     /**
-     * Robot voice.
+     * Robot voice — ring modulation.
      *
-     * Envelope follower tracks loudness → gates sawtooth buzz at 120 Hz.
-     * Buzz amplitude = env * 0.8 (safe, no clipping).
+     * Voice × sawtooth (120 Hz) = metallic sidebands while preserving speech.
+     * Envelope follower gates output when silent (no idle buzz).
      * Two bandpass filters (600 Hz, 1500 Hz) → metallic robot formants.
      * Light 1-pole LP removes harshness.
-     *
-     * No idle noise: buzz is fully silent when voice is silent.
      */
     private static final class Robot implements Effect {
         // Buzz oscillator — 120 Hz fundamental
@@ -125,8 +123,9 @@ public final class ParadoksVoice {
             if (phase >= 1f) phase -= 1f;
             float buzz = 2f * phase - 1f; // [-1, 1]
 
-            // 3. Gate by envelope — max amplitude 0.8 to avoid clipping
-            float sig = buzz * env * 0.8f;
+            // 3. Ring-modulate: voice × buzz = metallic sidebands, speech preserved
+            //    Gate by envelope so output is silent when not speaking
+            float sig = x * buzz * env * 0.8f;
 
             // 4. Bandpass coloring (equal mix)
             float shaped = bp1.process(sig) * 0.5f + bp2.process(sig) * 0.5f;
@@ -183,11 +182,13 @@ public final class ParadoksVoice {
             for (AllPass a : aps) wet = a.process(wet);
 
             float e = echo[echoPos];
-            echoFeed += 0.2f * (e - echoFeed); // LP damp echo tail
+            // LP damp: τ=50ms at 48kHz → coef = 1-exp(-1/(0.05*48000)) ≈ 0.00042
+            echoFeed += 0.00042f * (e - echoFeed);
             echo[echoPos] = x + 0.35f * echoFeed;
             if (++echoPos >= echo.length) echoPos = 0;
 
-            return clamp(0.45f * x + 0.50f * wet + 0.25f * echoFeed);
+            // Mix coefficients sum to 1.0 — no clipping
+            return clamp(0.40f * x + 0.42f * wet + 0.18f * echoFeed);
         }
 
         private static final class Comb {
@@ -234,8 +235,9 @@ public final class ParadoksVoice {
     /**
      * Minecraft Villager voice.
      *
-     * Pitch: +3 semitones (ratio = 2^(3/12) ≈ 1.189) via circular-buffer resampling
-     * with linear interpolation. Subtle, not "nightcore".
+     * Pitch: +3 semitones via circular-buffer resampling with linear interpolation.
+     * readPtr advances by 1/RATIO ≈ 0.841 per sample (slower than write) →
+     * time-compression → pitch UP when played at normal speed.
      *
      * Timbre: nasal peak at 800 Hz Q=2 +7 dB (the "hmm" honk) +
      *         high-shelf cut -6 dB at 5 kHz (boxy/muffled character).
@@ -245,7 +247,9 @@ public final class ParadoksVoice {
      */
     private static final class Villager implements Effect {
         // 2^(3/12) = 1.1892 — 3 semitones up
-        private static final float RATIO = 1.1892f;
+        // readPtr advances by 1/RATIO per sample (read SLOWER than write → pitch UP)
+        private static final float RATIO     = 1.1892f;
+        private static final float READ_STEP = 1f / RATIO; // ≈ 0.8409f
 
         private final float[] buf;
         private final int     mask;
@@ -261,8 +265,8 @@ public final class ParadoksVoice {
             while (size < rate / 5) size <<= 1;
             buf  = new float[size];
             mask = size - 1;
-            // Start read pointer 10% behind write — always have data
-            readPtr = size - size / 10;
+            // Start read pointer ~20 ms behind write (enough pre-fill for interpolation)
+            readPtr = size - (int)(rate * 0.020f);
 
             // Nasal peak: 800 Hz, Q=2, +7 dB
             nasal = Biquad.peaking(rate, 800f, 2.0f, 7f);
@@ -278,13 +282,14 @@ public final class ParadoksVoice {
             int   i0   = (int) readPtr;
             float frac = readPtr - i0;
             float s    = buf[i0 & mask] * (1f - frac) + buf[(i0 + 1) & mask] * frac;
-            readPtr += RATIO;
+            // Read SLOWER than write (READ_STEP < 1) → time-compress → pitch UP
+            readPtr += READ_STEP;
 
-            // Prevent pointer drift
+            // Prevent pointer drift — lag = how far read lags behind write
             float lag = writePtr - readPtr;
             if (lag < 0)               lag += buf.length;
-            if (lag < 8)               readPtr -= 32;
-            if (lag > buf.length - 32) readPtr += 32;
+            if (lag < 8)               readPtr -= 16;   // read too close to write head
+            if (lag > buf.length - 32) readPtr += 16;   // lag grown too large
 
             // Shape: nasal honk + muffled shelf
             float out = shelf.process(nasal.process(s));
