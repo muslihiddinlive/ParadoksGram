@@ -230,7 +230,7 @@ public class ParadoksSettingsActivity extends BaseFragment {
                     TextInfoPrivacyCell cell = (TextInfoPrivacyCell) holder.itemView;
                     cell.setBackgroundDrawable(Theme.getThemedDrawableByKey(context, R.drawable.greydivider_bottom, Theme.key_windowBackgroundGrayShadow));
                     if (position == showIdInfoRow) {
-                        cell.setText("ID: profilda foydalanuvchi/kanal ID si (kanalda -100 bilan) ko'rsatiladi, bosilsa nusxa olinadi. O'chirilgan xabar chatda qoladi va \"o'chirilgan\" belgisi bilan ko'rinadi. Tahrirlangan xabar eski variantlari xabar menyusidagi \"Tahrirlar tarixi\" bandida ko'rinadi. Ghost mode: o'qilganlik belgisi yuborilmaydi, siz online ko'rinmaysiz, yozayotgan belgisi ham chiqmaydi.");
+                        cell.setText("ID: profilda foydalanuvchi/kanal ID si (kanalda -100 bilan) ko'rsatiladi, bosilsa nusxa olinadi. O'chirilgan xabar chatda qoladi va \"o'chirilgan\" belgisi bilan ko'rinadi. Tahrirlangan xabar eski variantlari xabar menyusidagi \"Tahrirlar tarixi\" bandida ko'rinadi. Ghost mode: o'qilganlik belgisi yuborilmaydi, siz online ko'rinmaysiz, yozayotgan belgisi ham chiqmaydi, ko'rgan storylaringiz egasiga ko'rinmaydi.");
                     } else {
                         cell.setText("Ovozli xabar yozayotganda tanlangan effekt qo'llanadi. Yuborilgan xabar effekt bilan chiqadi.");
                     }

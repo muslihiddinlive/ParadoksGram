@@ -3,6 +3,7 @@ package uz.paradoks.gram;
 import org.telegram.tgnet.TLRPC;
 import org.telegram.tgnet.TLObject;
 import org.telegram.tgnet.tl.TL_account;
+import org.telegram.tgnet.tl.TL_stories;
 
 /**
  * Ghost mode: prevents Telegram from leaking your presence to others.
@@ -11,6 +12,8 @@ import org.telegram.tgnet.tl.TL_account;
  *   1. Read receipts   — server never learns you read a message
  *   2. Online status   — account.updateStatus is always sent as offline=true
  *   3. Typing          — messages.setTyping is silently dropped
+ *   4. Story views     — stories.readStories / stories.incrementStoryViews are dropped,
+ *                        so the story owner never sees you in the viewers list
  *
  * Integration:
  *   - {@link #shouldDropRequest(TLObject)} — ConnectionsManager.sendRequestInternal
@@ -30,7 +33,9 @@ public final class ParadoksGhost {
                 || object instanceof TLRPC.TL_messages_readEncryptedHistory
                 || object instanceof TLRPC.TL_messages_readMessageContents
                 || object instanceof TLRPC.TL_messages_readDiscussion
-                || object instanceof TLRPC.TL_messages_setTyping;
+                || object instanceof TLRPC.TL_messages_setTyping
+                || object instanceof TL_stories.TL_stories_readStories
+                || object instanceof TL_stories.TL_stories_incrementStoryViews;
     }
 
     /**
