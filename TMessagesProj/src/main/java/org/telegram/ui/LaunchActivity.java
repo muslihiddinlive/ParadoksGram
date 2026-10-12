@@ -6728,6 +6728,7 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
     @Override
     protected void onPause() {
         super.onPause();
+        uz.paradoks.gram.ParadoksHidden.leaveAndReload(UserConfig.selectedAccount); // ParadoksGram: hidden chats close when the app goes to background
         isResumed = false;
         pipActivityHandler.onPause();
         NotificationCenter.getGlobalInstance().postNotificationName(NotificationCenter.stopAllHeavyOperations, 4096);

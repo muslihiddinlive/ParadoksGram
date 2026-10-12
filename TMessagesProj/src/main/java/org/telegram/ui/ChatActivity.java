@@ -1674,6 +1674,7 @@ public class ChatActivity extends BaseFragment implements
     private final static int translate = 62;
     private final static int paradoks_mark_read = 9201;
     private final static int paradoks_lock = 9202;
+    private final static int paradoks_hide = 9203;
     private final static int scheduled = 63;
     private final static int edit_quick_reply = 64;
 
@@ -3970,6 +3971,8 @@ public class ChatActivity extends BaseFragment implements
                     }
                 } else if (id == paradoks_lock) {
                     uz.paradoks.gram.ParadoksLock.toggleChat(ChatActivity.this, currentAccount, dialog_id);
+                } else if (id == paradoks_hide) {
+                    uz.paradoks.gram.ParadoksHidden.toggleChat(ChatActivity.this, currentAccount, dialog_id);
                 } else if (id == translate) {
                     getMessagesController().getTranslateController().setHideTranslateDialog(getDialogId(), false, true);
                     if (!getMessagesController().getTranslateController().toggleTranslatingDialog(getDialogId(), true)) {
@@ -4431,6 +4434,7 @@ public class ChatActivity extends BaseFragment implements
                 headerItem.lazilyAddSubItem(paradoks_mark_read, R.drawable.msg_markread, "O'qilgan deb belgilash");
             }
             headerItem.lazilyAddSubItem(paradoks_lock, R.drawable.msg_secret, "Chat qulfi");
+            headerItem.lazilyAddSubItem(paradoks_hide, R.drawable.msg_secret, "Yashirin chat");
             if (currentChat != null && !currentChat.creator && !ChatObject.hasAdminRights(currentChat)) {
                 headerItem.lazilyAddSubItem(report, R.drawable.msg_report, LocaleController.getString(R.string.ReportChat));
             }

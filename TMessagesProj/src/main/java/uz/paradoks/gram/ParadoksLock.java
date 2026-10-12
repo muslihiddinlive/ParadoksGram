@@ -201,6 +201,21 @@ public final class ParadoksLock {
         }, null);
     }
 
+    /** Asks for the PIN (sets one first if there is none) and runs onSuccess when it is right. */
+    public static void verify(BaseFragment fragment, String title, Runnable onSuccess) {
+        if (!hasPin()) {
+            setNewPin(fragment, onSuccess);
+            return;
+        }
+        askPin(fragment, title, "PIN kodni kiriting", true, pin -> {
+            if (check(pin)) {
+                onSuccess.run();
+            } else {
+                toast(fragment, "PIN noto'g'ri");
+            }
+        }, null);
+    }
+
     /** Settings page: set, change or remove the PIN. */
     public static void manage(BaseFragment fragment, Runnable onChanged) {
         if (!hasPin()) {

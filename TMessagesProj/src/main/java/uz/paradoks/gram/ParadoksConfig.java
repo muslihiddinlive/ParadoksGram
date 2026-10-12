@@ -133,6 +133,28 @@ public final class ParadoksConfig {
         prefs().edit().putBoolean("hide_sponsored", v).apply();
     }
 
+    // ---- hidden chats ----
+    public static java.util.Set<String> hiddenChats() {
+        return new java.util.HashSet<>(prefs().getStringSet("hidden_chats", new java.util.HashSet<String>()));
+    }
+
+    public static void setHiddenChats(java.util.Set<String> set) {
+        prefs().edit().putStringSet("hidden_chats", new java.util.HashSet<>(set)).apply();
+    }
+
+    /** Whether the chat was already muted before it was hidden (so unhiding must not unmute it). */
+    public static boolean hiddenWasMuted(String key) {
+        return prefs().getBoolean("hidden_muted_" + key, false);
+    }
+
+    public static void setHiddenWasMuted(String key, boolean muted) {
+        prefs().edit().putBoolean("hidden_muted_" + key, muted).apply();
+    }
+
+    public static void clearHiddenWasMuted(String key) {
+        prefs().edit().remove("hidden_muted_" + key).apply();
+    }
+
     // ---- chat lock ----
     public static String lockHash() {
         return prefs().getString("lock_hash", null);

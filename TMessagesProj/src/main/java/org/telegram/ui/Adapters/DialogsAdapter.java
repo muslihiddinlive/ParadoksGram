@@ -1623,6 +1623,9 @@ public class DialogsAdapter extends RecyclerListView.SelectionAdapter implements
             if (array == null) {
                 array = new ArrayList<>();
             }
+            if (dialogsType == 0 || dialogsType == 7 || dialogsType == 8) { // ParadoksGram: hidden chats
+                array = uz.paradoks.gram.ParadoksHidden.filter(currentAccount, array);
+            }
         }
 
         dialogsCount = array.size();

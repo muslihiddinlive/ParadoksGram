@@ -3069,6 +3069,7 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
     @Override
     public void onFragmentDestroy() {
         super.onFragmentDestroy();
+        uz.paradoks.gram.ParadoksHidden.leaveAndReload(currentAccount); // ParadoksGram
         if (observersGroup != null) {
             observersGroup.removeAllObservers();
             observersGroup = null;
@@ -3218,6 +3219,10 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
         ActionBarMenu menu = actionBar.createMenu();
         menu.setTranslationX(-dp(5));
         searchItem = menu.addItem(0, R.drawable.outline_header_search).setIsSearchField(true, false);
+        searchItem.setOnLongClickListener(v -> { // ParadoksGram: hidden chats
+            uz.paradoks.gram.ParadoksHidden.toggleMode(DialogsActivity.this, currentAccount);
+            return true;
+        });
         searchItem.setOnClickListener(v -> {
             showSearch(true, false, true);
             fragmentSearchFieldWatcher.toggleSearch(true);
