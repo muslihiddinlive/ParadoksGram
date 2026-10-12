@@ -1415,6 +1415,10 @@ public class NotificationsController extends BaseController implements Notificat
                     canAddValue = true;
                 }
 
+                if (uz.paradoks.gram.ParadoksHidden.hideNotification(currentAccount, dialogId)) { // ParadoksGram: hidden chats don't count in the badge
+                    canAddValue = false;
+                }
+
                 if (notifyCheck && !canAddValue) {
                     Integer override = pushDialogsOverrideMention.get(dialogId);
                     if (override != null && override != 0) {
@@ -1749,6 +1753,9 @@ public class NotificationsController extends BaseController implements Notificat
                         final ArrayList<TLRPC.Dialog> dialogs = new ArrayList<>(MessagesController.getInstance(a).allDialogs);
                         for (int i = 0, N = dialogs.size(); i < N; i++) {
                             TLRPC.Dialog dialog = dialogs.get(i);
+                            if (dialog != null && uz.paradoks.gram.ParadoksHidden.hideNotification(a, dialog.id)) { // ParadoksGram
+                                continue;
+                            }
                             if (dialog != null && DialogObject.isChatDialog(dialog.id)) {
                                 TLRPC.Chat chat = getMessagesController().getChat(-dialog.id);
                                 if (ChatObject.isNotInChat(chat) || ChatObject.isCommunity(chat)) {
@@ -1770,6 +1777,9 @@ public class NotificationsController extends BaseController implements Notificat
                     try {
                         for (int i = 0, N = MessagesController.getInstance(a).allDialogs.size(); i < N; i++) {
                             TLRPC.Dialog dialog = MessagesController.getInstance(a).allDialogs.get(i);
+                            if (uz.paradoks.gram.ParadoksHidden.hideNotification(a, dialog.id)) { // ParadoksGram
+                                continue;
+                            }
                             if (DialogObject.isChatDialog(dialog.id)) {
                                 TLRPC.Chat chat = getMessagesController().getChat(-dialog.id);
                                 if (ChatObject.isNotInChat(chat) || ChatObject.isCommunity(chat)) {

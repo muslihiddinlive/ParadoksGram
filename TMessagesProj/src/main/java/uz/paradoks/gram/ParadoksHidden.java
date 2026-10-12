@@ -67,7 +67,8 @@ public final class ParadoksHidden {
         return !showing && !ParadoksConfig.showHiddenInSearch() && isHidden(account, dialogId);
     }
 
-    public static boolean hideObjectInSearch(int account, Object object) {
+    /** picker = true for forward/share pickers (hidden chats always excluded). */
+    public static boolean hideObject(int account, Object object, boolean picker) {
         long id;
         if (object instanceof TLRPC.User) {
             id = ((TLRPC.User) object).id;
@@ -78,7 +79,7 @@ public final class ParadoksHidden {
         } else {
             return false;
         }
-        return hideInSearch(account, id);
+        return picker ? hideInPicker(account, id) : hideInSearch(account, id);
     }
 
     /** Forward / share pickers: hidden chats are never offered (except inside hidden mode). */

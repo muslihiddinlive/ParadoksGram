@@ -3159,6 +3159,7 @@ public class ShareAlert extends BottomSheet implements NotificationCenter.Notifi
                     return !(obj instanceof TLRPC.Chat) || ChatObject.canWriteToChat((TLRPC.Chat) obj);
                 }
             };
+            searchAdapterHelper.paradoksPickerMode = true; // ParadoksGram: hidden chats are never offered
             searchAdapterHelper.setDelegate(new SearchAdapterHelper.SearchAdapterHelperDelegate() {
                 @Override
                 public void onDataSetChanged(int searchId) {
@@ -3305,7 +3306,8 @@ public class ShareAlert extends BottomSheet implements NotificationCenter.Notifi
                     ArrayList<Object> searchResults = new ArrayList<>(resultCount);
                     for (int a = 0; a < dialogsResult.size(); a++) {
                         DialogSearchResult dialogSearchResult = dialogsResult.valueAt(a);
-                        if (dialogSearchResult.object != null && dialogSearchResult.name != null) {
+                        if (dialogSearchResult.object != null && dialogSearchResult.name != null
+                                && !(dialogSearchResult.dialog != null && uz.paradoks.gram.ParadoksHidden.hideInPicker(currentAccount, dialogSearchResult.dialog.id))) { // ParadoksGram
                             searchResults.add(dialogSearchResult);
                         }
                     }

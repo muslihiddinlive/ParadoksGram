@@ -282,6 +282,13 @@ public class DialogsSearchAdapter extends RecyclerListView.SelectionAdapter {
         }
     }
 
+    private boolean paradoksHide(long dialogId) {
+        boolean picker = dialogsType != 0 && dialogsType != 7 && dialogsType != 8;
+        return picker
+                ? uz.paradoks.gram.ParadoksHidden.hideInPicker(currentAccount, dialogId)
+                : uz.paradoks.gram.ParadoksHidden.hideInSearch(currentAccount, dialogId);
+    }
+
     private boolean filter(Object obj) {
         if (dialogsType != DialogsActivity.DIALOGS_TYPE_START_ATTACH_BOT) {
             return true;
@@ -356,6 +363,7 @@ public class DialogsSearchAdapter extends RecyclerListView.SelectionAdapter {
         mContext = context;
         needMessagesSearch = messagesSearch;
         dialogsType = type;
+        searchAdapterHelper.paradoksPickerMode = dialogsType != 0 && dialogsType != 7 && dialogsType != 8; // ParadoksGram
         selfUserId = UserConfig.getInstance(currentAccount).getClientUserId();
         loadRecentSearch();
         MediaDataController.getInstance(currentAccount).loadHints(true);
@@ -625,7 +633,7 @@ public class DialogsSearchAdapter extends RecyclerListView.SelectionAdapter {
                             TLRPC.Message message = res.messages.get(a);
                             long did = MessageObject.getDialogId(message);
                             int maxId = MessagesController.getInstance(currentAccount).deletedHistory.get(did);
-                            if (maxId != 0 && message.id <= maxId || uz.paradoks.gram.ParadoksHidden.hideInSearch(currentAccount, did)) { // ParadoksGram
+                            if (maxId != 0 && message.id <= maxId || paradoksHide(did)) { // ParadoksGram
                                 continue;
                             }
                             MessageObject msg = messageObjects.get(a);
@@ -990,7 +998,7 @@ public class DialogsSearchAdapter extends RecyclerListView.SelectionAdapter {
             }
             searchWas = true;
             for (int i = 0; i < result.size(); ++i) {
-                if (!filter(result.get(i)) || uz.paradoks.gram.ParadoksHidden.hideObjectInSearch(currentAccount, result.get(i))) { // ParadoksGram
+                if (!filter(result.get(i)) || uz.paradoks.gram.ParadoksHidden.hideObject(currentAccount, result.get(i), dialogsType != 0 && dialogsType != 7 && dialogsType != 8)) { // ParadoksGram
                     result.remove(i);
                     i--;
                 }
@@ -2331,7 +2339,7 @@ public class DialogsSearchAdapter extends RecyclerListView.SelectionAdapter {
             filteredRecentSearchObjects.clear();
             final int count = recentSearchObjects.size();
             for (int i = 0; i < count; ++i) {
-                if (uz.paradoks.gram.ParadoksHidden.hideInSearch(currentAccount, recentSearchObjects.get(i).did)) { // ParadoksGram
+                if (paradoksHide(recentSearchObjects.get(i).did)) { // ParadoksGram
                     continue;
                 }
                 if (delegate != null && delegate.getSearchForumDialogId() == recentSearchObjects.get(i).did || !filter(recentSearchObjects.get(i).object)) {
@@ -2362,7 +2370,7 @@ public class DialogsSearchAdapter extends RecyclerListView.SelectionAdapter {
             } else if (obj.object instanceof TLRPC.ChatInvite) {
                 title = ((TLRPC.ChatInvite) obj.object).title;
             }
-            if (uz.paradoks.gram.ParadoksHidden.hideInSearch(currentAccount, obj.did)) { // ParadoksGram
+            if (paradoksHide(obj.did)) { // ParadoksGram
                 continue;
             }
             if (title != null && wordStartsWith(title.toLowerCase(), lowerCasedQuery) ||

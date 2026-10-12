@@ -95,6 +95,15 @@ public class SearchAdapterHelper {
         public CharSequence name;
     }
 
+    /** ParadoksGram: true in share/forward pickers, where hidden chats are always excluded. */
+    public boolean paradoksPickerMode;
+
+    private boolean paradoksHide(long dialogId) {
+        return paradoksPickerMode
+                ? uz.paradoks.gram.ParadoksHidden.hideInPicker(currentAccount, dialogId)
+                : uz.paradoks.gram.ParadoksHidden.hideInSearch(currentAccount, dialogId);
+    }
+
     public SearchAdapterHelper(boolean allAsGlobal) {
         allResultsAreGlobal = allAsGlobal;
     }
@@ -226,14 +235,14 @@ public class SearchAdapterHelper {
                                         if (!allowChats || canAddGroupsOnly && !ChatObject.canAddBotsToChat(chat) || !allowGlobalResults && ChatObject.isNotInChat(chat) || !filter(chat)) {
                                             continue;
                                         }
-                                        if (uz.paradoks.gram.ParadoksHidden.hideInSearch(currentAccount, -chat.id)) { continue; } // ParadoksGram
+                                        if (paradoksHide(-chat.id)) { continue; } // ParadoksGram
                                         globalSearch.add(chat);
                                         globalSearchMap.put(-chat.id, chat);
                                     } else if (user != null) {
                                         if (canAddGroupsOnly || !allowBots && user.bot || !allowSelf && user.self || !allowGlobalResults && b == 1 && !user.contact || !filter(user)) {
                                             continue;
                                         }
-                                        if (uz.paradoks.gram.ParadoksHidden.hideInSearch(currentAccount, user.id)) { continue; } // ParadoksGram
+                                        if (paradoksHide(user.id)) { continue; } // ParadoksGram
                                         globalSearch.add(user);
                                         globalSearchMap.put(user.id, user);
                                     }
@@ -255,14 +264,14 @@ public class SearchAdapterHelper {
                                         if (!allowChats || canAddGroupsOnly && !ChatObject.canAddBotsToChat(chat) || -chat.id == exceptDialogId || !filter(chat)) {
                                             continue;
                                         }
-                                        if (uz.paradoks.gram.ParadoksHidden.hideInSearch(currentAccount, -chat.id)) { continue; } // ParadoksGram
+                                        if (paradoksHide(-chat.id)) { continue; } // ParadoksGram
                                         localServerSearch.add(chat);
                                         globalSearchMap.put(-chat.id, chat);
                                     } else if (user != null) {
                                         if (canAddGroupsOnly || !allowBots && user.bot || !allowSelf && user.self || user.id == exceptDialogId || !filter(user)) {
                                             continue;
                                         }
-                                        if (uz.paradoks.gram.ParadoksHidden.hideInSearch(currentAccount, user.id)) { continue; } // ParadoksGram
+                                        if (paradoksHide(user.id)) { continue; } // ParadoksGram
                                         localServerSearch.add(user);
                                         globalSearchMap.put(user.id, user);
                                     }
