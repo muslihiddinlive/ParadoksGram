@@ -142,6 +142,19 @@ public final class ParadoksConfig {
         prefs().edit().putStringSet("hidden_chats", new java.util.HashSet<>(set)).apply();
     }
 
+    /** Show hidden chats in global search results (default: off). */
+    public static boolean showHiddenInSearch() {
+        return prefs().getBoolean("hidden_in_search", false);
+    }
+
+    public static void setShowHiddenInSearch(boolean value) {
+        prefs().edit().putBoolean("hidden_in_search", value).apply();
+    }
+
+    public static boolean hasHiddenWasMuted(String key) {
+        return prefs().contains("hidden_muted_" + key);
+    }
+
     /** Whether the chat was already muted before it was hidden (so unhiding must not unmute it). */
     public static boolean hiddenWasMuted(String key) {
         return prefs().getBoolean("hidden_muted_" + key, false);

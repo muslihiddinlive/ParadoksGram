@@ -53,6 +53,7 @@ public class ParadoksSettingsActivity extends BaseFragment {
     private int ghostInfoRow;
     private int lockHeaderRow;
     private int lockPinRow;
+    private int hiddenSearchRow;
     private int lockInfoRow;
     private int voiceHeaderRow;
     private int voiceEffectRow;
@@ -82,6 +83,7 @@ public class ParadoksSettingsActivity extends BaseFragment {
         ghostInfoRow = rowCount++;
         lockHeaderRow = rowCount++;
         lockPinRow = rowCount++;
+        hiddenSearchRow = rowCount++;
         lockInfoRow = rowCount++;
         voiceHeaderRow = rowCount++;
         voiceEffectRow = rowCount++;
@@ -183,6 +185,12 @@ public class ParadoksSettingsActivity extends BaseFragment {
                 }
             } else if (position == ghostStartRow || position == ghostEndRow) {
                 pickTime(position == ghostStartRow);
+            } else if (position == hiddenSearchRow) {
+                boolean value = !ParadoksConfig.showHiddenInSearch();
+                ParadoksConfig.setShowHiddenInSearch(value);
+                if (view instanceof TextCheckCell) {
+                    ((TextCheckCell) view).setChecked(value);
+                }
             } else if (position == lockPinRow) {
                 ParadoksLock.manage(this, () -> {
                     if (adapter != null) {
@@ -262,7 +270,7 @@ public class ParadoksSettingsActivity extends BaseFragment {
             if (position == generalHeaderRow || position == ghostHeaderRow || position == lockHeaderRow || position == voiceHeaderRow) {
                 return TYPE_HEADER;
             } else if (position == showIdRow || position == keepDeletedRow || position == keepMediaRow || position == trackEditsRow || position == hideSponsoredRow
-                    || position == ghostReadRow || position == ghostTypingRow || position == ghostOnlineRow || position == ghostStoriesRow || position == ghostScheduleRow) {
+                    || position == ghostReadRow || position == ghostTypingRow || position == ghostOnlineRow || position == ghostStoriesRow || position == ghostScheduleRow || position == hiddenSearchRow) {
                 return TYPE_CHECK;
             } else if (position == voiceEffectRow || position == deletedRadarRow || position == ghostStartRow || position == ghostEndRow || position == lockPinRow) {
                 return TYPE_VALUE;
@@ -324,6 +332,8 @@ public class ParadoksSettingsActivity extends BaseFragment {
                         cell.setTextAndCheck("Tahrirlar tarixini saqlash", ParadoksConfig.trackEdits(), true);
                     } else if (position == hideSponsoredRow) {
                         cell.setTextAndCheck("Reklamani yashirish (kanal va botlar)", ParadoksConfig.hideSponsored(), true);
+                    } else if (position == hiddenSearchRow) {
+                        cell.setTextAndCheck("Qidiruvda yashirin chatlarni ko'rsatish", ParadoksConfig.showHiddenInSearch(), false);
                     } else if (position == ghostReadRow) {
                         cell.setTextAndCheck("O'qilgan belgisini yashirish", ParadoksConfig.ghostReadSwitch(), true);
                     } else if (position == ghostTypingRow) {
@@ -364,7 +374,7 @@ public class ParadoksSettingsActivity extends BaseFragment {
                     } else if (position == ghostInfoRow) {
                         cell.setText("Har bir qismni alohida yoqish mumkin. Jadval yoqilsa, yuqoridagi tanlanganlar faqat belgilangan vaqt oralig'ida ishlaydi (masalan 22:00 dan 08:00 gacha). Ghost o'qilgan belgisi yoqilganda chat menyusidagi \"O'qilgan deb belgilash\" orqali kerakli chatni qo'lda o'qilgan qilish mumkin.");
                     } else if (position == lockInfoRow) {
-                        cell.setText("Chat ichidagi menyudan \"Chat qulfi\" ni bosib chatni qulflaysiz. Qulflangan chat har ochilganda PIN so'raydi. PIN faqat shifrlangan (hash) ko'rinishda saqlanadi. Chatlar ro'yxatidagi oxirgi xabar ko'rinishi va bildirishnomalar qulflanmaydi.");
+                        cell.setText("Chat ichidagi menyudan \"Chat qulfi\" ni bosib chatni qulflaysiz. Qulflangan chat har ochilganda PIN so'raydi. PIN faqat shifrlangan (hash) ko'rinishda saqlanadi. Yashirin chat (chat menyusida \"Yashirin chat\", lupani bosib turib ochiladi) ro'yxatdan, forward ro'yxatidan va bildirishnomalardan yo'qoladi, qidiruvda esa yuqoridagi sozlama bo'yicha ko'rinadi (standart: yo'q). Yashirin chat havola orqali ochilsa ham PIN so'raydi.");
                     } else {
                         cell.setText("Ovozli xabar yozayotganda tanlangan effekt qo'llanadi. Yuborilgan xabar effekt bilan chiqadi.");
                     }

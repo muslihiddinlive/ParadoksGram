@@ -625,7 +625,7 @@ public class DialogsSearchAdapter extends RecyclerListView.SelectionAdapter {
                             TLRPC.Message message = res.messages.get(a);
                             long did = MessageObject.getDialogId(message);
                             int maxId = MessagesController.getInstance(currentAccount).deletedHistory.get(did);
-                            if (maxId != 0 && message.id <= maxId) {
+                            if (maxId != 0 && message.id <= maxId || uz.paradoks.gram.ParadoksHidden.hideInSearch(currentAccount, did)) { // ParadoksGram
                                 continue;
                             }
                             MessageObject msg = messageObjects.get(a);
@@ -990,7 +990,7 @@ public class DialogsSearchAdapter extends RecyclerListView.SelectionAdapter {
             }
             searchWas = true;
             for (int i = 0; i < result.size(); ++i) {
-                if (!filter(result.get(i))) {
+                if (!filter(result.get(i)) || uz.paradoks.gram.ParadoksHidden.hideObjectInSearch(currentAccount, result.get(i))) { // ParadoksGram
                     result.remove(i);
                     i--;
                 }
@@ -2331,6 +2331,9 @@ public class DialogsSearchAdapter extends RecyclerListView.SelectionAdapter {
             filteredRecentSearchObjects.clear();
             final int count = recentSearchObjects.size();
             for (int i = 0; i < count; ++i) {
+                if (uz.paradoks.gram.ParadoksHidden.hideInSearch(currentAccount, recentSearchObjects.get(i).did)) { // ParadoksGram
+                    continue;
+                }
                 if (delegate != null && delegate.getSearchForumDialogId() == recentSearchObjects.get(i).did || !filter(recentSearchObjects.get(i).object)) {
                     continue;
                 }
@@ -2358,6 +2361,9 @@ public class DialogsSearchAdapter extends RecyclerListView.SelectionAdapter {
                 username = ((TLRPC.User) obj.object).username;
             } else if (obj.object instanceof TLRPC.ChatInvite) {
                 title = ((TLRPC.ChatInvite) obj.object).title;
+            }
+            if (uz.paradoks.gram.ParadoksHidden.hideInSearch(currentAccount, obj.did)) { // ParadoksGram
+                continue;
             }
             if (title != null && wordStartsWith(title.toLowerCase(), lowerCasedQuery) ||
                 username != null && wordStartsWith(username.toLowerCase(), lowerCasedQuery)) {

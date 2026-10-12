@@ -35,7 +35,14 @@ public final class ParadoksLock {
     }
 
     public static boolean isLocked(int account, long dialogId) {
-        return hasPin() && ParadoksConfig.lockedChats().contains(key(account, dialogId));
+        if (!hasPin()) {
+            return false;
+        }
+        if (ParadoksConfig.lockedChats().contains(key(account, dialogId))) {
+            return true;
+        }
+        // A hidden chat opened outside the hidden list (a link, for example) needs the PIN too.
+        return !ParadoksHidden.isShowing() && ParadoksHidden.isHidden(account, dialogId);
     }
 
     private static String hash(String salt, String pin) {

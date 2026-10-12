@@ -1207,7 +1207,11 @@ public class DialogsAdapter extends RecyclerListView.SelectionAdapter implements
     }
 
     public void moveDialogs(RecyclerListView recyclerView, int fromPosition, int toPosition) {
-        ArrayList<TLRPC.Dialog> dialogs = parentFragment.getDialogsArray(currentAccount, dialogsType, folderId, false);
+        ArrayList<TLRPC.Dialog> liveDialogs = parentFragment.getDialogsArray(currentAccount, dialogsType, folderId, false);
+        ArrayList<TLRPC.Dialog> dialogs = liveDialogs;
+        if (dialogsType == 0 || dialogsType == 7 || dialogsType == 8) { // ParadoksGram: positions are in the filtered (visible) list
+            dialogs = uz.paradoks.gram.ParadoksHidden.filter(currentAccount, liveDialogs);
+        }
         int fromIndex = fixPosition(fromPosition);
         int toIndex = fixPosition(toPosition);
         TLRPC.Dialog fromDialog = dialogs.get(fromIndex);
@@ -1223,7 +1227,11 @@ public class DialogsAdapter extends RecyclerListView.SelectionAdapter implements
             fromDialog.pinnedNum = toDialog.pinnedNum;
             toDialog.pinnedNum = oldNum;
         }
-        Collections.swap(dialogs, fromIndex, toIndex);
+        int liveFrom = liveDialogs.indexOf(fromDialog);
+        int liveTo = liveDialogs.indexOf(toDialog);
+        if (liveFrom >= 0 && liveTo >= 0) {
+            Collections.swap(liveDialogs, liveFrom, liveTo);
+        }
         updateList(null);
     }
 
@@ -1625,6 +1633,8 @@ public class DialogsAdapter extends RecyclerListView.SelectionAdapter implements
             }
             if (dialogsType == 0 || dialogsType == 7 || dialogsType == 8) { // ParadoksGram: hidden chats
                 array = uz.paradoks.gram.ParadoksHidden.filter(currentAccount, array);
+            } else if (dialogsType == DialogsActivity.DIALOGS_TYPE_FORWARD) { // ParadoksGram: not offered when forwarding
+                array = uz.paradoks.gram.ParadoksHidden.filterPicker(currentAccount, array);
             }
         }
 

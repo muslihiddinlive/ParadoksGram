@@ -1072,6 +1072,7 @@ public class NotificationsController extends BaseController implements Notificat
             for (int a = 0; a < messageObjects.size(); a++) {
                 MessageObject messageObject = messageObjects.get(a);
                 if (messageObject.messageOwner != null && (messageObject.isImportedForward() ||
+                        uz.paradoks.gram.ParadoksHidden.hideNotification(currentAccount, messageObject.getDialogId()) || // ParadoksGram: hidden chats never notify
                         messageObject.messageOwner.action instanceof TLRPC.TL_messageActionSetMessagesTTL ||
                         messageObject.messageOwner.silent && (messageObject.messageOwner.action instanceof TLRPC.TL_messageActionContactSignUp || messageObject.messageOwner.action instanceof TLRPC.TL_messageActionUserJoined)) ||
                         MessageObject.isTopicActionMessage(messageObject)) {
@@ -1546,6 +1547,9 @@ public class NotificationsController extends BaseController implements Notificat
                         continue;
                     }
                     MessageObject messageObject = new MessageObject(currentAccount, message, false, false);
+                    if (uz.paradoks.gram.ParadoksHidden.hideNotification(currentAccount, messageObject.getDialogId())) { // ParadoksGram
+                        continue;
+                    }
                     if (isPersonalMessage(messageObject)) {
                         personalCount++;
                     }
@@ -1616,6 +1620,9 @@ public class NotificationsController extends BaseController implements Notificat
             if (push != null) {
                 for (int a = 0; a < push.size(); a++) {
                     MessageObject messageObject = push.get(a);
+                    if (uz.paradoks.gram.ParadoksHidden.hideNotification(currentAccount, messageObject.getDialogId())) { // ParadoksGram
+                        continue;
+                    }
                     int mid = messageObject.getId();
                     if (pushMessagesDict.indexOfKey(mid) >= 0) {
                         continue;

@@ -2917,7 +2917,8 @@ public class ShareAlert extends BottomSheet implements NotificationCenter.Notifi
                 dialogs.add(d);
                 dialogsMap.put(d.id, d);
             }
-            if (!MessagesController.getInstance(currentAccount).dialogsForward.isEmpty()) {
+            if (!MessagesController.getInstance(currentAccount).dialogsForward.isEmpty()
+                    && !uz.paradoks.gram.ParadoksHidden.hideInPicker(currentAccount, MessagesController.getInstance(currentAccount).dialogsForward.get(0).id)) { // ParadoksGram
                 TLRPC.Dialog dialog = MessagesController.getInstance(currentAccount).dialogsForward.get(0);
                 dialogs.add(dialog);
                 dialogsMap.put(dialog.id, dialog);
@@ -2929,7 +2930,7 @@ public class ShareAlert extends BottomSheet implements NotificationCenter.Notifi
                 if (!(dialog instanceof TLRPC.TL_dialog)) {
                     continue;
                 }
-                if (dialog.id == selfUserId) {
+                if (dialog.id == selfUserId || uz.paradoks.gram.ParadoksHidden.hideInPicker(currentAccount, dialog.id)) { // ParadoksGram
                     continue;
                 }
                 if (!DialogObject.isEncryptedDialog(dialog.id)) {
