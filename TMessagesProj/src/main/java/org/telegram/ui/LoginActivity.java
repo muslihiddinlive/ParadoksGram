@@ -3465,8 +3465,8 @@ public class LoginActivity extends BaseFragment implements NotificationCenter.No
                         }
                     }), ConnectionsManager.RequestFlagFailOnServerErrors | ConnectionsManager.RequestFlagWithoutLogin);
                 } else if (err != null) {
-                    if (BuildVars.DEBUG_VERSION)
-                        BulletinFactory.of(LoginActivity.this).showForError(err);
+                    // ParadoksGram: show why the passkey login failed instead of silently going back to the phone number
+                    needShowAlert("Passkey", uz.paradoks.gram.ParadoksDiag.passkeyReport(getContext(), err));
                     return;
                 }
                 if (authObject instanceof TLRPC.TL_auth_authorization) {
