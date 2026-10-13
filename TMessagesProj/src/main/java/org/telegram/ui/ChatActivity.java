@@ -36577,6 +36577,10 @@ public class ChatActivity extends BaseFragment implements
         if (messageObject == null || !messageObject.isSponsored()) {
             return;
         }
+        if (uz.paradoks.gram.ParadoksAdsRemote.isOurs(messageObject)) { // ParadoksGram: our own ad, counted on our server
+            uz.paradoks.gram.ParadoksAdsRemote.onClick(messageObject);
+            return;
+        }
         TLRPC.TL_messages_clickSponsoredMessage req = new TLRPC.TL_messages_clickSponsoredMessage();
         req.random_id = messageObject.sponsoredId;
         req.media = media;
@@ -36802,6 +36806,10 @@ public class ChatActivity extends BaseFragment implements
             return;
         }
         object.viewsReloaded = true;
+        if (uz.paradoks.gram.ParadoksAdsRemote.isOurs(object)) { // ParadoksGram: our own ad, counted on our server
+            uz.paradoks.gram.ParadoksAdsRemote.onView(object);
+            return;
+        }
         TLRPC.TL_messages_viewSponsoredMessage req = new TLRPC.TL_messages_viewSponsoredMessage();
         req.random_id = object.sponsoredId;
         getConnectionsManager().sendRequest(req, null);

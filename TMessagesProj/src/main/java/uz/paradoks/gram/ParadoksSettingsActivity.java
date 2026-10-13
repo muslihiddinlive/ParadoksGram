@@ -41,6 +41,8 @@ public class ParadoksSettingsActivity extends BaseFragment {
     private int trackEditsRow;
     private int hideSponsoredRow;
     private int adInteractionRow;
+    private int ownAdsRow;
+    private int adServerRow;
     private int deletedRadarRow;
     private int showIdInfoRow;
     private int ghostHeaderRow;
@@ -72,6 +74,8 @@ public class ParadoksSettingsActivity extends BaseFragment {
         trackEditsRow = rowCount++;
         hideSponsoredRow = rowCount++;
         adInteractionRow = rowCount++;
+        ownAdsRow = rowCount++;
+        adServerRow = rowCount++;
         deletedRadarRow = rowCount++;
         showIdInfoRow = rowCount++;
         ghostHeaderRow = rowCount++;
@@ -159,6 +163,14 @@ public class ParadoksSettingsActivity extends BaseFragment {
                 if (view instanceof TextCheckCell) {
                     ((TextCheckCell) view).setChecked(value);
                 }
+            } else if (position == ownAdsRow) {
+                boolean value = !ParadoksConfig.ownAdsEnabled();
+                ParadoksConfig.setOwnAdsEnabled(value);
+                if (view instanceof TextCheckCell) {
+                    ((TextCheckCell) view).setChecked(value);
+                }
+            } else if (position == adServerRow) {
+                showAdServerDialog();
             } else if (position == deletedRadarRow) {
                 presentFragment(new ParadoksDeletedActivity());
             } else if (position == ghostReadRow) {
@@ -212,6 +224,35 @@ public class ParadoksSettingsActivity extends BaseFragment {
 
         fragmentView = contentView;
         return fragmentView;
+    }
+
+    private void showAdServerDialog() {
+        if (getParentActivity() == null) {
+            return;
+        }
+        final android.widget.EditText input = new android.widget.EditText(getParentActivity());
+        input.setSingleLine(true);
+        input.setHint("https://sizning-server.onrender.com");
+        input.setText(ParadoksConfig.adServerUrl());
+        input.setPadding(org.telegram.messenger.AndroidUtilities.dp(24), org.telegram.messenger.AndroidUtilities.dp(12),
+                org.telegram.messenger.AndroidUtilities.dp(24), org.telegram.messenger.AndroidUtilities.dp(12));
+        org.telegram.ui.ActionBar.AlertDialog.Builder builder = new org.telegram.ui.ActionBar.AlertDialog.Builder(getParentActivity());
+        builder.setTitle("Reklama serveri");
+        builder.setMessage("Reklama serveringiz manzili. Bo'sh qoldirsangiz, o'z reklamangiz o'chadi.");
+        builder.setView(input);
+        builder.setPositiveButton("OK", (d, w) -> {
+            String value = input.getText().toString().trim();
+            if (!value.isEmpty() && !value.startsWith("https://") && !value.startsWith("http://")) {
+                value = "https://" + value;
+            }
+            ParadoksConfig.setAdServerUrl(value);
+            ParadoksAdsRemote.forceRefresh();
+            if (adapter != null) {
+                adapter.notifyDataSetChanged();
+            }
+        });
+        builder.setNegativeButton(org.telegram.messenger.LocaleController.getString(org.telegram.messenger.R.string.Cancel), null);
+        showDialog(builder.create());
     }
 
     private void pickTime(boolean start) {
@@ -277,10 +318,10 @@ public class ParadoksSettingsActivity extends BaseFragment {
         public int getItemViewType(int position) {
             if (position == generalHeaderRow || position == ghostHeaderRow || position == lockHeaderRow || position == voiceHeaderRow) {
                 return TYPE_HEADER;
-            } else if (position == showIdRow || position == keepDeletedRow || position == keepMediaRow || position == trackEditsRow || position == hideSponsoredRow || position == adInteractionRow
+            } else if (position == showIdRow || position == keepDeletedRow || position == keepMediaRow || position == trackEditsRow || position == hideSponsoredRow || position == adInteractionRow || position == ownAdsRow
                     || position == ghostReadRow || position == ghostTypingRow || position == ghostOnlineRow || position == ghostStoriesRow || position == ghostScheduleRow || position == hiddenSearchRow) {
                 return TYPE_CHECK;
-            } else if (position == voiceEffectRow || position == deletedRadarRow || position == ghostStartRow || position == ghostEndRow || position == lockPinRow) {
+            } else if (position == voiceEffectRow || position == adServerRow || position == deletedRadarRow || position == ghostStartRow || position == ghostEndRow || position == lockPinRow) {
                 return TYPE_VALUE;
             }
             return TYPE_INFO;
@@ -340,6 +381,8 @@ public class ParadoksSettingsActivity extends BaseFragment {
                         cell.setTextAndCheck("Tahrirlar tarixini saqlash", ParadoksConfig.trackEdits(), true);
                     } else if (position == hideSponsoredRow) {
                         cell.setTextAndCheck("Reklamani yashirish (kanal va botlar)", ParadoksConfig.hideSponsored(), true);
+                    } else if (position == ownAdsRow) {
+                        cell.setTextAndCheck("ParadoksGram reklamasi (\"Reklama\" belgisi bilan)", ParadoksConfig.ownAdsEnabled(), true);
                     } else if (position == adInteractionRow) {
                         cell.setTextAndCheck("Reaksiya yoki izohda reklama ko'rsatish", ParadoksConfig.adOnInteraction(), true);
                     } else if (position == hiddenSearchRow) {
@@ -359,7 +402,10 @@ public class ParadoksSettingsActivity extends BaseFragment {
                 }
                 case TYPE_VALUE: {
                     TextSettingsCell cell = (TextSettingsCell) holder.itemView;
-                    if (position == deletedRadarRow) {
+                    if (position == adServerRow) {
+                        String url = ParadoksConfig.adServerUrl();
+                        cell.setTextAndValue("Reklama serveri", url.isEmpty() ? "O'rnatilmagan" : url, true);
+                    } else if (position == deletedRadarRow) {
                         cell.setTextAndValue("O'chirilganlar radari", "Boshqalar o'chirgan xabarlar ro'yxati", false);
                     } else if (position == ghostStartRow) {
                         cell.setTextAndValue("Boshlanish vaqti", formatTime(ParadoksConfig.ghostScheduleStart()), true);

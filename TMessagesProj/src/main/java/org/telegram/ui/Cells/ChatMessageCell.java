@@ -7827,7 +7827,9 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
                     final int smallImageSide = dp(48), smallSideMargin = dp(10);
                     CharSequence overrideDescrption = null;
                     if (messageObject.isSponsored()) {
-                        if (messageObject.sponsoredCanReport) {
+                        if (uz.paradoks.gram.ParadoksAdsRemote.isOurs(messageObject)) { // ParadoksGram: our own ad
+                            site_name = "Reklama";
+                        } else if (messageObject.sponsoredCanReport) {
                             site_name = getString(R.string.SponsoredMessageAd);
                             titleLabel = getString(R.string.SponsoredMessageAdWhatIsThis);
                         } else if (messageObject.sponsoredRecommended) {

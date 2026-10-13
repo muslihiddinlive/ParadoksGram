@@ -21624,8 +21624,19 @@ public class MessagesController extends BaseController implements NotificationCe
     }
 
     public SponsoredMessagesInfo getSponsoredMessages(long dialogId) {
-        if (uz.paradoks.gram.ParadoksAds.shouldHide(currentAccount, dialogId)) { // ParadoksGram: no ads in channels and bots
-            return null;
+        if (uz.paradoks.gram.ParadoksAds.shouldHide(currentAccount, dialogId)) { // ParadoksGram: Telegram's ads are hidden
+            // Our own ad (clearly labelled "Reklama") may still be shown in channels and bots.
+            if (dialogId < 0 ? !ChatObject.isChannel(getChat(-dialogId)) : !UserObject.isBot(getUser(dialogId))) {
+                return null;
+            }
+            ArrayList<MessageObject> own = uz.paradoks.gram.ParadoksAdsRemote.build(currentAccount, dialogId, dialogId > 0);
+            if (own.isEmpty()) {
+                return null;
+            }
+            SponsoredMessagesInfo ownInfo = new SponsoredMessagesInfo();
+            ownInfo.messages = own;
+            ownInfo.loadTime = SystemClock.elapsedRealtime();
+            return ownInfo;
         }
         SponsoredMessagesInfo info = sponsoredMessages.get(dialogId);
         if (info != null && (info.loading || Math.abs(SystemClock.elapsedRealtime() - info.loadTime) <= 5 * 60 * 1000)) {
@@ -21710,15 +21721,23 @@ public class MessagesController extends BaseController implements NotificationCe
                 result = null;
                 posts_between = null;
             }
+            // ParadoksGram: add our own ad after Telegram's (never instead of them)
+            ArrayList<MessageObject> merged = result;
+            ArrayList<MessageObject> ownAds = uz.paradoks.gram.ParadoksAdsRemote.build(currentAccount, dialogId, dialogId > 0);
+            if (!ownAds.isEmpty()) {
+                merged = merged == null ? new ArrayList<>() : new ArrayList<>(merged);
+                merged.addAll(ownAds);
+            }
+            final ArrayList<MessageObject> resultFinal = merged;
             AndroidUtilities.runOnUIThread(() -> {
-                if (result == null) {
+                if (resultFinal == null) {
                     sponsoredMessages.remove(dialogId);
                 } else {
                     infoFinal.loadTime = SystemClock.elapsedRealtime();
                     infoFinal.loading = false;
-                    infoFinal.messages = result;
+                    infoFinal.messages = resultFinal;
                     infoFinal.posts_between = posts_between;
-                    getNotificationCenter().postNotificationName(NotificationCenter.didLoadSponsoredMessages, dialogId, result);
+                    getNotificationCenter().postNotificationName(NotificationCenter.didLoadSponsoredMessages, dialogId, resultFinal);
                 }
             });
         });

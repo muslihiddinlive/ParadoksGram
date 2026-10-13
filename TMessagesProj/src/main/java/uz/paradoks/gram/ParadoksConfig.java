@@ -129,6 +129,63 @@ public final class ParadoksConfig {
         return prefs().getBoolean("hide_sponsored", true);
     }
 
+    // ---- own ads ----
+    /** Address of the ads server, e.g. https://paradoks-ads.onrender.com . Empty = own ads are off. */
+    public static final String DEFAULT_AD_SERVER = "";
+
+    public static boolean ownAdsEnabled() {
+        return prefs().getBoolean("own_ads", true);
+    }
+
+    public static void setOwnAdsEnabled(boolean v) {
+        prefs().edit().putBoolean("own_ads", v).apply();
+    }
+
+    public static String adServerUrl() {
+        String url = prefs().getString("ad_server", DEFAULT_AD_SERVER).trim();
+        while (url.endsWith("/")) {
+            url = url.substring(0, url.length() - 1);
+        }
+        return url;
+    }
+
+    public static void setAdServerUrl(String url) {
+        prefs().edit().putString("ad_server", url == null ? "" : url.trim()).remove("ad_cache").apply();
+    }
+
+    public static String adCache() {
+        return prefs().getString("ad_cache", null);
+    }
+
+    public static void setAdCache(String json) {
+        prefs().edit().putString("ad_cache", json).apply();
+    }
+
+    /** Random id of this installation. It is not linked to the Telegram account. */
+    public static String installId() {
+        String id = prefs().getString("install_id", null);
+        if (id == null) {
+            byte[] raw = new byte[12];
+            new java.security.SecureRandom().nextBytes(raw);
+            StringBuilder sb = new StringBuilder();
+            for (byte b : raw) {
+                sb.append(String.format("%02x", b));
+            }
+            id = sb.toString();
+            prefs().edit().putString("install_id", id).apply();
+        }
+        return id;
+    }
+
+    public static int adSeenToday(int adId, String day) {
+        return prefs().getInt("adseen_" + adId + "_" + day, 0);
+    }
+
+    public static void adSeenIncrement(int adId, String day) {
+        String key = "adseen_" + adId + "_" + day;
+        prefs().edit().putInt(key, prefs().getInt(key, 0) + 1).apply();
+    }
+
     /** With ads hidden: show them in a chat only after the user reacts or comments there. */
     public static boolean adOnInteraction() {
         return prefs().getBoolean("ad_on_interaction", false);
