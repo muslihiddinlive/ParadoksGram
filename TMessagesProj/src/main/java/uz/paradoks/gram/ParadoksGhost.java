@@ -3,6 +3,7 @@ package uz.paradoks.gram;
 import org.telegram.messenger.ChatObject;
 import org.telegram.messenger.DialogObject;
 import org.telegram.messenger.MessagesController;
+import org.telegram.messenger.R;
 import org.telegram.tgnet.ConnectionsManager;
 import org.telegram.tgnet.TLRPC;
 import org.telegram.tgnet.TLObject;
@@ -99,6 +100,56 @@ public final class ParadoksGhost {
         ALLOWED.add(req);
         ConnectionsManager.getInstance(account).sendRequest(req, (response, error) -> {});
         return true;
+    }
+
+    // ---- top-bar button ----
+
+    /** True when at least one ghost part is switched on (the schedule is not considered). */
+    public static boolean anyOn() {
+        return ParadoksConfig.ghostReadSwitch() || ParadoksConfig.ghostTypingSwitch()
+                || ParadoksConfig.ghostOnlineSwitch() || ParadoksConfig.ghostStoriesSwitch();
+    }
+
+    /**
+     * One tap: if anything is on, remember which parts and switch them all off; otherwise bring
+     * the remembered parts back (or all four on the very first time). Returns the new state.
+     */
+    public static boolean toggleAll() {
+        if (anyOn()) {
+            int mask = (ParadoksConfig.ghostReadSwitch() ? 1 : 0)
+                    | (ParadoksConfig.ghostTypingSwitch() ? 2 : 0)
+                    | (ParadoksConfig.ghostOnlineSwitch() ? 4 : 0)
+                    | (ParadoksConfig.ghostStoriesSwitch() ? 8 : 0);
+            ParadoksConfig.setGhostSavedMask(mask);
+            ParadoksConfig.setGhostRead(false);
+            ParadoksConfig.setGhostTyping(false);
+            ParadoksConfig.setGhostOnline(false);
+            ParadoksConfig.setGhostStories(false);
+            return false;
+        }
+        int mask = ParadoksConfig.ghostSavedMask();
+        if (mask == 0) {
+            mask = 15;
+        }
+        ParadoksConfig.setGhostRead((mask & 1) != 0);
+        ParadoksConfig.setGhostTyping((mask & 2) != 0);
+        ParadoksConfig.setGhostOnline((mask & 4) != 0);
+        ParadoksConfig.setGhostStories((mask & 8) != 0);
+        return true;
+    }
+
+    /** Solid ghost = on, outlined ghost = off. */
+    public static int iconRes() {
+        return anyOn() ? R.drawable.paradoks_ghost_on : R.drawable.paradoks_ghost_off;
+    }
+
+    public static String statusText(boolean on) {
+        if (!on) {
+            return "Ghost mode o'chirildi";
+        }
+        boolean activeNow = ParadoksConfig.ghostRead() || ParadoksConfig.ghostTyping()
+                || ParadoksConfig.ghostOnline() || ParadoksConfig.ghostStories();
+        return activeNow ? "Ghost mode yoqildi" : "Ghost mode yoqildi, lekin jadval bo'yicha hozir ishlamaydi";
     }
 
     private ParadoksGhost() {}

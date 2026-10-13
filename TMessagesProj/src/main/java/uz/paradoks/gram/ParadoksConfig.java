@@ -88,6 +88,15 @@ public final class ParadoksConfig {
     public static void setGhostOnline(boolean v) { setGhostPart("ghost_online", v); }
     public static void setGhostStories(boolean v) { setGhostPart("ghost_stories", v); }
 
+    /** Which ghost parts were on before the top-bar button switched everything off (bit mask). */
+    public static int ghostSavedMask() {
+        return prefs().getInt("ghost_saved_mask", 0);
+    }
+
+    public static void setGhostSavedMask(int mask) {
+        prefs().edit().putInt("ghost_saved_mask", mask).apply();
+    }
+
     /** Ghost schedule: when enabled, the switches above only work between start and end. */
     public static boolean ghostScheduleEnabled() {
         return prefs().getBoolean("ghost_sched", false);

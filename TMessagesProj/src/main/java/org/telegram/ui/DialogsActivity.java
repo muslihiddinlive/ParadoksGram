@@ -504,6 +504,7 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
     private boolean downloadsItemVisible;
     public ActionBarMenuItem searchItem;
     private ActionBarMenuItem optionsItem;
+    private ActionBarMenuItem paradoksGhostItem; // ParadoksGram: ghost mode button
     private ActionBarMenuItem speedItem;
     public static boolean switchingTheme;
     private ActionBarMenuItem doneItem;
@@ -3441,6 +3442,21 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
         });
         fragmentSearchFieldWatcher.setDoNotCloseAfterFieldEmpty();
 
+        if (initialDialogsType == DIALOGS_TYPE_DEFAULT) { // ParadoksGram: one-tap ghost mode button before the three dots
+            paradoksGhostItem = menu.addItem(9501, uz.paradoks.gram.ParadoksGhost.iconRes());
+            paradoksGhostItem.setContentDescription("Ghost mode");
+            paradoksGhostItem.setOnClickListener(v -> {
+                boolean on = uz.paradoks.gram.ParadoksGhost.toggleAll();
+                paradoksGhostItem.setIcon(uz.paradoks.gram.ParadoksGhost.iconRes());
+                if (getParentActivity() != null) {
+                    android.widget.Toast.makeText(getParentActivity(), uz.paradoks.gram.ParadoksGhost.statusText(on), android.widget.Toast.LENGTH_SHORT).show();
+                }
+            });
+            paradoksGhostItem.setOnLongClickListener(v -> {
+                presentFragment(new uz.paradoks.gram.ParadoksSettingsActivity());
+                return true;
+            });
+        }
         if (initialDialogsType == DIALOGS_TYPE_DEFAULT) {
             optionsItem = menu.addItem(4, R.drawable.ic_ab_other);
             optionsItem.setContentDescription(LocaleController.getString(R.string.AccDescrMoreOptions));
@@ -7022,6 +7038,9 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
     @Override
     public void onResume() {
         super.onResume();
+        if (paradoksGhostItem != null) { // ParadoksGram: the icon follows the settings page
+            paradoksGhostItem.setIcon(uz.paradoks.gram.ParadoksGhost.iconRes());
+        }
         if (dialogStoriesCell != null) {
             dialogStoriesCell.onResume();
         }
