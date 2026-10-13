@@ -129,6 +129,15 @@ public final class ParadoksConfig {
         return prefs().getBoolean("hide_sponsored", true);
     }
 
+    /** With ads hidden: show them in a chat only after the user reacts or comments there. */
+    public static boolean adOnInteraction() {
+        return prefs().getBoolean("ad_on_interaction", false);
+    }
+
+    public static void setAdOnInteraction(boolean v) {
+        prefs().edit().putBoolean("ad_on_interaction", v).apply();
+    }
+
     public static void setHideSponsored(boolean v) {
         prefs().edit().putBoolean("hide_sponsored", v).apply();
     }

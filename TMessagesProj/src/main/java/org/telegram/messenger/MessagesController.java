@@ -21624,7 +21624,7 @@ public class MessagesController extends BaseController implements NotificationCe
     }
 
     public SponsoredMessagesInfo getSponsoredMessages(long dialogId) {
-        if (uz.paradoks.gram.ParadoksConfig.hideSponsored()) { // ParadoksGram: no ads in channels and bots
+        if (uz.paradoks.gram.ParadoksAds.shouldHide(currentAccount, dialogId)) { // ParadoksGram: no ads in channels and bots
             return null;
         }
         SponsoredMessagesInfo info = sponsoredMessages.get(dialogId);

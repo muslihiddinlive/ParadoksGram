@@ -1988,6 +1988,7 @@ public class ChatActivity extends BaseFragment implements
 
         @Override
         public void onMessageSend(CharSequence message, boolean notify, int scheduleDate, int scheduleRepeatPeriod, long payStars) {
+            paradoksInteraction(); // ParadoksGram: ads on interaction
             if (chatListItemAnimator != null) {
                 chatActivityEnterViewAnimateFromTop = chatActivityEnterView.getBackgroundTop();
                 if (chatActivityEnterViewAnimateFromTop != 0) {
@@ -3357,6 +3358,7 @@ public class ChatActivity extends BaseFragment implements
     public void onFragmentDestroy() {
         super.onFragmentDestroy();
         uz.paradoks.gram.ParadoksLock.onChatClosed(currentAccount, dialog_id); // ParadoksGram
+        uz.paradoks.gram.ParadoksAds.clear(currentAccount, dialog_id); // ParadoksGram
         if (messageMetricsView != null) {
             messageMetricsView.finish();
         }
@@ -24931,6 +24933,20 @@ public class ChatActivity extends BaseFragment implements
     }
 
     private int sponsoredMessagesPostsBetween;
+    /** ParadoksGram: a reaction or a comment lets the channel (or bot) show its ads. */
+    private void paradoksInteraction() {
+        long target = dialog_id;
+        if (threadMessageObject != null && threadMessageObject.messageOwner != null
+                && threadMessageObject.messageOwner.fwd_from != null
+                && threadMessageObject.messageOwner.fwd_from.saved_from_peer != null) {
+            long channel = MessageObject.getPeerId(threadMessageObject.messageOwner.fwd_from.saved_from_peer);
+            if (channel != 0) {
+                target = channel;
+            }
+        }
+        uz.paradoks.gram.ParadoksAds.onInteraction(currentAccount, target);
+    }
+
     private boolean sponsoredMessagesAdded;
     private Pattern sponsoredUrlPattern;
     private MessageObject botSponsoredMessage;
@@ -32929,6 +32945,9 @@ public class ChatActivity extends BaseFragment implements
         }
         ArrayList<ReactionsLayoutInBubble.VisibleReaction> visibleReactions = new ArrayList<>();
         visibleReactions.addAll(primaryMessage.getChoosenReactions());
+        if (added) {
+            paradoksInteraction(); // ParadoksGram: ads on interaction
+        }
         getSendMessagesHelper().sendReaction(primaryMessage, visibleReactions, added ? visibleReaction : null, bigEmoji, addToRecent, ChatActivity.this, updateReactionRunnable = new Runnable() {
             @Override
             public void run() {
