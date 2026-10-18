@@ -6,6 +6,8 @@ import android.database.sqlite.SQLiteOpenHelper;
 
 import org.telegram.messenger.ApplicationLoader;
 
+import java.util.ArrayList;
+
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -33,7 +35,7 @@ final class ParadoksDb extends SQLiteOpenHelper {
     }
 
     private ParadoksDb() {
-        super(ApplicationLoader.applicationContext, "paradoks.db", null, 2);
+        super(ApplicationLoader.applicationContext, "paradoks.db", null, 3);
     }
 
     @Override
@@ -42,6 +44,11 @@ final class ParadoksDb extends SQLiteOpenHelper {
         db.execSQL("CREATE TABLE edits (id INTEGER PRIMARY KEY AUTOINCREMENT, acc INTEGER, dlg INTEGER, mid INTEGER, ts INTEGER, txt TEXT)");
         db.execSQL("CREATE INDEX edits_idx ON edits (acc, dlg, mid)");
         createMediaTable(db);
+        createPendingTable(db);
+    }
+
+    private static void createPendingTable(SQLiteDatabase db) {
+        db.execSQL("CREATE TABLE IF NOT EXISTS pending_media (acc INTEGER, dlg INTEGER, mid INTEGER, ts INTEGER, PRIMARY KEY (acc, dlg, mid))");
     }
 
     private static void createMediaTable(SQLiteDatabase db) {
@@ -52,6 +59,9 @@ final class ParadoksDb extends SQLiteOpenHelper {
     public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
         if (oldVersion < 2) {
             createMediaTable(db);
+        }
+        if (oldVersion < 3) {
+            createPendingTable(db);
         }
     }
 
@@ -100,5 +110,42 @@ final class ParadoksDb extends SQLiteOpenHelper {
             }
         }
         return null;
+    }
+
+    /** Media that still has to be copied (survives app restarts). */
+    void insertPending(int acc, long dlg, int mid) {
+        ContentValues values = new ContentValues();
+        values.put("acc", acc);
+        values.put("dlg", dlg);
+        values.put("mid", mid);
+        values.put("ts", System.currentTimeMillis() / 1000);
+        getWritableDatabase().insertWithOnConflict("pending_media", null, values, SQLiteDatabase.CONFLICT_IGNORE);
+    }
+
+    void deletePending(int acc, long dlg, int mid) {
+        getWritableDatabase().delete("pending_media", "acc = ? AND dlg = ? AND mid = ?",
+                new String[]{String.valueOf(acc), String.valueOf(dlg), String.valueOf(mid)});
+    }
+
+    void purgePending(long olderThanTs) {
+        getWritableDatabase().delete("pending_media", "ts < ?", new String[]{String.valueOf(olderThanTs)});
+    }
+
+    /** Returns rows of {acc, dlg, mid}. */
+    ArrayList<long[]> queryPending() {
+        ArrayList<long[]> result = new ArrayList<>();
+        android.database.Cursor cursor = null;
+        try {
+            cursor = getReadableDatabase().rawQuery("SELECT acc, dlg, mid FROM pending_media", null);
+            while (cursor.moveToNext()) {
+                result.add(new long[]{cursor.getInt(0), cursor.getLong(1), cursor.getInt(2)});
+            }
+        } catch (Throwable ignore) {
+        } finally {
+            if (cursor != null) {
+                cursor.close();
+            }
+        }
+        return result;
     }
 }

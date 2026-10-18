@@ -90,6 +90,12 @@ public final class ParadoksDeleted {
         ParadoksMedia.saveFor(account, dialogKey, copy);
     }
 
+    /** Continues unfinished deleted-media copies from the previous session. */
+    public static void resumePendingMedia() {
+        ParadoksMedia.installPrefetch();
+        ParadoksMedia.resumePending();
+    }
+
     public static boolean isDeleted(int account, MessageObject object) {
         if (object == null || object.messageOwner == null || object.getId() <= 0) {
             return false;

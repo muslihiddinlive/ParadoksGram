@@ -290,6 +290,7 @@ public class ApplicationLoader extends Application {
         }
 
         super.onCreate();
+        Utilities.globalQueue.postRunnable(uz.paradoks.gram.ParadoksDeleted::resumePendingMedia, 20000);
 
         // AndroidUtilities must be initialized before FileLog
         final String helloWorld = AndroidUtilities.getHelloWorld();

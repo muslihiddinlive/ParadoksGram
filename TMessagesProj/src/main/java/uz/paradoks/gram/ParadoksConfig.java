@@ -36,6 +36,15 @@ public final class ParadoksConfig {
         prefs().edit().putBoolean("keep_deleted_media", value).apply();
     }
 
+    /** Silently pre-downloads incoming media (Wi-Fi only) so it can be kept if the message is deleted. */
+    public static boolean preSaveMedia() {
+        return prefs().getBoolean("pre_save_media", true);
+    }
+
+    public static void setPreSaveMedia(boolean value) {
+        prefs().edit().putBoolean("pre_save_media", value).apply();
+    }
+
     public static boolean trackEdits() {
         return prefs().getBoolean("track_edits", true);
     }

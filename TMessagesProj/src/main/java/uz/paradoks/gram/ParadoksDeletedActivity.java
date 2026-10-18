@@ -40,11 +40,13 @@ public class ParadoksDeletedActivity extends BaseFragment {
 
     private static final class Item {
         long dialogId;
+        long dialogKey;
         int messageId;
         long deletedAt;
         String chatName;
         String sender;
         String text;
+        boolean hasMedia;
         String mediaPath;
         int mediaKind;
     }
@@ -100,6 +102,23 @@ public class ParadoksDeletedActivity extends BaseFragment {
                 showDialog(builder.create());
                 return;
             }
+            if (item.hasMedia && getParentActivity() != null) {
+                org.telegram.ui.ActionBar.AlertDialog.Builder builder = new org.telegram.ui.ActionBar.AlertDialog.Builder(getParentActivity());
+                builder.setTitle("Media saqlanmagan");
+                builder.setItems(new CharSequence[]{"Chatda ochish", "Mediani qayta yuklab saqlash"}, (d, which) -> {
+                    if (which == 0) {
+                        openChat(item);
+                    } else {
+                        ParadoksMedia.retryNow(currentAccount, item.dialogKey, item.messageId);
+                        android.widget.Toast.makeText(getParentActivity(),
+                                "Yuklab olishga urinilyapti. Server fayli o'chirilgan bo'lsa, bu ishlamaydi.",
+                                android.widget.Toast.LENGTH_LONG).show();
+                    }
+                });
+                builder.setNegativeButton(org.telegram.messenger.LocaleController.getString(R.string.Cancel), null);
+                showDialog(builder.create());
+                return;
+            }
             openChat(item);
         });
         fragmentView = contentView;
@@ -144,6 +163,8 @@ public class ParadoksDeletedActivity extends BaseFragment {
                         if (media != null && new java.io.File(media[0]).exists()) {
                             item.mediaPath = media[0];
                             item.mediaKind = Integer.parseInt(media[1]);
+                        } else if (item.hasMedia) {
+                            item.text += "\n(media yuklanmagan, bosib qayta urinib ko'ring)";
                         }
                         result.add(item);
                     }
@@ -184,7 +205,9 @@ public class ParadoksDeletedActivity extends BaseFragment {
                 return null;
             }
             Item item = new Item();
+            item.hasMedia = message.media != null && (message.media.photo != null || message.media.document != null);
             item.dialogId = uid;
+            item.dialogKey = dialogKey;
             item.messageId = mid;
             item.deletedAt = deletedAt;
             item.text = message.message != null && message.message.length() > 0 ? message.message

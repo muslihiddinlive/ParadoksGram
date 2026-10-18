@@ -38,6 +38,7 @@ public class ParadoksSettingsActivity extends BaseFragment {
     private int showIdRow;
     private int keepDeletedRow;
     private int keepMediaRow;
+    private int preSaveRow;
     private int trackEditsRow;
     private int hideSponsoredRow;
     private int adInteractionRow;
@@ -71,6 +72,7 @@ public class ParadoksSettingsActivity extends BaseFragment {
         showIdRow = rowCount++;
         keepDeletedRow = rowCount++;
         keepMediaRow = rowCount++;
+        preSaveRow = rowCount++;
         trackEditsRow = rowCount++;
         hideSponsoredRow = rowCount++;
         adInteractionRow = rowCount++;
@@ -142,6 +144,12 @@ public class ParadoksSettingsActivity extends BaseFragment {
             } else if (position == keepMediaRow) {
                 boolean value = !ParadoksConfig.keepDeletedMedia();
                 ParadoksConfig.setKeepDeletedMedia(value);
+                if (view instanceof TextCheckCell) {
+                    ((TextCheckCell) view).setChecked(value);
+                }
+            } else if (position == preSaveRow) {
+                boolean value = !ParadoksConfig.preSaveMedia();
+                ParadoksConfig.setPreSaveMedia(value);
                 if (view instanceof TextCheckCell) {
                     ((TextCheckCell) view).setChecked(value);
                 }
@@ -318,7 +326,7 @@ public class ParadoksSettingsActivity extends BaseFragment {
         public int getItemViewType(int position) {
             if (position == generalHeaderRow || position == ghostHeaderRow || position == lockHeaderRow || position == voiceHeaderRow) {
                 return TYPE_HEADER;
-            } else if (position == showIdRow || position == keepDeletedRow || position == keepMediaRow || position == trackEditsRow || position == hideSponsoredRow || position == adInteractionRow || position == ownAdsRow
+            } else if (position == showIdRow || position == keepDeletedRow || position == keepMediaRow || position == preSaveRow || position == trackEditsRow || position == hideSponsoredRow || position == adInteractionRow || position == ownAdsRow
                     || position == ghostReadRow || position == ghostTypingRow || position == ghostOnlineRow || position == ghostStoriesRow || position == ghostScheduleRow || position == hiddenSearchRow) {
                 return TYPE_CHECK;
             } else if (position == voiceEffectRow || position == adServerRow || position == deletedRadarRow || position == ghostStartRow || position == ghostEndRow || position == lockPinRow) {
@@ -377,6 +385,8 @@ public class ParadoksSettingsActivity extends BaseFragment {
                         cell.setTextAndCheck("O'chirilgan xabarlarni saqlash", ParadoksConfig.keepDeleted(), true);
                     } else if (position == keepMediaRow) {
                         cell.setTextAndCheck("O'chirilgan media'ni saqlash", ParadoksConfig.keepDeletedMedia(), true);
+                    } else if (position == preSaveRow) {
+                        cell.setTextAndCheck("Media'ni oldindan saqlash (faqat Wi-Fi, 25 MB gacha)", ParadoksConfig.preSaveMedia(), true);
                     } else if (position == trackEditsRow) {
                         cell.setTextAndCheck("Tahrirlar tarixini saqlash", ParadoksConfig.trackEdits(), true);
                     } else if (position == hideSponsoredRow) {
