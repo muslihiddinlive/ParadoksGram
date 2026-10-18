@@ -39,6 +39,8 @@ public class ParadoksSettingsActivity extends BaseFragment {
     private int keepDeletedRow;
     private int keepMediaRow;
     private int preSaveRow;
+    private int deletedDbRow;
+    private int keepWarnRow;
     private int trackEditsRow;
     private int hideSponsoredRow;
     private int adInteractionRow;
@@ -73,6 +75,8 @@ public class ParadoksSettingsActivity extends BaseFragment {
         keepDeletedRow = rowCount++;
         keepMediaRow = rowCount++;
         preSaveRow = rowCount++;
+        deletedDbRow = rowCount++;
+        keepWarnRow = rowCount++;
         trackEditsRow = rowCount++;
         hideSponsoredRow = rowCount++;
         adInteractionRow = rowCount++;
@@ -136,17 +140,33 @@ public class ParadoksSettingsActivity extends BaseFragment {
                     ((TextCheckCell) view).setChecked(value);
                 }
             } else if (position == keepDeletedRow) {
-                boolean value = !ParadoksConfig.keepDeleted();
-                ParadoksConfig.setKeepDeleted(value);
-                if (view instanceof TextCheckCell) {
-                    ((TextCheckCell) view).setChecked(value);
+                final boolean value = !ParadoksConfig.keepDeleted();
+                Runnable apply = () -> {
+                    ParadoksConfig.setKeepDeleted(value);
+                    if (view instanceof TextCheckCell) {
+                        ((TextCheckCell) view).setChecked(value);
+                    }
+                };
+                if (value) {
+                    confirmEnable(apply);
+                } else {
+                    apply.run();
                 }
             } else if (position == keepMediaRow) {
-                boolean value = !ParadoksConfig.keepDeletedMedia();
-                ParadoksConfig.setKeepDeletedMedia(value);
-                if (view instanceof TextCheckCell) {
-                    ((TextCheckCell) view).setChecked(value);
+                final boolean value = !ParadoksConfig.keepDeletedMedia();
+                Runnable apply = () -> {
+                    ParadoksConfig.setKeepDeletedMedia(value);
+                    if (view instanceof TextCheckCell) {
+                        ((TextCheckCell) view).setChecked(value);
+                    }
+                };
+                if (value) {
+                    confirmEnable(apply);
+                } else {
+                    apply.run();
                 }
+            } else if (position == deletedDbRow) {
+                presentFragment(new ParadoksDeletedDbActivity());
             } else if (position == preSaveRow) {
                 boolean value = !ParadoksConfig.preSaveMedia();
                 ParadoksConfig.setPreSaveMedia(value);
@@ -303,6 +323,22 @@ public class ParadoksSettingsActivity extends BaseFragment {
         showDialog(builder.create());
     }
 
+    private void confirmEnable(Runnable onOk) {
+        if (getParentActivity() == null) {
+            onOk.run();
+            return;
+        }
+        org.telegram.ui.ActionBar.AlertDialog.Builder builder = new org.telegram.ui.ActionBar.AlertDialog.Builder(getParentActivity());
+        builder.setTitle("Ogohlantirish");
+        builder.setMessage("Bu funksiya boshqalar o'chirgan xabar va mediani telefoningizda saqlab qoladi. "
+                + "Suhbatdoshingiz xabarni o'chirgan bo'lsa, u buni xohlamagan bo'lishi mumkin. "
+                + "Saqlangan narsalarni boshqalarga ko'rsatmang, tarqatmang va qonunga zid maqsadda ishlatmang. "
+                + "Maxfiylik va qonunlar bo'yicha javobgarlik sizda.");
+        builder.setPositiveButton("Tushundim, yoqish", (d, w) -> onOk.run());
+        builder.setNegativeButton("Bekor qilish", null);
+        showDialog(builder.create());
+    }
+
     private class Adapter extends RecyclerListView.SelectionAdapter {
 
         private final Context context;
@@ -329,7 +365,7 @@ public class ParadoksSettingsActivity extends BaseFragment {
             } else if (position == showIdRow || position == keepDeletedRow || position == keepMediaRow || position == preSaveRow || position == trackEditsRow || position == hideSponsoredRow || position == adInteractionRow || position == ownAdsRow
                     || position == ghostReadRow || position == ghostTypingRow || position == ghostOnlineRow || position == ghostStoriesRow || position == ghostScheduleRow || position == hiddenSearchRow) {
                 return TYPE_CHECK;
-            } else if (position == voiceEffectRow || position == adServerRow || position == deletedRadarRow || position == ghostStartRow || position == ghostEndRow || position == lockPinRow) {
+            } else if (position == voiceEffectRow || position == adServerRow || position == deletedDbRow || position == deletedRadarRow || position == ghostStartRow || position == ghostEndRow || position == lockPinRow) {
                 return TYPE_VALUE;
             }
             return TYPE_INFO;
@@ -415,6 +451,9 @@ public class ParadoksSettingsActivity extends BaseFragment {
                     if (position == adServerRow) {
                         String url = ParadoksConfig.adServerUrl();
                         cell.setTextAndValue("Reklama serveri", url.isEmpty() ? "O'rnatilmagan" : url, true);
+                    } else if (position == deletedDbRow) {
+                        long dbTarget = ParadoksConfig.dbTarget(currentAccount);
+                        cell.setTextAndValue("O'chirilgan media bazasi", dbTarget == 0 ? "Tanlanmagan" : ParadoksDeletedDbActivity.nameOf(org.telegram.messenger.MessagesController.getInstance(currentAccount), dbTarget), true);
                     } else if (position == deletedRadarRow) {
                         cell.setTextAndValue("O'chirilganlar radari", "Boshqalar o'chirgan xabarlar ro'yxati", false);
                     } else if (position == ghostStartRow) {
@@ -435,7 +474,9 @@ public class ParadoksSettingsActivity extends BaseFragment {
                 default: {
                     TextInfoPrivacyCell cell = (TextInfoPrivacyCell) holder.itemView;
                     cell.setBackgroundDrawable(Theme.getThemedDrawableByKey(context, R.drawable.greydivider_bottom, Theme.key_windowBackgroundGrayShadow));
-                    if (position == showIdInfoRow) {
+                    if (position == keepWarnRow) {
+                        cell.setText("Diqqat: o'chirilgan xabar va mediani saqlash boshqalarning maxfiyligiga tegadi. Saqlanganlarni tarqatmang. \"O'chirilgan media bazasi\"ni yoqsangiz, boshqalar yuborgan media siz tanlagan kanal yoki chatga forward qilinadi.");
+                    } else if (position == showIdInfoRow) {
                         cell.setText("ID: profilda foydalanuvchi/kanal ID si ko'rsatiladi, bosilsa nusxa olinadi. O'chirilgan xabar chatda qoladi va \"o'chirilgan\" belgisi bilan ko'rinadi, ro'yxati radarda. O'chirilgan rasm, video va fayllar nusxasi ilovaning o'z papkasida saqlanadi (kesh tozalansa ham yo'qolmaydi, 150 MB gacha). Tahrirlangan xabar eski variantlari xabar menyusidagi \"Tahrirlar tarixi\" bandida. Reklama: kanal va botlardagi \"Sponsored\" xabarlar ko'rsatilmaydi. \"Reaksiya yoki izohda\" yoqilsa, chatda reaksiya bosganingda yoki izoh yozganingda o'sha chatning reklamasi ko'rinadi (ko'rilgani faqat haqiqatan ekranda ko'ringanda hisoblanadi).");
                     } else if (position == ghostInfoRow) {
                         cell.setText("Har bir qismni alohida yoqish mumkin. Jadval yoqilsa, yuqoridagi tanlanganlar faqat belgilangan vaqt oralig'ida ishlaydi (masalan 22:00 dan 08:00 gacha). Ghost o'qilgan belgisi yoqilganda chat menyusidagi \"O'qilgan deb belgilash\" orqali kerakli chatni qo'lda o'qilgan qilish mumkin.");

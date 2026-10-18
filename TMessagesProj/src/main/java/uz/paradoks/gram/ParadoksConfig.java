@@ -45,6 +45,24 @@ public final class ParadoksConfig {
         prefs().edit().putBoolean("pre_save_media", value).apply();
     }
 
+    /** Chat/channel/bot that receives forwarded copies of incoming media (0 = disabled). Per account. */
+    public static long dbTarget(int account) {
+        return prefs().getLong("deleted_db_target_" + account, 0);
+    }
+
+    public static void setDbTarget(int account, long dialogId) {
+        prefs().edit().putLong("deleted_db_target_" + account, dialogId).apply();
+    }
+
+    /** User accepted the risks of using bots / private chats as a database. */
+    public static boolean dbExtraConsent() {
+        return prefs().getBoolean("deleted_db_extra_consent", false);
+    }
+
+    public static void setDbExtraConsent(boolean value) {
+        prefs().edit().putBoolean("deleted_db_extra_consent", value).apply();
+    }
+
     public static boolean trackEdits() {
         return prefs().getBoolean("track_edits", true);
     }

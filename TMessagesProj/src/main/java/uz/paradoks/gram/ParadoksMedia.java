@@ -105,6 +105,7 @@ final class ParadoksMedia {
             prefetchInstalled = true;
             for (int a = 0; a < UserConfig.MAX_ACCOUNT_COUNT; a++) {
                 NotificationCenter.getInstance(a).addObserver(PREFETCH_OBSERVER, NotificationCenter.didReceiveNewMessages);
+                NotificationCenter.getInstance(a).addObserver(ParadoksDbForward.OBSERVER, NotificationCenter.didReceiveNewMessages);
             }
         });
     }
