@@ -5,6 +5,7 @@ import android.os.Bundle;
 import android.text.TextUtils;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.EditText;
 import android.widget.FrameLayout;
 
 import androidx.recyclerview.widget.LinearLayoutManager;
@@ -18,6 +19,8 @@ import org.telegram.messenger.R;
 import org.telegram.messenger.UserObject;
 import org.telegram.tgnet.TLRPC;
 import org.telegram.ui.ActionBar.ActionBar;
+import org.telegram.ui.ActionBar.ActionBarMenu;
+import org.telegram.ui.ActionBar.ActionBarMenuItem;
 import org.telegram.ui.ActionBar.AlertDialog;
 import org.telegram.ui.ActionBar.BaseFragment;
 import org.telegram.ui.ActionBar.Theme;
@@ -31,6 +34,7 @@ import org.telegram.ui.Components.LayoutHelper;
 import org.telegram.ui.Components.RecyclerListView;
 
 import java.util.ArrayList;
+import java.util.Locale;
 
 /**
  * "Deleted media database": pick the chat that receives a forwarded copy of every incoming
@@ -72,6 +76,7 @@ public class ParadoksDeletedDbActivity extends BaseFragment implements Notificat
     }
 
     private final ArrayList<Row> rows = new ArrayList<>();
+    private String query = "";
     private RecyclerListView listView;
     private Adapter adapter;
 
@@ -115,6 +120,31 @@ public class ParadoksDeletedDbActivity extends BaseFragment implements Notificat
             }
         });
 
+        ActionBarMenu menu = actionBar.createMenu();
+        ActionBarMenuItem searchItem = menu.addItem(0, R.drawable.outline_header_search).setIsSearchField(true).setActionBarMenuItemSearchListener(new ActionBarMenuItem.ActionBarMenuItemSearchListener() {
+            @Override
+            public void onSearchExpand() {
+            }
+
+            @Override
+            public boolean canCollapseSearch() {
+                return true;
+            }
+
+            @Override
+            public void onSearchCollapse() {
+                query = "";
+                refresh();
+            }
+
+            @Override
+            public void onTextChanged(EditText editText) {
+                query = editText.getText().toString().trim().toLowerCase(Locale.ROOT);
+                refresh();
+            }
+        });
+        searchItem.setSearchFieldHint("Kanal, guruh, bot yoki odam nomi");
+
         FrameLayout contentView = new FrameLayout(context);
         contentView.setBackgroundColor(Theme.getColor(Theme.key_windowBackgroundGray));
         listView = new RecyclerListView(context);
@@ -156,14 +186,19 @@ public class ParadoksDeletedDbActivity extends BaseFragment implements Notificat
         boolean extra = ParadoksConfig.dbExtraConsent();
         MessagesController controller = MessagesController.getInstance(currentAccount);
 
-        rows.add(info(INTRO));
+        final boolean searching = !query.isEmpty();
+        if (!searching) {
+            rows.add(info(INTRO));
+        }
         Row create = new Row();
         create.type = T_BUTTON;
         create.action = ACTION_NEW;
         create.title = "+ Yangi kanal yoki guruh ochish";
         create.subtitle = "Telegram'ning o'z oynasi ochiladi. Tayyor bo'lgach shu yerga qaytib, uni tanlang";
-        rows.add(create);
-        if (target != 0) {
+        if (!searching) {
+            rows.add(create);
+        }
+        if (target != 0 && !searching) {
             rows.add(header("Hozirgi baza"));
             Row current = new Row();
             current.type = T_CHAT;
@@ -216,25 +251,27 @@ public class ParadoksDeletedDbActivity extends BaseFragment implements Notificat
             }
         }
 
-        rows.add(header("Shaxsiy kanallaringiz (siz adminsiz)"));
-        addAll(channels, "Mos kanal topilmadi. Telegram'da shaxsiy kanal yarating (siz admin bo'lasiz) va shu yerga qayting.");
-        rows.add(header("Guruhlar va superguruhlar (siz adminsiz)"));
-        addAll(groups, "Mos guruh topilmadi.");
+        int before = rows.size();
+        addSection("Shaxsiy kanallaringiz (siz adminsiz)", channels, "Mos kanal topilmadi. Telegram'da shaxsiy kanal yarating (siz admin bo'lasiz) va shu yerga qayting.");
+        addSection("Guruhlar va superguruhlar (siz adminsiz)", groups, "Mos guruh topilmadi.");
 
         Row extraButton = new Row();
         extraButton.type = T_BUTTON;
         extraButton.action = ACTION_EXTRA;
         extraButton.title = extra ? "Botlar va shaxsiy chatlarni yashirish" : "Qo'shimcha: botlar va shaxsiy chatlar";
         extraButton.subtitle = extra ? "Ro'yxatdan olib tashlanadi" : "Ehtiyot bo'ling, avval tushuntirish chiqadi";
-        rows.add(extraButton);
+        if (!searching) {
+            rows.add(extraButton);
+        }
 
         if (extra) {
-            rows.add(header("Botlar"));
-            addAll(bots, "Bot topilmadi.");
-            rows.add(header("Shaxsiy chatlar"));
-            addAll(people, "Chat topilmadi.");
+            addSection("Botlar", bots, "Bot topilmadi.");
+            addSection("Shaxsiy chatlar", people, "Chat topilmadi.");
         }
-        if (target != 0) {
+        if (searching && rows.size() == before) {
+            rows.add(info("Hech narsa topilmadi. Qidiruv faqat siz admin bo'lgan shaxsiy kanal/guruhlar" + (extra ? ", botlar va shaxsiy chatlar" : "") + " ichida ishlaydi."));
+        }
+        if (target != 0 && !searching) {
             Row clear = new Row();
             clear.type = T_BUTTON;
             clear.action = ACTION_CLEAR;
@@ -244,11 +281,22 @@ public class ParadoksDeletedDbActivity extends BaseFragment implements Notificat
         }
     }
 
-    private void addAll(ArrayList<Row> list, String emptyText) {
-        if (list.isEmpty()) {
+    /** Adds a header and its rows; while searching only matching rows (and only non-empty sections). */
+    private void addSection(String headerText, ArrayList<Row> list, String emptyText) {
+        ArrayList<Row> shown = new ArrayList<>();
+        for (Row row : list) {
+            if (query.isEmpty() || (row.title != null && row.title.toLowerCase(Locale.ROOT).contains(query))) {
+                shown.add(row);
+            }
+        }
+        if (!query.isEmpty() && shown.isEmpty()) {
+            return;
+        }
+        rows.add(header(headerText));
+        if (shown.isEmpty()) {
             rows.add(info(emptyText));
         } else {
-            rows.addAll(list);
+            rows.addAll(shown);
         }
     }
 

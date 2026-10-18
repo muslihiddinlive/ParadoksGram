@@ -17,7 +17,7 @@ import org.telegram.ui.ActionBar.Theme;
 import org.telegram.ui.Cells.HeaderCell;
 import org.telegram.ui.Cells.TextCheckCell;
 import org.telegram.ui.Cells.TextInfoPrivacyCell;
-import org.telegram.ui.Cells.TextSettingsCell;
+import org.telegram.ui.Cells.TextDetailSettingsCell;
 import org.telegram.ui.Components.LayoutHelper;
 import org.telegram.ui.Components.RecyclerListView;
 
@@ -384,7 +384,7 @@ public class ParadoksSettingsActivity extends BaseFragment {
                     view.setBackgroundColor(Theme.getColor(Theme.key_windowBackgroundWhite));
                     break;
                 case TYPE_VALUE:
-                    view = new TextSettingsCell(context);
+                    view = new TextDetailSettingsCell(context);
                     view.setBackgroundColor(Theme.getColor(Theme.key_windowBackgroundWhite));
                     break;
                 default:
@@ -416,59 +416,82 @@ public class ParadoksSettingsActivity extends BaseFragment {
                 case TYPE_CHECK: {
                     TextCheckCell cell = (TextCheckCell) holder.itemView;
                     if (position == showIdRow) {
-                        cell.setTextAndCheck("ID ni ko'rsatish", ParadoksConfig.showId(), true);
+                        cell.setTextAndValueAndCheck("ID ni ko'rsatish", "Profilda foydalanuvchi, bot yoki kanalning ID raqami ko'rinadi, bosilsa nusxa olinadi. Botlar va dasturlash bilan ishlaganda kerak bo'ladi.", ParadoksConfig.showId(), true, true);
                     } else if (position == keepDeletedRow) {
-                        cell.setTextAndCheck("O'chirilgan xabarlarni saqlash", ParadoksConfig.keepDeleted(), true);
+                        cell.setTextAndValueAndCheck("O'chirilgan xabarlarni saqlash", "Kimdir sizga yozgan xabarni o'chirsa, u chatingizda qoladi va vaqt yonida \"o'chirilgan\" belgisi chiqadi. Faqat sizning telefoningizda ishlaydi, suhbatdoshingiz bilmaydi. Ro'yxati \"O'chirilganlar radari\"da.", ParadoksConfig.keepDeleted(), true, true);
                     } else if (position == keepMediaRow) {
-                        cell.setTextAndCheck("O'chirilgan media'ni saqlash", ParadoksConfig.keepDeletedMedia(), true);
+                        cell.setTextAndValueAndCheck("O'chirilgan media'ni saqlash", "O'chirilgan xabardagi rasm, video va fayllarning nusxasi ilovaning o'z papkasida saqlanadi (150 MB gacha), kesh tozalansa ham yo'qolmaydi. Fayl hali yuklanmagan bo'lsa, ilova uni yuklashga urinadi, lekin Telegram serveri o'chirib yuborgan bo'lsa, bo'lmaydi.", ParadoksConfig.keepDeletedMedia(), true, true);
                     } else if (position == preSaveRow) {
-                        cell.setTextAndCheck("Media'ni oldindan saqlash (faqat Wi-Fi, 25 MB gacha)", ParadoksConfig.preSaveMedia(), true);
+                        cell.setTextAndValueAndCheck("Media'ni oldindan saqlash (faqat Wi-Fi, 25 MB gacha)", "Yangi kelgan rasm va fayllar fonda oldindan yuklab qo'yiladi, shunda keyin o'chirilsa ham nusxasi tayyor bo'ladi. Faqat Wi-Fi'da, shaxsiy chat va guruhlarda, 25 MB gacha ishlaydi. Trafik va xotira sarflaydi.", ParadoksConfig.preSaveMedia(), true, true);
                     } else if (position == trackEditsRow) {
-                        cell.setTextAndCheck("Tahrirlar tarixini saqlash", ParadoksConfig.trackEdits(), true);
+                        cell.setTextAndValueAndCheck("Tahrirlar tarixini saqlash", "Kimdir xabarini tahrirlasa, eski variantlari saqlanadi. Ularni xabar menyusidagi \"Tahrirlar tarixi\" bandidan ko'rasiz.", ParadoksConfig.trackEdits(), true, true);
                     } else if (position == hideSponsoredRow) {
-                        cell.setTextAndCheck("Reklamani yashirish (kanal va botlar)", ParadoksConfig.hideSponsored(), true);
+                        cell.setTextAndValueAndCheck("Reklamani yashirish (kanal va botlar)", "Kanallar va botlardagi \"Sponsored\" (homiylik) reklama xabarlari ko'rsatilmaydi.", ParadoksConfig.hideSponsored(), true, true);
                     } else if (position == ownAdsRow) {
-                        cell.setTextAndCheck("ParadoksGram reklamasi (\"Reklama\" belgisi bilan)", ParadoksConfig.ownAdsEnabled(), true);
+                        cell.setTextAndValueAndCheck("ParadoksGram reklamasi (\"Reklama\" belgisi bilan)", "ParadoksGram reklamasi dasturchi serveridan olinadi va \"Reklama\" belgisi bilan kanal oxirida yoki bot chati tepasida ko'rinadi. Serverga Telegram ma'lumotlaringiz yuborilmaydi, faqat reklama raqami, hodisa turi (ko'rildi yoki bosildi) va tasodifiy anonim raqam.", ParadoksConfig.ownAdsEnabled(), true, true);
                     } else if (position == adInteractionRow) {
-                        cell.setTextAndCheck("Reaksiya yoki izohda reklama ko'rsatish", ParadoksConfig.adOnInteraction(), true);
+                        cell.setTextAndValueAndCheck("Reaksiya yoki izohda reklama ko'rsatish", "Yoqilsa, chatda reaksiya bosganingizda yoki izoh yozganingizda o'sha chatning reklamasi ko'rinadi. Reklama ko'rilgani faqat u haqiqatan ekranda ko'ringandagina hisoblanadi.", ParadoksConfig.adOnInteraction(), true, true);
                     } else if (position == hiddenSearchRow) {
-                        cell.setTextAndCheck("Qidiruvda yashirin chatlarni ko'rsatish", ParadoksConfig.showHiddenInSearch(), false);
+                        cell.setTextAndValueAndCheck("Qidiruvda yashirin chatlarni ko'rsatish", "Yashirin chatlar (chat menyusida \"Yashirin chat\") ro'yxat, forward va bildirishnomalardan yo'qoladi. Bu yoqilsa, ular qidiruvda ham ko'rinadi. Standart: ko'rinmaydi. Yashirinlarni ko'rish uchun qidiruv belgisini bosib turing va PIN kiriting.", ParadoksConfig.showHiddenInSearch(), true, false);
                     } else if (position == ghostReadRow) {
-                        cell.setTextAndCheck("O'qilgan belgisini yashirish", ParadoksConfig.ghostReadSwitch(), true);
+                        cell.setTextAndValueAndCheck("O'qilgan belgisini yashirish", "Xabarlarni o'qisangiz ham, yuboruvchiga \"o'qildi\" belgisi bormaydi. Kerakli chatni chat menyusidagi \"O'qilgan deb belgilash\" bilan qo'lda o'qilgan qilasiz.", ParadoksConfig.ghostReadSwitch(), true, true);
                     } else if (position == ghostTypingRow) {
-                        cell.setTextAndCheck("\"Yozyapti...\" ni yashirish", ParadoksConfig.ghostTypingSwitch(), true);
+                        cell.setTextAndValueAndCheck("\"Yozyapti...\" ni yashirish", "Yozayotganingizda suhbatdoshingizga \"yozyapti...\" holati ko'rsatilmaydi.", ParadoksConfig.ghostTypingSwitch(), true, true);
                     } else if (position == ghostOnlineRow) {
-                        cell.setTextAndCheck("Online holatini yashirish", ParadoksConfig.ghostOnlineSwitch(), true);
+                        cell.setTextAndValueAndCheck("Online holatini yashirish", "Ilovada bo'lsangiz ham, boshqalarga online bo'lib ko'rinmaysiz.", ParadoksConfig.ghostOnlineSwitch(), true, true);
                     } else if (position == ghostStoriesRow) {
-                        cell.setTextAndCheck("Story ko'rganimni yashirish", ParadoksConfig.ghostStoriesSwitch(), true);
+                        cell.setTextAndValueAndCheck("Story ko'rganimni yashirish", "Boshqalarning story'sini ko'rsangiz, egasi sizning ko'rganingizni bilmaydi.", ParadoksConfig.ghostStoriesSwitch(), true, true);
                     } else {
-                        cell.setTextAndCheck("Jadval bo'yicha ishlash", ParadoksConfig.ghostScheduleEnabled(), true);
+                        cell.setTextAndValueAndCheck("Jadval bo'yicha ishlash", "Yoqilsa, yuqoridagi ghost sozlamalari faqat quyida belgilangan vaqt oralig'ida ishlaydi (masalan 22:00 dan 08:00 gacha). Boshqa vaqtda odatdagidek ishlaydi.", ParadoksConfig.ghostScheduleEnabled(), true, true);
                     }
                     break;
                 }
                 case TYPE_VALUE: {
-                    TextSettingsCell cell = (TextSettingsCell) holder.itemView;
+                    TextDetailSettingsCell cell = (TextDetailSettingsCell) holder.itemView;
+                    cell.setMultilineDetail(true);
+                    String title;
+                    String now = null;
+                    String info;
+                    boolean divider = true;
                     if (position == adServerRow) {
                         String url = ParadoksConfig.adServerUrl();
-                        cell.setTextAndValue("Reklama serveri", url.isEmpty() ? "O'rnatilmagan" : url, true);
+                        title = "Reklama serveri";
+                        now = url.isEmpty() ? "O'rnatilmagan" : url;
+                        info = "Reklama olinadigan server manzili. Bo'sh qoldirsangiz, ParadoksGram reklamasi chiqmaydi.";
                     } else if (position == deletedDbRow) {
                         long dbTarget = ParadoksConfig.dbTarget(currentAccount);
-                        cell.setTextAndValue("O'chirilgan media bazasi", dbTarget == 0 ? "Tanlanmagan" : ParadoksDeletedDbActivity.nameOf(org.telegram.messenger.MessagesController.getInstance(currentAccount), dbTarget), true);
+                        title = "O'chirilgan media bazasi";
+                        now = dbTarget == 0 ? "Tanlanmagan" : ParadoksDeletedDbActivity.nameOf(org.telegram.messenger.MessagesController.getInstance(currentAccount), dbTarget);
+                        info = "Boshqalar yuborgan rasm, video va fayllar avtomatik siz tanlagan shaxsiy kanal yoki guruhga forward qilinadi, yuboruvchi o'chirsa ham nusxasi qoladi. Tanlash va to'liq tushuntirish ichkarida.";
                     } else if (position == deletedRadarRow) {
-                        cell.setTextAndValue("O'chirilganlar radari", "Boshqalar o'chirgan xabarlar ro'yxati", false);
+                        title = "O'chirilganlar radari";
+                        info = "Boshqalar o'chirgan xabarlar ro'yxati: kim, qaysi chatda va qachon o'chirgani. Saqlangan media bo'lsa, uni ochish yoki galereyaga saqlash mumkin.";
+                        divider = false;
                     } else if (position == ghostStartRow) {
-                        cell.setTextAndValue("Boshlanish vaqti", formatTime(ParadoksConfig.ghostScheduleStart()), true);
+                        title = "Boshlanish vaqti";
+                        now = formatTime(ParadoksConfig.ghostScheduleStart());
+                        info = "Jadval yoqilgan bo'lsa, ghost mode shu vaqtdan boshlab ishlaydi.";
                     } else if (position == ghostEndRow) {
-                        cell.setTextAndValue("Tugash vaqti", formatTime(ParadoksConfig.ghostScheduleEnd()), false);
+                        title = "Tugash vaqti";
+                        now = formatTime(ParadoksConfig.ghostScheduleEnd());
+                        info = "Jadval yoqilgan bo'lsa, ghost mode shu vaqtda o'chadi.";
+                        divider = false;
                     } else if (position == lockPinRow) {
-                        cell.setTextAndValue("PIN kod", ParadoksLock.hasPin() ? "O'rnatilgan" : "O'rnatilmagan", false);
+                        title = "PIN kod";
+                        now = ParadoksLock.hasPin() ? "O'rnatilgan" : "O'rnatilmagan";
+                        info = "Chat qulfi uchun PIN. Chat menyusidagi \"Chat qulfi\" bilan chatni qulflaysiz va u har ochilganda PIN so'raladi. PIN faqat shifrlangan (hash) ko'rinishda saqlanadi.";
+                        divider = false;
                     } else {
                         int mode = ParadoksConfig.getVoiceEffect();
                         if (mode < 0 || mode >= VOICE_EFFECT_NAMES.length) {
                             mode = 0;
                         }
-                        cell.setTextAndValue("Ovoz effekti", VOICE_EFFECT_NAMES[mode], false);
+                        title = "Ovoz effekti";
+                        now = VOICE_EFFECT_NAMES[mode];
+                        info = "Ovozli xabar yozayotganda tanlangan effekt qo'llanadi va xabar shu effekt bilan yuboriladi.";
+                        divider = false;
                     }
+                    cell.setTextAndValue(title, now == null ? info : ("Hozir: " + now + "\n" + info), divider);
                     break;
                 }
                 default: {
@@ -477,13 +500,13 @@ public class ParadoksSettingsActivity extends BaseFragment {
                     if (position == keepWarnRow) {
                         cell.setText("Diqqat: o'chirilgan xabar va mediani saqlash boshqalarning maxfiyligiga tegadi. Saqlanganlarni tarqatmang. \"O'chirilgan media bazasi\"ni yoqsangiz, boshqalar yuborgan media siz tanlagan kanal yoki chatga forward qilinadi.");
                     } else if (position == showIdInfoRow) {
-                        cell.setText("ID: profilda foydalanuvchi/kanal ID si ko'rsatiladi, bosilsa nusxa olinadi. O'chirilgan xabar chatda qoladi va \"o'chirilgan\" belgisi bilan ko'rinadi, ro'yxati radarda. O'chirilgan rasm, video va fayllar nusxasi ilovaning o'z papkasida saqlanadi (kesh tozalansa ham yo'qolmaydi, 150 MB gacha). Tahrirlangan xabar eski variantlari xabar menyusidagi \"Tahrirlar tarixi\" bandida. Reklama: kanal va botlardagi \"Sponsored\" xabarlar ko'rsatilmaydi. \"Reaksiya yoki izohda\" yoqilsa, chatda reaksiya bosganingda yoki izoh yozganingda o'sha chatning reklamasi ko'rinadi (ko'rilgani faqat haqiqatan ekranda ko'ringanda hisoblanadi).");
+                        cell.setText("Bu bo'limdagi sozlamalar faqat shu ilovada, sizning telefoningizda saqlanadi.");
                     } else if (position == ghostInfoRow) {
-                        cell.setText("Har bir qismni alohida yoqish mumkin. Jadval yoqilsa, yuqoridagi tanlanganlar faqat belgilangan vaqt oralig'ida ishlaydi (masalan 22:00 dan 08:00 gacha). Ghost o'qilgan belgisi yoqilganda chat menyusidagi \"O'qilgan deb belgilash\" orqali kerakli chatni qo'lda o'qilgan qilish mumkin.");
+                        cell.setText("Ghost mode Telegram'ga ba'zi so'rovlarni yubormaslik orqali ishlaydi. Har bir qismni alohida yoqish mumkin.");
                     } else if (position == lockInfoRow) {
-                        cell.setText("Chat ichidagi menyudan \"Chat qulfi\" ni bosib chatni qulflaysiz. Qulflangan chat har ochilganda PIN so'raydi. PIN faqat shifrlangan (hash) ko'rinishda saqlanadi. Yashirin chat (chat menyusida \"Yashirin chat\", lupani bosib turib ochiladi) ro'yxatdan, forward ro'yxatidan va bildirishnomalardan yo'qoladi, qidiruvda esa yuqoridagi sozlama bo'yicha ko'rinadi (standart: yo'q). Yashirin chat havola orqali ochilsa ham PIN so'raydi.");
+                        cell.setText("Chat qulfi va yashirin chat ilovaning o'zida ishlaydi, ular haqida Telegram serveriga hech narsa yuborilmaydi.");
                     } else {
-                        cell.setText("Ovozli xabar yozayotganda tanlangan effekt qo'llanadi. Yuborilgan xabar effekt bilan chiqadi.");
+                        cell.setText("Effekt faqat siz yozadigan ovozli xabarlarga ta'sir qiladi.");
                     }
                     break;
                 }
