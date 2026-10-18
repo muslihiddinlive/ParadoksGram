@@ -1,6 +1,7 @@
 package uz.paradoks.gram;
 
 import android.content.Context;
+import android.os.Bundle;
 import android.text.TextUtils;
 import android.view.View;
 import android.view.ViewGroup;
@@ -12,6 +13,7 @@ import androidx.recyclerview.widget.RecyclerView;
 import org.telegram.messenger.ChatObject;
 import org.telegram.messenger.DialogObject;
 import org.telegram.messenger.MessagesController;
+import org.telegram.messenger.NotificationCenter;
 import org.telegram.messenger.R;
 import org.telegram.messenger.UserObject;
 import org.telegram.tgnet.TLRPC;
@@ -22,6 +24,9 @@ import org.telegram.ui.ActionBar.Theme;
 import org.telegram.ui.Cells.HeaderCell;
 import org.telegram.ui.Cells.TextDetailSettingsCell;
 import org.telegram.ui.Cells.TextInfoPrivacyCell;
+import org.telegram.ui.Cells.UserCell;
+import org.telegram.ui.ChannelCreateActivity;
+import org.telegram.ui.GroupCreateActivity;
 import org.telegram.ui.Components.LayoutHelper;
 import org.telegram.ui.Components.RecyclerListView;
 
@@ -32,7 +37,7 @@ import java.util.ArrayList;
  * photo/video/file. Own private channels and groups first; bots and private chats only after the
  * user explicitly accepts the risks.
  */
-public class ParadoksDeletedDbActivity extends BaseFragment {
+public class ParadoksDeletedDbActivity extends BaseFragment implements NotificationCenter.NotificationCenterDelegate {
 
     private static final int T_INFO = 0;
     private static final int T_HEADER = 1;
@@ -41,6 +46,7 @@ public class ParadoksDeletedDbActivity extends BaseFragment {
 
     private static final int ACTION_EXTRA = 1;
     private static final int ACTION_CLEAR = 2;
+    private static final int ACTION_NEW = 3;
 
     private static final String INTRO =
             "Bu nima? Kimdir sizga rasm, video yoki fayl yuborsa, uning nusxasi avtomatik shu yerda tanlagan "
@@ -60,6 +66,7 @@ public class ParadoksDeletedDbActivity extends BaseFragment {
         int action;
         long dialogId;
         boolean personal; // bot / private chat
+        Object avatar; // TLRPC.Chat or TLRPC.User, used for the profile picture
         String title;
         String subtitle;
     }
@@ -71,7 +78,27 @@ public class ParadoksDeletedDbActivity extends BaseFragment {
     @Override
     public boolean onFragmentCreate() {
         build();
+        NotificationCenter.getInstance(currentAccount).addObserver(this, NotificationCenter.dialogsNeedReload);
         return super.onFragmentCreate();
+    }
+
+    @Override
+    public void onFragmentDestroy() {
+        NotificationCenter.getInstance(currentAccount).removeObserver(this, NotificationCenter.dialogsNeedReload);
+        super.onFragmentDestroy();
+    }
+
+    @Override
+    public void didReceivedNotification(int id, int account, Object... args) {
+        if (id == NotificationCenter.dialogsNeedReload) {
+            refresh();
+        }
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+        refresh(); // a channel/group created from here shows up when we come back
     }
 
     @Override
@@ -102,6 +129,8 @@ public class ParadoksDeletedDbActivity extends BaseFragment {
             if (row.type == T_BUTTON) {
                 if (row.action == ACTION_EXTRA) {
                     toggleExtra();
+                } else if (row.action == ACTION_NEW) {
+                    showCreateDialog();
                 } else if (row.action == ACTION_CLEAR) {
                     ParadoksConfig.setDbTarget(currentAccount, 0);
                     refresh();
@@ -128,12 +157,19 @@ public class ParadoksDeletedDbActivity extends BaseFragment {
         MessagesController controller = MessagesController.getInstance(currentAccount);
 
         rows.add(info(INTRO));
+        Row create = new Row();
+        create.type = T_BUTTON;
+        create.action = ACTION_NEW;
+        create.title = "+ Yangi kanal yoki guruh ochish";
+        create.subtitle = "Telegram'ning o'z oynasi ochiladi. Tayyor bo'lgach shu yerga qaytib, uni tanlang";
+        rows.add(create);
         if (target != 0) {
             rows.add(header("Hozirgi baza"));
             Row current = new Row();
             current.type = T_CHAT;
             current.dialogId = target;
             current.title = nameOf(controller, target);
+            current.avatar = target > 0 ? controller.getUser(target) : controller.getChat(-target);
             current.subtitle = "✔ Baza (bosilsa o'chiriladi)";
             rows.add(current);
         }
@@ -163,7 +199,7 @@ public class ParadoksDeletedDbActivity extends BaseFragment {
                 if (broadcast ? !ChatObject.canPost(chat) : !ChatObject.canSendMessages(chat)) {
                     continue;
                 }
-                Row row = chatRow(id, chat.title, broadcast ? "Shaxsiy kanal" : (ChatObject.isChannel(chat) ? "Superguruh" : "Guruh"), false);
+                Row row = chatRow(id, chat.title, broadcast ? "Shaxsiy kanal" : (ChatObject.isChannel(chat) ? "Superguruh" : "Guruh"), false, chat);
                 (broadcast ? channels : groups).add(row);
             } else if (extra && DialogObject.isUserDialog(id)) {
                 TLRPC.User user = controller.getUser(id);
@@ -171,11 +207,11 @@ public class ParadoksDeletedDbActivity extends BaseFragment {
                     continue;
                 }
                 if (UserObject.isUserSelf(user)) {
-                    people.add(0, chatRow(id, "Saqlangan xabarlar", "Faqat o'zingiz ko'rasiz", true));
+                    people.add(0, chatRow(id, "Saqlangan xabarlar", "Faqat o'zingiz ko'rasiz", true, user));
                 } else if (user.bot) {
-                    bots.add(chatRow(id, UserObject.getUserName(user), "Bot", true));
+                    bots.add(chatRow(id, UserObject.getUserName(user), "Bot", true, user));
                 } else {
-                    people.add(chatRow(id, UserObject.getUserName(user), "Shaxsiy chat: bu odam mediani ko'radi!", true));
+                    people.add(chatRow(id, UserObject.getUserName(user), "Shaxsiy chat: bu odam mediani ko'radi!", true, user));
                 }
             }
         }
@@ -230,11 +266,12 @@ public class ParadoksDeletedDbActivity extends BaseFragment {
         return row;
     }
 
-    private static Row chatRow(long id, String title, String subtitle, boolean personal) {
+    private static Row chatRow(long id, String title, String subtitle, boolean personal, Object avatar) {
         Row row = new Row();
         row.type = T_CHAT;
         row.dialogId = id;
         row.personal = personal;
+        row.avatar = avatar;
         row.title = title != null ? title : ("ID " + id);
         row.subtitle = subtitle;
         return row;
@@ -262,6 +299,25 @@ public class ParadoksDeletedDbActivity extends BaseFragment {
         builder.setPositiveButton("Baza qilish", (d, w) -> {
             ParadoksConfig.setDbTarget(currentAccount, row.dialogId);
             refresh();
+        });
+        builder.setNegativeButton("Bekor qilish", null);
+        showDialog(builder.create());
+    }
+
+    private void showCreateDialog() {
+        if (getParentActivity() == null) {
+            return;
+        }
+        AlertDialog.Builder builder = new AlertDialog.Builder(getParentActivity());
+        builder.setTitle("Nimani ochamiz?");
+        builder.setItems(new CharSequence[]{"Yangi kanal", "Yangi guruh"}, (d, which) -> {
+            if (which == 0) {
+                Bundle args = new Bundle();
+                args.putInt("step", 0);
+                presentFragment(new ChannelCreateActivity(args));
+            } else {
+                presentFragment(new GroupCreateActivity(new Bundle()));
+            }
         });
         builder.setNegativeButton("Bekor qilish", null);
         showDialog(builder.create());
@@ -340,6 +396,9 @@ public class ParadoksDeletedDbActivity extends BaseFragment {
                 view.setBackgroundColor(Theme.getColor(Theme.key_windowBackgroundWhite));
             } else if (viewType == T_INFO) {
                 view = new TextInfoPrivacyCell(context);
+            } else if (viewType == T_CHAT) {
+                view = new UserCell(context, 4, 0, false);
+                view.setBackgroundColor(Theme.getColor(Theme.key_windowBackgroundWhite));
             } else {
                 view = new TextDetailSettingsCell(context);
                 view.setBackgroundColor(Theme.getColor(Theme.key_windowBackgroundWhite));
@@ -357,6 +416,8 @@ public class ParadoksDeletedDbActivity extends BaseFragment {
                 TextInfoPrivacyCell cell = (TextInfoPrivacyCell) holder.itemView;
                 cell.setBackgroundDrawable(Theme.getThemedDrawableByKey(context, R.drawable.greydivider_bottom, Theme.key_windowBackgroundGrayShadow));
                 cell.setText(row.title);
+            } else if (row.type == T_CHAT) {
+                ((UserCell) holder.itemView).setData(row.avatar, row.title, row.subtitle, 0, true);
             } else {
                 ((TextDetailSettingsCell) holder.itemView).setTextAndValue(row.title, row.subtitle, true);
             }
