@@ -64,10 +64,22 @@ public final class ParadoksEdits {
     }
 
     public static void showHistory(BaseFragment fragment, int account, TLRPC.Message message) {
-        if (fragment == null || fragment.getParentActivity() == null || message == null) {
+        if (message == null) {
             return;
         }
-        long dialogId = MessageObject.getDialogId(message);
+        showHistoryFor(fragment, account, MessageObject.getDialogId(message), message.id,
+                message.message == null || message.message.isEmpty() ? "(matnsiz)" : message.message);
+    }
+
+    /** Same list, opened from the radar (the current text is not at hand there). */
+    public static void showHistoryById(BaseFragment fragment, int account, long dialogId, int messageId) {
+        showHistoryFor(fragment, account, dialogId, messageId, null);
+    }
+
+    private static void showHistoryFor(BaseFragment fragment, int account, long dialogId, int messageId, String currentText) {
+        if (fragment == null || fragment.getParentActivity() == null) {
+            return;
+        }
         SimpleDateFormat format = new SimpleDateFormat("dd.MM.yyyy HH:mm", Locale.getDefault());
         StringBuilder sb = new StringBuilder();
         Cursor cursor = null;
@@ -75,7 +87,7 @@ public final class ParadoksEdits {
         try {
             cursor = ParadoksDb.get().getReadableDatabase().rawQuery(
                     "SELECT ts, txt FROM edits WHERE acc = ? AND dlg = ? AND mid = ? ORDER BY id ASC",
-                    new String[]{String.valueOf(account), String.valueOf(dialogId), String.valueOf(message.id)});
+                    new String[]{String.valueOf(account), String.valueOf(dialogId), String.valueOf(messageId)});
             while (cursor.moveToNext()) {
                 count++;
                 String text = cursor.getString(1);
@@ -88,8 +100,9 @@ public final class ParadoksEdits {
                 cursor.close();
             }
         }
-        String current = message.message == null || message.message.isEmpty() ? "(matnsiz)" : message.message;
-        sb.append("Hozirgi variant:\n").append(current);
+        if (currentText != null) {
+            sb.append("Hozirgi variant:\n").append(currentText);
+        }
 
         AlertDialog.Builder builder = new AlertDialog.Builder(fragment.getParentActivity());
         builder.setTitle("Tahrirlar tarixi (" + count + ")");

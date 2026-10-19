@@ -30,16 +30,26 @@ final class ParadoksDbForward {
     private static final class Pending {
         final int account;
         final MessageObject object;
+        final long srcDialog;
+        final int srcMid;
+        final int srcDate;
 
         Pending(int account, MessageObject object) {
             this.account = account;
             this.object = object;
+            this.srcDialog = object.getDialogId();
+            this.srcMid = object.getId();
+            this.srcDate = object.messageOwner != null ? object.messageOwner.date : 0;
         }
     }
 
     private static final ArrayDeque<Pending> queue = new ArrayDeque<>();
     private static final LinkedHashSet<String> seen = new LinkedHashSet<>();
     private static boolean draining;
+    /** Forwards sent but whose local echo has not been matched yet. */
+    private static final ArrayList<Pending> awaiting = new ArrayList<>();
+    /** Local (temporary) message id in the database chat to the source it was forwarded from. */
+    private static final java.util.HashMap<String, Pending> temp = new java.util.HashMap<>();
 
     private ParadoksDbForward() {
     }
@@ -58,6 +68,9 @@ final class ParadoksDbForward {
                 return;
             }
             ArrayList<MessageObject> list = new ArrayList<>((ArrayList<MessageObject>) args[1]);
+            if (args[0] instanceof Number && ((Number) args[0]).longValue() == target) {
+                matchEcho(account, list);
+            }
             for (MessageObject object : list) {
                 if (eligible(object, target)) {
                     enqueue(account, object);
@@ -67,6 +80,41 @@ final class ParadoksDbForward {
                 draining = true;
                 AndroidUtilities.runOnUIThread(ParadoksDbForward::drain, 500);
             }
+        } catch (Throwable ignore) {
+        }
+    };
+
+    /** Our own forwards appear in the database chat first with a temporary id: pair them with their source. */
+    private static void matchEcho(int account, ArrayList<MessageObject> list) {
+        for (MessageObject object : list) {
+            TLRPC.Message m = object.messageOwner;
+            if (m == null || !m.out || m.id >= 0 || m.fwd_from == null) {
+                continue;
+            }
+            for (int i = 0; i < awaiting.size(); i++) {
+                Pending p = awaiting.get(i);
+                if (p.account == account && p.srcDate == m.fwd_from.date) {
+                    awaiting.remove(i);
+                    temp.put(account + "_" + m.id, p);
+                    break;
+                }
+            }
+        }
+    }
+
+    /** When the server confirms the forward we learn the real message id of the copy. */
+    static final NotificationCenter.NotificationCenterDelegate SERVER_OBSERVER = (id, account, args) -> {
+        try {
+            if (id != NotificationCenter.messageReceivedByServer || args == null || args.length < 4 || temp.isEmpty()) {
+                return;
+            }
+            Pending p = temp.remove(account + "_" + args[0]);
+            if (p == null) {
+                return;
+            }
+            final long peer = ((Number) args[3]).longValue();
+            final int newId = ((Number) args[1]).intValue();
+            ParadoksDb.async(() -> ParadoksDb.get().insertForward(account, p.srcDialog, p.srcMid, peer, newId));
         } catch (Throwable ignore) {
         }
     };
@@ -117,6 +165,10 @@ final class ParadoksDbForward {
                 ArrayList<MessageObject> one = new ArrayList<>();
                 one.add(pending.object);
                 SendMessagesHelper.getInstance(pending.account).sendMessage(one, target, false, false, false, 0, 0);
+                awaiting.add(pending);
+                if (awaiting.size() > 50) {
+                    awaiting.remove(0);
+                }
             }
         } catch (Throwable ignore) {
         }

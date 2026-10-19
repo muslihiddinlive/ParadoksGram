@@ -40,6 +40,8 @@ public class ParadoksSettingsActivity extends BaseFragment {
     private int keepMediaRow;
     private int preSaveRow;
     private int deletedDbRow;
+    private int notifyDeletedRow;
+    private int cleanupRow;
     private int keepWarnRow;
     private int trackEditsRow;
     private int hideSponsoredRow;
@@ -75,6 +77,8 @@ public class ParadoksSettingsActivity extends BaseFragment {
         keepDeletedRow = rowCount++;
         keepMediaRow = rowCount++;
         preSaveRow = rowCount++;
+        notifyDeletedRow = rowCount++;
+        cleanupRow = rowCount++;
         deletedDbRow = rowCount++;
         keepWarnRow = rowCount++;
         trackEditsRow = rowCount++;
@@ -167,6 +171,14 @@ public class ParadoksSettingsActivity extends BaseFragment {
                 }
             } else if (position == deletedDbRow) {
                 presentFragment(new ParadoksDeletedDbActivity());
+            } else if (position == notifyDeletedRow) {
+                boolean value = !ParadoksConfig.notifyDeleted();
+                ParadoksConfig.setNotifyDeleted(value);
+                if (view instanceof TextCheckCell) {
+                    ((TextCheckCell) view).setChecked(value);
+                }
+            } else if (position == cleanupRow) {
+                showCleanupDialog();
             } else if (position == preSaveRow) {
                 boolean value = !ParadoksConfig.preSaveMedia();
                 ParadoksConfig.setPreSaveMedia(value);
@@ -323,6 +335,37 @@ public class ParadoksSettingsActivity extends BaseFragment {
         showDialog(builder.create());
     }
 
+    private static String cleanupPolicyText() {
+        int days = ParadoksConfig.mediaRetentionDays();
+        int maxMb = ParadoksConfig.mediaMaxMb();
+        if (days > 0) {
+            return days + " kundan keyin o'chiriladi";
+        }
+        if (maxMb > 0) {
+            return (maxMb / 1024) + " GB dan oshsa eskisi o'chiriladi";
+        }
+        return "o'chirilmaydi";
+    }
+
+    private void showCleanupDialog() {
+        if (getParentActivity() == null) {
+            return;
+        }
+        final int[][] options = {{0, 0}, {30, 0}, {90, 0}, {180, 0}, {0, 1024}, {0, 5120}};
+        org.telegram.ui.ActionBar.AlertDialog.Builder builder = new org.telegram.ui.ActionBar.AlertDialog.Builder(getParentActivity());
+        builder.setTitle("Avto-tozalash");
+        builder.setItems(new CharSequence[]{"Hech qachon (o'chirmaslik)", "30 kundan keyin", "90 kundan keyin", "180 kundan keyin",
+                "1 GB dan oshsa eskisini o'chirish", "5 GB dan oshsa eskisini o'chirish"}, (d, which) -> {
+            ParadoksConfig.setMediaCleanup(options[which][0], options[which][1]);
+            ParadoksCleanup.run();
+            if (adapter != null) {
+                adapter.notifyDataSetChanged();
+            }
+        });
+        builder.setNegativeButton("Bekor qilish", null);
+        showDialog(builder.create());
+    }
+
     private void confirmEnable(Runnable onOk) {
         if (getParentActivity() == null) {
             onOk.run();
@@ -362,10 +405,10 @@ public class ParadoksSettingsActivity extends BaseFragment {
         public int getItemViewType(int position) {
             if (position == generalHeaderRow || position == ghostHeaderRow || position == lockHeaderRow || position == voiceHeaderRow) {
                 return TYPE_HEADER;
-            } else if (position == showIdRow || position == keepDeletedRow || position == keepMediaRow || position == preSaveRow || position == trackEditsRow || position == hideSponsoredRow || position == adInteractionRow || position == ownAdsRow
+            } else if (position == showIdRow || position == keepDeletedRow || position == keepMediaRow || position == preSaveRow || position == notifyDeletedRow || position == trackEditsRow || position == hideSponsoredRow || position == adInteractionRow || position == ownAdsRow
                     || position == ghostReadRow || position == ghostTypingRow || position == ghostOnlineRow || position == ghostStoriesRow || position == ghostScheduleRow || position == hiddenSearchRow) {
                 return TYPE_CHECK;
-            } else if (position == voiceEffectRow || position == adServerRow || position == deletedDbRow || position == deletedRadarRow || position == ghostStartRow || position == ghostEndRow || position == lockPinRow) {
+            } else if (position == voiceEffectRow || position == adServerRow || position == deletedDbRow || position == cleanupRow || position == deletedRadarRow || position == ghostStartRow || position == ghostEndRow || position == lockPinRow) {
                 return TYPE_VALUE;
             }
             return TYPE_INFO;
@@ -421,6 +464,8 @@ public class ParadoksSettingsActivity extends BaseFragment {
                         cell.setTextAndValueAndCheck("O'chirilgan xabarlarni saqlash", "Kimdir sizga yozgan xabarni o'chirsa, u chatingizda qoladi va vaqt yonida \"o'chirilgan\" belgisi chiqadi. Faqat sizning telefoningizda ishlaydi, suhbatdoshingiz bilmaydi. Ro'yxati \"O'chirilganlar radari\"da.", ParadoksConfig.keepDeleted(), true, true);
                     } else if (position == keepMediaRow) {
                         cell.setTextAndValueAndCheck("O'chirilgan media'ni saqlash", "O'chirilgan xabardagi rasm, video va fayllarning nusxasi ilovaning o'z papkasida saqlanadi (150 MB gacha), kesh tozalansa ham yo'qolmaydi. Fayl hali yuklanmagan bo'lsa, ilova uni yuklashga urinadi, lekin Telegram serveri o'chirib yuborgan bo'lsa, bo'lmaydi.", ParadoksConfig.keepDeletedMedia(), true, true);
+                    } else if (position == notifyDeletedRow) {
+                        cell.setTextAndValueAndCheck("Xabar o'chirilganda bildirishnoma", "Kimdir xabarini o'chirsa, telefoningizga \"X xabarni o'chirdi\" degan bildirishnoma keladi (matn boshi bilan). Ovozsiz (mute) chatlar uchun kelmaydi. Ekran qulfida matn yashirin ko'rsatiladi. Standart: o'chiq.", ParadoksConfig.notifyDeleted(), true, true);
                     } else if (position == preSaveRow) {
                         cell.setTextAndValueAndCheck("Media'ni oldindan saqlash (faqat Wi-Fi, 25 MB gacha)", "Yangi kelgan rasm va fayllar fonda oldindan yuklab qo'yiladi, shunda keyin o'chirilsa ham nusxasi tayyor bo'ladi. Faqat Wi-Fi'da, shaxsiy chat va guruhlarda, 25 MB gacha ishlaydi. Trafik va xotira sarflaydi.", ParadoksConfig.preSaveMedia(), true, true);
                     } else if (position == trackEditsRow) {
@@ -463,9 +508,13 @@ public class ParadoksSettingsActivity extends BaseFragment {
                         title = "O'chirilgan media bazasi";
                         now = dbTarget == 0 ? "Tanlanmagan" : ParadoksDeletedDbActivity.nameOf(org.telegram.messenger.MessagesController.getInstance(currentAccount), dbTarget);
                         info = "Boshqalar yuborgan rasm, video va fayllar avtomatik siz tanlagan shaxsiy kanal yoki guruhga forward qilinadi, yuboruvchi o'chirsa ham nusxasi qoladi. Tanlash va to'liq tushuntirish ichkarida.";
+                    } else if (position == cleanupRow) {
+                        title = "Saqlangan media'ni avto-tozalash";
+                        now = cleanupPolicyText() + " (hozir saqlangan: " + (ParadoksCleanup.usedBytes() / (1024 * 1024)) + " MB)";
+                        info = "Saqlangan o'chirilgan media'lar vaqt o'tishi yoki hajm oshishi bilan avtomatik o'chiriladi, shunda xotira to'lib ketmaydi. Xabar matni va radardagi yozuv qoladi, faqat media fayl o'chadi. Tozalash ilova ochilganda ishlaydi.";
                     } else if (position == deletedRadarRow) {
                         title = "O'chirilganlar radari";
-                        info = "Boshqalar o'chirgan xabarlar ro'yxati: kim, qaysi chatda va qachon o'chirgani. Saqlangan media bo'lsa, uni ochish yoki galereyaga saqlash mumkin.";
+                        info = "Boshqalar o'chirgan va tahrirlagan xabarlar ro'yxati: kim, qaysi chatda va qachon. Qidiruv va filtr (tur, davr) bor. Saqlangan media'ni ochish yoki galereyaga saqlash, bazadagi nusxani ochish mumkin.";
                         divider = false;
                     } else if (position == ghostStartRow) {
                         title = "Boshlanish vaqti";

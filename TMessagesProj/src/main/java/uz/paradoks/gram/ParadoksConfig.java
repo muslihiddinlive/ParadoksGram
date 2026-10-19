@@ -63,6 +63,29 @@ public final class ParadoksConfig {
         prefs().edit().putBoolean("deleted_db_extra_consent", value).apply();
     }
 
+    /** Local notification "X deleted a message". */
+    public static boolean notifyDeleted() {
+        return prefs().getBoolean("notify_deleted", false);
+    }
+
+    public static void setNotifyDeleted(boolean value) {
+        prefs().edit().putBoolean("notify_deleted", value).apply();
+    }
+
+    /** Saved deleted media is removed after this many days (0 = never). */
+    public static int mediaRetentionDays() {
+        return prefs().getInt("media_retention_days", 0);
+    }
+
+    /** Saved deleted media above this size in MB is trimmed, oldest first (0 = no limit). */
+    public static int mediaMaxMb() {
+        return prefs().getInt("media_max_mb", 0);
+    }
+
+    public static void setMediaCleanup(int days, int maxMb) {
+        prefs().edit().putInt("media_retention_days", days).putInt("media_max_mb", maxMb).apply();
+    }
+
     public static boolean trackEdits() {
         return prefs().getBoolean("track_edits", true);
     }

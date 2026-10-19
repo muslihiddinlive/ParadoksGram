@@ -35,7 +35,7 @@ final class ParadoksDb extends SQLiteOpenHelper {
     }
 
     private ParadoksDb() {
-        super(ApplicationLoader.applicationContext, "paradoks.db", null, 3);
+        super(ApplicationLoader.applicationContext, "paradoks.db", null, 4);
     }
 
     @Override
@@ -45,6 +45,11 @@ final class ParadoksDb extends SQLiteOpenHelper {
         db.execSQL("CREATE INDEX edits_idx ON edits (acc, dlg, mid)");
         createMediaTable(db);
         createPendingTable(db);
+        createForwardTable(db);
+    }
+
+    private static void createForwardTable(SQLiteDatabase db) {
+        db.execSQL("CREATE TABLE IF NOT EXISTS forwards (acc INTEGER, src_dlg INTEGER, src_mid INTEGER, tgt_dlg INTEGER, tgt_mid INTEGER, PRIMARY KEY (acc, src_dlg, src_mid))");
     }
 
     private static void createPendingTable(SQLiteDatabase db) {
@@ -62,6 +67,9 @@ final class ParadoksDb extends SQLiteOpenHelper {
         }
         if (oldVersion < 3) {
             createPendingTable(db);
+        }
+        if (oldVersion < 4) {
+            createForwardTable(db);
         }
     }
 
@@ -147,5 +155,92 @@ final class ParadoksDb extends SQLiteOpenHelper {
             }
         }
         return result;
+    }
+
+    /** Remembers where the database copy of a message lives. */
+    void insertForward(int acc, long srcDlg, int srcMid, long tgtDlg, int tgtMid) {
+        ContentValues values = new ContentValues();
+        values.put("acc", acc);
+        values.put("src_dlg", srcDlg);
+        values.put("src_mid", srcMid);
+        values.put("tgt_dlg", tgtDlg);
+        values.put("tgt_mid", tgtMid);
+        getWritableDatabase().insertWithOnConflict("forwards", null, values, SQLiteDatabase.CONFLICT_REPLACE);
+    }
+
+    /** Returns {tgtDlg, tgtMid} or null. */
+    long[] queryForward(int acc, long srcDlg, int srcMid) {
+        android.database.Cursor cursor = null;
+        try {
+            cursor = getReadableDatabase().rawQuery("SELECT tgt_dlg, tgt_mid FROM forwards WHERE acc = ? AND src_dlg = ? AND src_mid = ?",
+                    new String[]{String.valueOf(acc), String.valueOf(srcDlg), String.valueOf(srcMid)});
+            if (cursor.moveToFirst()) {
+                return new long[]{cursor.getLong(0), cursor.getLong(1)};
+            }
+        } catch (Throwable ignore) {
+        } finally {
+            if (cursor != null) {
+                cursor.close();
+            }
+        }
+        return null;
+    }
+
+    /** Rows of {acc, dlg, mid} plus the path (parallel list). */
+    ArrayList<Object[]> queryAllMedia() {
+        ArrayList<Object[]> result = new ArrayList<>();
+        android.database.Cursor cursor = null;
+        try {
+            cursor = getReadableDatabase().rawQuery("SELECT acc, dlg, mid, path FROM deleted_media", null);
+            while (cursor.moveToNext()) {
+                result.add(new Object[]{cursor.getInt(0), cursor.getLong(1), cursor.getInt(2), cursor.getString(3)});
+            }
+        } catch (Throwable ignore) {
+        } finally {
+            if (cursor != null) {
+                cursor.close();
+            }
+        }
+        return result;
+    }
+
+    void deleteMedia(int acc, long dlg, int mid) {
+        getWritableDatabase().delete("deleted_media", "acc = ? AND dlg = ? AND mid = ?",
+                new String[]{String.valueOf(acc), String.valueOf(dlg), String.valueOf(mid)});
+    }
+
+    /** Edited messages, newest first: rows of {dlg, mid, lastTs, versions, lastEditRowId}. */
+    ArrayList<long[]> queryEditGroups(int acc) {
+        ArrayList<long[]> result = new ArrayList<>();
+        android.database.Cursor cursor = null;
+        try {
+            cursor = getReadableDatabase().rawQuery("SELECT dlg, mid, MAX(ts), COUNT(*), MAX(id) FROM edits WHERE acc = ? GROUP BY dlg, mid ORDER BY MAX(id) DESC LIMIT 200",
+                    new String[]{String.valueOf(acc)});
+            while (cursor.moveToNext()) {
+                result.add(new long[]{cursor.getLong(0), cursor.getLong(1), cursor.getLong(2), cursor.getLong(3), cursor.getLong(4)});
+            }
+        } catch (Throwable ignore) {
+        } finally {
+            if (cursor != null) {
+                cursor.close();
+            }
+        }
+        return result;
+    }
+
+    String editText(long rowId) {
+        android.database.Cursor cursor = null;
+        try {
+            cursor = getReadableDatabase().rawQuery("SELECT txt FROM edits WHERE id = ?", new String[]{String.valueOf(rowId)});
+            if (cursor.moveToFirst()) {
+                return cursor.getString(0);
+            }
+        } catch (Throwable ignore) {
+        } finally {
+            if (cursor != null) {
+                cursor.close();
+            }
+        }
+        return null;
     }
 }

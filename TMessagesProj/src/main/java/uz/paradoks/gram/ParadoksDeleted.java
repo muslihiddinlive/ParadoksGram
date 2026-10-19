@@ -88,12 +88,14 @@ public final class ParadoksDeleted {
             }
         });
         ParadoksMedia.saveFor(account, dialogKey, copy);
+        ParadoksNotify.deleted(account, dialogKey, copy);
     }
 
     /** Continues unfinished deleted-media copies from the previous session. */
     public static void resumePendingMedia() {
         ParadoksMedia.installPrefetch();
         ParadoksMedia.resumePending();
+        ParadoksCleanup.run();
     }
 
     public static boolean isDeleted(int account, MessageObject object) {
