@@ -416,7 +416,7 @@ public class ParadoksSettingsActivity extends BaseFragment {
                 case TYPE_CHECK: {
                     TextCheckCell cell = (TextCheckCell) holder.itemView;
                     if (position == showIdRow) {
-                        cell.setTextAndValueAndCheck("ID ni ko'rsatish", "Profilda foydalanuvchi, bot yoki kanalning ID raqami ko'rinadi, bosilsa nusxa olinadi. Botlar va dasturlash bilan ishlaganda kerak bo'ladi.", ParadoksConfig.showId(), true, true);
+                        cell.setTextAndValueAndCheck("ID ni ko'rsatish", "Profilda foydalanuvchi, bot yoki kanalning ID raqami ko'rinadi, bosilsa nusxa olinadi. Stiker, emoji yoki GIF xabarini bosib turib (yoki stiker panelida ustiga bosib turib) ularning ID'sini ham ko'rasiz. Botlar va dasturlash bilan ishlaganda kerak bo'ladi.", ParadoksConfig.showId(), true, true);
                     } else if (position == keepDeletedRow) {
                         cell.setTextAndValueAndCheck("O'chirilgan xabarlarni saqlash", "Kimdir sizga yozgan xabarni o'chirsa, u chatingizda qoladi va vaqt yonida \"o'chirilgan\" belgisi chiqadi. Faqat sizning telefoningizda ishlaydi, suhbatdoshingiz bilmaydi. Ro'yxati \"O'chirilganlar radari\"da.", ParadoksConfig.keepDeleted(), true, true);
                     } else if (position == keepMediaRow) {

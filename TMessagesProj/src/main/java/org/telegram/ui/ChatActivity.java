@@ -33417,6 +33417,10 @@ public class ChatActivity extends BaseFragment implements
                 uz.paradoks.gram.ParadoksEdits.showHistory(this, currentAccount, selectedObject.messageOwner);
                 break;
             }
+            case 9002: {
+                uz.paradoks.gram.ParadoksIds.showForMessage(getParentActivity(), selectedObject);
+                break;
+            }
             case OPTION_COPY: {
                 final TL_iv.RichMessage copyRichMessage = selectedObject.messageOwner != null ? selectedObject.messageOwner.rich_message : null;
                 if (selectedObject.isDice()) {
@@ -46279,6 +46283,11 @@ public class ChatActivity extends BaseFragment implements
                     items.add("Tahrirlar tarixi");
                     options.add(9001);
                     icons.add(R.drawable.msg_recent);
+                }
+                if (uz.paradoks.gram.ParadoksConfig.showId() && uz.paradoks.gram.ParadoksIds.hasIds(selectedObject)) { // ParadoksGram: sticker / emoji / GIF ids
+                    items.add("ID ni ko'rsatish (stiker, emoji, GIF)");
+                    options.add(9002);
+                    icons.add(R.drawable.msg_info);
                 }
                 if (!isThreadChat() && chatMode != MODE_SCHEDULED && currentChat != null && primaryMessage != null && (currentChat.has_link || primaryMessage.hasReplies()) && currentChat.megagroup && primaryMessage.canViewThread()) {
                     if (primaryMessage.hasReplies()) {

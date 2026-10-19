@@ -783,6 +783,11 @@ public class ContentPreviewViewer {
                     }
                 }
 
+                if (uz.paradoks.gram.ParadoksConfig.showId() && currentDocument != null) { // ParadoksGram: show ids
+                    items.add("ID ni ko'rsatish");
+                    icons.add(R.drawable.msg_info);
+                    actions.add(9001);
+                }
                 if (items.isEmpty()) {
                     return;
                 }
@@ -796,6 +801,11 @@ public class ContentPreviewViewer {
                             return;
                         }
                         int which = (int) v.getTag();
+                        if (actions.get(which) == 9001) { // ParadoksGram: show ids
+                            uz.paradoks.gram.ParadoksIds.showForDocument(parentActivity, currentDocument);
+                            dismissPopupWindow();
+                            return;
+                        }
                         if (actions.get(which) == 0 || actions.get(which) == 6) {
                             if (delegate != null) {
                                 delegate.sendSticker(currentDocument, currentQuery, parentObject, actions.get(which) == 0, 0, 0);
@@ -932,6 +942,11 @@ public class ContentPreviewViewer {
                     icons.add(inFavs ? R.drawable.msg_unfave : R.drawable.msg_fave);
                     actions.add(5);
                 }
+                if (uz.paradoks.gram.ParadoksConfig.showId() && currentDocument != null) { // ParadoksGram: show ids
+                    items.add("ID ni ko'rsatish");
+                    icons.add(R.drawable.msg_info);
+                    actions.add(9001);
+                }
                 if (items.isEmpty()) {
                     return;
                 }
@@ -948,6 +963,11 @@ public class ContentPreviewViewer {
                         return;
                     }
                     int which = (int) v.getTag();
+                    if (actions.get(which) == 9001) { // ParadoksGram: show ids
+                        uz.paradoks.gram.ParadoksIds.showForDocument(parentActivity, currentDocument);
+                        dismissPopupWindow();
+                        return;
+                    }
                     int action = actions.get(which);
                     if (action == 0) {
                         delegate.sendEmoji(currentDocument);
@@ -1065,6 +1085,11 @@ public class ContentPreviewViewer {
                 } else {
                     canDelete = false;
                 }
+                if (uz.paradoks.gram.ParadoksConfig.showId() && currentDocument != null) { // ParadoksGram: show ids
+                    items.add("ID ni ko'rsatish");
+                    icons.add(R.drawable.msg_info);
+                    actions.add(9001);
+                }
                 if (items.isEmpty()) {
                     return;
                 }
@@ -1081,6 +1106,11 @@ public class ContentPreviewViewer {
                         return;
                     }
                     int which = (int) v.getTag();
+                    if (actions.get(which) == 9001) { // ParadoksGram: show ids
+                        uz.paradoks.gram.ParadoksIds.showForDocument(parentActivity, currentDocument);
+                        dismissPopupWindow();
+                        return;
+                    }
                     if (actions.get(which) == 0) {
                         delegate.sendGif(currentDocument != null ? currentDocument : inlineResult, parentObject, true, 0, 0);
                     } else if (actions.get(which) == 4) {
