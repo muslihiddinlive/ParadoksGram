@@ -83,6 +83,9 @@ jobs:
           restore-keys: |
             ccache-
 
+      - name: Embed build number (used by the in-app updater)
+        run: sed -i "s/public static final int NUMBER = [0-9]*;/public static final int NUMBER = ${{ github.run_number }};/" TMessagesProj/src/main/java/uz/paradoks/gram/ParadoksBuild.java
+
       - name: Build release APK
         env:
           CCACHE_DIR: /home/runner/.ccache
@@ -147,6 +150,8 @@ jobs:
         with:
           tag_name: build-${{ github.run_number }}
           name: "ParadoksGram build ${{ github.run_number }}"
+          body: ${{ github.event.head_commit.message }}
+          make_latest: true
           files: ${{ steps.find_apk.outputs.apk_path }}
           generate_release_notes: false
           prerelease: true

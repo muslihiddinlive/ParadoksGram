@@ -86,6 +86,15 @@ public final class ParadoksConfig {
         prefs().edit().putInt("media_retention_days", days).putInt("media_max_mb", maxMb).apply();
     }
 
+    /** Highest build number whose "update available" dialog was already shown. */
+    public static int updateAnnounced() {
+        return prefs().getInt("update_announced", 0);
+    }
+
+    public static void setUpdateAnnounced(int build) {
+        prefs().edit().putInt("update_announced", build).apply();
+    }
+
     public static boolean trackEdits() {
         return prefs().getBoolean("track_edits", true);
     }

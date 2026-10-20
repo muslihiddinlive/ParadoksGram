@@ -291,6 +291,7 @@ public class ApplicationLoader extends Application {
 
         super.onCreate();
         Utilities.globalQueue.postRunnable(uz.paradoks.gram.ParadoksDeleted::resumePendingMedia, 20000);
+        Utilities.globalQueue.postRunnable(uz.paradoks.gram.ParadoksUpdater::checkIfDue, 15000);
 
         // AndroidUtilities must be initialized before FileLog
         final String helloWorld = AndroidUtilities.getHelloWorld();
@@ -662,7 +663,7 @@ public class ApplicationLoader extends Application {
     }
 
     public IUpdateLayout takeUpdateLayout(Activity activity, ViewGroup sideMenuContainer) {
-        return null;
+        return new uz.paradoks.gram.ParadoksUpdateLayout(activity, sideMenuContainer); // ParadoksGram: "ParadoksGram ni yangilash" bar
     }
 
     public TLRPC.Update parseTLUpdate(int constructor) {

@@ -40,6 +40,7 @@ public class ParadoksSettingsActivity extends BaseFragment {
     private int keepMediaRow;
     private int preSaveRow;
     private int deletedDbRow;
+    private int updateRow;
     private int notifyDeletedRow;
     private int cleanupRow;
     private int keepWarnRow;
@@ -73,6 +74,7 @@ public class ParadoksSettingsActivity extends BaseFragment {
     private void updateRows() {
         rowCount = 0;
         generalHeaderRow = rowCount++;
+        updateRow = rowCount++;
         showIdRow = rowCount++;
         keepDeletedRow = rowCount++;
         keepMediaRow = rowCount++;
@@ -171,6 +173,12 @@ public class ParadoksSettingsActivity extends BaseFragment {
                 }
             } else if (position == deletedDbRow) {
                 presentFragment(new ParadoksDeletedDbActivity());
+            } else if (position == updateRow) {
+                if (ParadoksUpdater.state() == ParadoksUpdater.IDLE || ParadoksUpdater.state() == ParadoksUpdater.FAILED) {
+                    ParadoksUpdater.userCheck(getParentActivity());
+                } else {
+                    ParadoksUpdater.showDialog(getParentActivity());
+                }
             } else if (position == notifyDeletedRow) {
                 boolean value = !ParadoksConfig.notifyDeleted();
                 ParadoksConfig.setNotifyDeleted(value);
@@ -408,7 +416,7 @@ public class ParadoksSettingsActivity extends BaseFragment {
             } else if (position == showIdRow || position == keepDeletedRow || position == keepMediaRow || position == preSaveRow || position == notifyDeletedRow || position == trackEditsRow || position == hideSponsoredRow || position == adInteractionRow || position == ownAdsRow
                     || position == ghostReadRow || position == ghostTypingRow || position == ghostOnlineRow || position == ghostStoriesRow || position == ghostScheduleRow || position == hiddenSearchRow) {
                 return TYPE_CHECK;
-            } else if (position == voiceEffectRow || position == adServerRow || position == deletedDbRow || position == cleanupRow || position == deletedRadarRow || position == ghostStartRow || position == ghostEndRow || position == lockPinRow) {
+            } else if (position == voiceEffectRow || position == adServerRow || position == updateRow || position == deletedDbRow || position == cleanupRow || position == deletedRadarRow || position == ghostStartRow || position == ghostEndRow || position == lockPinRow) {
                 return TYPE_VALUE;
             }
             return TYPE_INFO;
@@ -508,6 +516,10 @@ public class ParadoksSettingsActivity extends BaseFragment {
                         title = "O'chirilgan media bazasi";
                         now = dbTarget == 0 ? "Tanlanmagan" : ParadoksDeletedDbActivity.nameOf(org.telegram.messenger.MessagesController.getInstance(currentAccount), dbTarget);
                         info = "Boshqalar yuborgan rasm, video va fayllar avtomatik siz tanlagan shaxsiy kanal yoki guruhga forward qilinadi, yuboruvchi o'chirsa ham nusxasi qoladi. Tanlash va to'liq tushuntirish ichkarida.";
+                    } else if (position == updateRow) {
+                        title = "ParadoksGram yangilanishi";
+                        now = ParadoksUpdater.statusText();
+                        info = "Yangi versiya borligini tekshiradi. Yuklash faqat ParadoksGram'ning rasmiy GitHub sahifasidan bo'ladi va o'rnatishdan oldin APK imzosi tekshiriladi. Yangi versiya chiqsa, chat ro'yxati tagida \"ParadoksGram ni yangilash\" tugmasi ham chiqadi.";
                     } else if (position == cleanupRow) {
                         title = "Saqlangan media'ni avto-tozalash";
                         now = cleanupPolicyText() + " (hozir saqlangan: " + (ParadoksCleanup.usedBytes() / (1024 * 1024)) + " MB)";
