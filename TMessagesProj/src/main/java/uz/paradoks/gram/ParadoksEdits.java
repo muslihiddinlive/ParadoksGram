@@ -104,6 +104,31 @@ public final class ParadoksEdits {
             sb.append("Hozirgi variant:\n").append(currentText);
         }
 
+        if (count == 0) {
+            int total = 0;
+            Cursor totalCursor = null;
+            try {
+                totalCursor = ParadoksDb.get().getReadableDatabase().rawQuery("SELECT COUNT(*) FROM edits WHERE acc = ?", new String[]{String.valueOf(account)});
+                if (totalCursor.moveToFirst()) {
+                    total = totalCursor.getInt(0);
+                }
+            } catch (Throwable ignore) {
+            } finally {
+                if (totalCursor != null) {
+                    totalCursor.close();
+                }
+            }
+            sb.setLength(0);
+            sb.append("Bu xabarning eski variantlari saqlanmagan.\n\n")
+                    .append("Odatda sababi: xabar bu ilova o'rnatilishidan oldin yoki \"Tahrirlar tarixini saqlash\" yoqilishidan oldin tahrirlangan. ")
+                    .append("Endi yangi tahrir qilinsa, eski matn saqlanadi.\n\n")
+                    .append("Tahrirlarni saqlash: ").append(ParadoksConfig.trackEdits() ? "yoniq" : "O'CHIQ (sozlamalarda yoqing)")
+                    .append("\nShu akkauntda jami yozilgan tahrirlar: ").append(total);
+            if (currentText != null) {
+                sb.append("\n\nHozirgi variant:\n").append(currentText);
+            }
+        }
+
         AlertDialog.Builder builder = new AlertDialog.Builder(fragment.getParentActivity());
         builder.setTitle("Tahrirlar tarixi (" + count + ")");
         builder.setMessage(sb.toString());

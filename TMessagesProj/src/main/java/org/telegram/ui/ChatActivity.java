@@ -46246,7 +46246,7 @@ public class ChatActivity extends BaseFragment implements
                     options.add(OPTION_EDIT_SCHEDULE_TIME);
                     icons.add(R.drawable.msg_calendar2);
                 }
-                if (uz.paradoks.gram.ParadoksEdits.hasHistory(currentAccount, selectedObject.messageOwner)) {
+                if (uz.paradoks.gram.ParadoksEdits.hasHistory(currentAccount, selectedObject.messageOwner) || (selectedObject.messageOwner != null && selectedObject.messageOwner.edit_date != 0)) {
                     items.add("Tahrirlar tarixi");
                     options.add(9001);
                     icons.add(R.drawable.msg_recent);
