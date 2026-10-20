@@ -151,7 +151,6 @@ jobs:
           tag_name: build-${{ github.run_number }}
           name: "ParadoksGram build ${{ github.run_number }}"
           body: ${{ github.event.head_commit.message }}
-          make_latest: true
           files: ${{ steps.find_apk.outputs.apk_path }}
           generate_release_notes: false
           prerelease: true

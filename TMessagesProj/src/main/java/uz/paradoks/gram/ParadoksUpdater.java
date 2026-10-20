@@ -39,7 +39,7 @@ public final class ParadoksUpdater {
     public static final int READY = 3;
     public static final int FAILED = 4;
 
-    private static final String RELEASE_API = "https://api.github.com/repos/muslihiddinlive/ParadoksGram/releases/latest";
+    private static final String RELEASE_API = "https://api.github.com/repos/muslihiddinlive/ParadoksGram/releases?per_page=5";
     private static final String DOWNLOAD_PREFIX = "https://github.com/muslihiddinlive/ParadoksGram/releases/download/";
     private static final long CHECK_INTERVAL_MS = 30L * 60 * 1000;
 
@@ -136,7 +136,17 @@ public final class ParadoksUpdater {
                 if (connection.getResponseCode() != 200) {
                     throw new Exception("GitHub javob bermadi (" + connection.getResponseCode() + ")");
                 }
-                JSONObject release = new JSONObject(readAll(connection.getInputStream()));
+                JSONArray releases = new JSONArray(readAll(connection.getInputStream()));
+                JSONObject release = null; // newest published release (CI marks them as pre-releases, so /latest would not see them)
+                for (int i = 0; i < releases.length() && release == null; i++) {
+                    JSONObject candidate = releases.getJSONObject(i);
+                    if (!candidate.optBoolean("draft", false)) {
+                        release = candidate;
+                    }
+                }
+                if (release == null) {
+                    throw new Exception("reliz topilmadi");
+                }
                 String tag = release.optString("tag_name", "");
                 int build = Integer.parseInt(tag.substring(tag.lastIndexOf('-') + 1));
                 String url = null;
