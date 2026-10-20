@@ -46246,6 +46246,16 @@ public class ChatActivity extends BaseFragment implements
                     options.add(OPTION_EDIT_SCHEDULE_TIME);
                     icons.add(R.drawable.msg_calendar2);
                 }
+                if (uz.paradoks.gram.ParadoksEdits.hasHistory(currentAccount, selectedObject.messageOwner)) {
+                    items.add("Tahrirlar tarixi");
+                    options.add(9001);
+                    icons.add(R.drawable.msg_recent);
+                }
+                if (uz.paradoks.gram.ParadoksConfig.showId() && uz.paradoks.gram.ParadoksIds.hasIds(selectedObject)) { // ParadoksGram: sticker / emoji / GIF ids
+                    items.add("ID ni ko'rsatish (stiker, emoji, GIF)");
+                    options.add(9002);
+                    icons.add(R.drawable.msg_info);
+                }
                 MessageObject msg = selectedObjectGroup != null ? selectedObjectGroup.findPrimaryMessageObject() : selectedObject;
                 if (msg != null && msg.isFactCheckable() && getMessagesController().canEditFactcheck && ChatObject.isChannelAndNotMegaGroup(currentChat) && chatMode == MODE_DEFAULT) {
                     items.add(LocaleController.getString(msg.getFactCheck() == null ? R.string.AddFactCheck : R.string.EditFactCheck));
@@ -46278,16 +46288,6 @@ public class ChatActivity extends BaseFragment implements
                     items.add(LocaleController.getString(R.string.Copy));
                     options.add(OPTION_COPY);
                     icons.add(R.drawable.msg_copy);
-                }
-                if (uz.paradoks.gram.ParadoksEdits.hasHistory(currentAccount, selectedObject.messageOwner)) {
-                    items.add("Tahrirlar tarixi");
-                    options.add(9001);
-                    icons.add(R.drawable.msg_recent);
-                }
-                if (uz.paradoks.gram.ParadoksConfig.showId() && uz.paradoks.gram.ParadoksIds.hasIds(selectedObject)) { // ParadoksGram: sticker / emoji / GIF ids
-                    items.add("ID ni ko'rsatish (stiker, emoji, GIF)");
-                    options.add(9002);
-                    icons.add(R.drawable.msg_info);
                 }
                 if (!isThreadChat() && chatMode != MODE_SCHEDULED && currentChat != null && primaryMessage != null && (currentChat.has_link || primaryMessage.hasReplies()) && currentChat.megagroup && primaryMessage.canViewThread()) {
                     if (primaryMessage.hasReplies()) {
