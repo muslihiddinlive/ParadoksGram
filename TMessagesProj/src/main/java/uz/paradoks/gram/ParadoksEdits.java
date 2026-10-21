@@ -67,13 +67,16 @@ public final class ParadoksEdits {
         if (message == null) {
             return;
         }
-        showHistoryFor(fragment, account, MessageObject.getDialogId(message), message.id,
-                message.message == null || message.message.isEmpty() ? "(matnsiz)" : message.message);
+        if (fragment != null) {
+            fragment.presentFragment(new ParadoksEditsActivity(account, MessageObject.getDialogId(message), message.id, message));
+        }
     }
 
     /** Same list, opened from the radar (the current text is not at hand there). */
     public static void showHistoryById(BaseFragment fragment, int account, long dialogId, int messageId) {
-        showHistoryFor(fragment, account, dialogId, messageId, null);
+        if (fragment != null) {
+            fragment.presentFragment(new ParadoksEditsActivity(account, dialogId, messageId, null));
+        }
     }
 
     private static void showHistoryFor(BaseFragment fragment, int account, long dialogId, int messageId, String currentText) {
