@@ -25,6 +25,7 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ChatObject;
+import org.telegram.messenger.FileLoader;
 import org.telegram.messenger.MessageObject;
 import org.telegram.messenger.MessagesController;
 import org.telegram.messenger.MessagesStorage;
@@ -38,6 +39,7 @@ import org.telegram.ui.Cells.TextInfoPrivacyCell;
 import org.telegram.ui.Components.LayoutHelper;
 import org.telegram.ui.Components.RecyclerListView;
 
+import java.io.File;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
@@ -54,6 +56,8 @@ public class ParadoksEditsActivity extends BaseFragment {
         String text;
         long ts;
         String label;
+        TLRPC.Message stored; // full old message (text, formatting, media), null for rows saved by older versions
+        String mediaPath;
         MessageObject object;
     }
 
@@ -83,10 +87,10 @@ public class ParadoksEditsActivity extends BaseFragment {
             android.database.Cursor cursor = null;
             try {
                 cursor = ParadoksDb.get().getReadableDatabase().rawQuery(
-                        "SELECT ts, txt FROM edits WHERE acc = ? AND dlg = ? AND mid = ? ORDER BY id ASC",
+                        "SELECT ts, txt, blob, media_path FROM edits WHERE acc = ? AND dlg = ? AND mid = ? ORDER BY id ASC",
                         new String[]{String.valueOf(account), String.valueOf(dialogId), String.valueOf(messageId)});
                 while (cursor.moveToNext()) {
-                    rows.add(new Object[]{cursor.getLong(0), cursor.getString(1)});
+                    rows.add(new Object[]{cursor.getLong(0), cursor.getString(1), cursor.getBlob(2), cursor.getString(3)});
                 }
             } catch (Throwable ignore) {
             } finally {
@@ -119,6 +123,8 @@ public class ParadoksEditsActivity extends BaseFragment {
             bubble.type = T_BUBBLE;
             bubble.ts = (Long) rows.get(i)[0];
             bubble.text = textOrPlaceholder((String) rows.get(i)[1]);
+            bubble.stored = ParadoksEdits.deserialize((byte[]) rows.get(i)[2]);
+            bubble.mediaPath = (String) rows.get(i)[3];
             entries.add(bubble);
         }
         if (!rows.isEmpty() && now != null) {
@@ -131,6 +137,7 @@ public class ParadoksEditsActivity extends BaseFragment {
             bubble.type = T_BUBBLE;
             bubble.ts = when;
             bubble.text = textOrPlaceholder(now.message);
+            bubble.stored = ParadoksEdits.copyOf(now);
             entries.add(bubble);
         }
         if (rows.isEmpty()) {
@@ -236,6 +243,22 @@ public class ParadoksEditsActivity extends BaseFragment {
         if (entry.object != null) {
             return entry.object;
         }
+        if (entry.stored != null) {
+            TLRPC.Message full = entry.stored;
+            full.id = 100000 + index;
+            full.date = (int) entry.ts;
+            full.dialog_id = dialogId;
+            full.edit_hide = true; // no "edited" label inside the revision bubbles
+            full.reply_to = null;
+            full.replyMessage = null;
+            full.reply_markup = null;
+            if (full.peer_id == null && base != null) {
+                full.peer_id = base.peer_id;
+            }
+            restoreMedia(full, entry.mediaPath);
+            entry.object = new MessageObject(account, full, true, true);
+            return entry.object;
+        }
         TLRPC.TL_message message = new TLRPC.TL_message();
         message.id = 100000 + index;
         message.date = (int) entry.ts;
@@ -254,6 +277,33 @@ public class ParadoksEditsActivity extends BaseFragment {
         }
         entry.object = new MessageObject(account, message, true, false);
         return entry.object;
+    }
+
+    /** If the old photo/file is gone from the cache, put our saved copy back so the bubble can show it. */
+    private void restoreMedia(TLRPC.Message message, String savedPath) {
+        if (savedPath == null || message.media == null) {
+            return;
+        }
+        try {
+            File saved = new File(savedPath);
+            File target = FileLoader.getInstance(account).getPathToMessage(message);
+            if (saved.exists() && target != null && !target.exists()) {
+                File parent = target.getParentFile();
+                if (parent != null) {
+                    parent.mkdirs();
+                }
+                java.io.FileInputStream in = new java.io.FileInputStream(saved);
+                java.io.FileOutputStream out = new java.io.FileOutputStream(target);
+                byte[] buffer = new byte[64 * 1024];
+                int read;
+                while ((read = in.read(buffer)) != -1) {
+                    out.write(buffer, 0, read);
+                }
+                in.close();
+                out.close();
+            }
+        } catch (Throwable ignore) {
+        }
     }
 
     private TLRPC.Peer peerFor(long id) {

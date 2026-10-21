@@ -144,7 +144,10 @@ public final class ParadoksConfig {
 
     public static void setGhostRead(boolean v) { setGhostPart("ghost_read", v); }
     public static void setGhostTyping(boolean v) { setGhostPart("ghost_typing", v); }
-    public static void setGhostOnline(boolean v) { setGhostPart("ghost_online", v); }
+    public static void setGhostOnline(boolean v) {
+        setGhostPart("ghost_online", v);
+        ParadoksGhost.onOnlineSwitched(v);
+    }
     public static void setGhostStories(boolean v) { setGhostPart("ghost_stories", v); }
 
     /** Which ghost parts were on before the top-bar button switched everything off (bit mask). */

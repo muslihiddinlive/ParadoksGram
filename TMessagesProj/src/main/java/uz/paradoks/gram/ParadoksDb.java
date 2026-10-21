@@ -35,13 +35,13 @@ final class ParadoksDb extends SQLiteOpenHelper {
     }
 
     private ParadoksDb() {
-        super(ApplicationLoader.applicationContext, "paradoks.db", null, 4);
+        super(ApplicationLoader.applicationContext, "paradoks.db", null, 5);
     }
 
     @Override
     public void onCreate(SQLiteDatabase db) {
         db.execSQL("CREATE TABLE deleted (acc INTEGER, dlg INTEGER, mid INTEGER, ts INTEGER, PRIMARY KEY (acc, dlg, mid))");
-        db.execSQL("CREATE TABLE edits (id INTEGER PRIMARY KEY AUTOINCREMENT, acc INTEGER, dlg INTEGER, mid INTEGER, ts INTEGER, txt TEXT)");
+        db.execSQL("CREATE TABLE edits (id INTEGER PRIMARY KEY AUTOINCREMENT, acc INTEGER, dlg INTEGER, mid INTEGER, ts INTEGER, txt TEXT, blob BLOB, media_path TEXT)");
         db.execSQL("CREATE INDEX edits_idx ON edits (acc, dlg, mid)");
         createMediaTable(db);
         createPendingTable(db);
@@ -71,10 +71,31 @@ final class ParadoksDb extends SQLiteOpenHelper {
         if (oldVersion < 4) {
             createForwardTable(db);
         }
+        if (oldVersion < 5) {
+            try {
+                db.execSQL("ALTER TABLE edits ADD COLUMN blob BLOB");
+            } catch (Throwable ignore) {
+            }
+            try {
+                db.execSQL("ALTER TABLE edits ADD COLUMN media_path TEXT");
+            } catch (Throwable ignore) {
+            }
+        }
     }
 
     void insertEdit(int acc, long dlg, int mid, long ts, String text) {
+        insertEdit(acc, dlg, mid, ts, text, null, null);
+    }
+
+    /** blob = the whole old message (text, formatting, media references); mediaPath = saved copy of the old media file. */
+    void insertEdit(int acc, long dlg, int mid, long ts, String text, byte[] blob, String mediaPath) {
         ContentValues values = new ContentValues();
+        if (blob != null) {
+            values.put("blob", blob);
+        }
+        if (mediaPath != null) {
+            values.put("media_path", mediaPath);
+        }
         values.put("acc", acc);
         values.put("dlg", dlg);
         values.put("mid", mid);

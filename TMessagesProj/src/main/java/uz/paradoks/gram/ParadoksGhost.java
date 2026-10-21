@@ -51,11 +51,49 @@ public final class ParadoksGhost {
         if (object instanceof TLRPC.TL_messages_setTyping) {
             return ParadoksConfig.ghostTyping();
         }
+        if (object instanceof TL_account.updateStatus) {
+            if (ALLOWED.remove(object)) return false;
+            if (!ParadoksConfig.ghostOnline()) {
+                onlineGhostActive = false;
+                return false;
+            }
+            if (!onlineGhostActive) {
+                // first status packet after ghost-online became active: tell the server "offline" once
+                onlineGhostActive = true;
+                ((TL_account.updateStatus) object).offline = true;
+                return false;
+            }
+            return true; // afterwards no status packets at all, so "last seen" stays frozen
+        }
         if (object instanceof TL_stories.TL_stories_readStories
                 || object instanceof TL_stories.TL_stories_incrementStoryViews) {
             return ParadoksConfig.ghostStories();
         }
         return false;
+    }
+
+    /** True once the "offline" packet of the current ghost-online period has been sent. */
+    private static volatile boolean onlineGhostActive;
+
+    /**
+     * Called when the online part is switched on: sends one account.updateStatus(offline=true) for every
+     * logged-in account right away, otherwise the server keeps showing "online" until the old status expires.
+     */
+    public static void onOnlineSwitched(boolean on) {
+        if (!on) {
+            onlineGhostActive = false;
+            return;
+        }
+        onlineGhostActive = true;
+        for (int a = 0; a < org.telegram.messenger.UserConfig.MAX_ACCOUNT_COUNT; a++) {
+            if (!org.telegram.messenger.UserConfig.getInstance(a).isClientActivated()) {
+                continue;
+            }
+            TL_account.updateStatus request = new TL_account.updateStatus();
+            request.offline = true;
+            ALLOWED.add(request);
+            ConnectionsManager.getInstance(a).sendRequest(request, (response, error) -> {});
+        }
     }
 
     /**
@@ -149,7 +187,13 @@ public final class ParadoksGhost {
         }
         boolean activeNow = ParadoksConfig.ghostRead() || ParadoksConfig.ghostTyping()
                 || ParadoksConfig.ghostOnline() || ParadoksConfig.ghostStories();
-        return activeNow ? "Ghost mode yoqildi" : "Ghost mode yoqildi, lekin jadval bo'yicha hozir ishlamaydi";
+        if (!activeNow) {
+            return "Ghost mode yoqildi, lekin jadval bo'yicha hozir ishlamaydi";
+        }
+        return "Ghost mode yoqildi: " + (ParadoksConfig.ghostRead() ? "o'qildi ✔  " : "o'qildi ✘  ")
+                + (ParadoksConfig.ghostTyping() ? "yozyapti ✔  " : "yozyapti ✘  ")
+                + (ParadoksConfig.ghostOnline() ? "online ✔  " : "online ✘  ")
+                + (ParadoksConfig.ghostStories() ? "story ✔" : "story ✘");
     }
 
     private ParadoksGhost() {}
