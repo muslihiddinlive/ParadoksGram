@@ -97,7 +97,8 @@ public class ParadoksUpdateLayout extends IUpdateLayout {
         String size = "";
         switch (state) {
             case ParadoksUpdater.DOWNLOADING:
-                titleView.setText("Yuklanmoqda... " + (int) (ParadoksUpdater.progress() * 100) + "%");
+                titleView.setText("Yuklanmoqda... " + (int) (ParadoksUpdater.progress() * 100) + "%"
+                        + (ParadoksUpdater.speed() > 0 ? "  •  " + AndroidUtilities.formatFileSize(ParadoksUpdater.speed()) + "/s" : ""));
                 break;
             case ParadoksUpdater.READY:
                 titleView.setText("O'rnatish uchun bosing");
