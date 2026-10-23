@@ -254,12 +254,19 @@ public class ParadoksSettingsPageActivity extends BaseFragment {
                     org.telegram.messenger.LiteMode.toggleFlag(org.telegram.messenger.LiteMode.FLAG_CHAT_BLUR, v);
                     askRestart();
                 });
+                check("Zaif telefonda ham majburan yoqish", ParadoksConfig::forceBlur, v -> {
+                    ParadoksConfig.setForceBlur(v);
+                    if (v) {
+                        org.telegram.messenger.LiteMode.toggleFlag(org.telegram.messenger.LiteMode.FLAG_CHAT_BLUR, true);
+                    }
+                    askRestart();
+                });
                 value("Qurilma", this::glassSupportText, () -> {
                 });
                 info("Liquid Glass: iOS'dagi kabi shaffof, yorug'likni sindiradigan \"suyuq shisha\". Pastki tab paneli, chat va profil oynalaridagi panellarga qo'llanadi. "
                         + "To'liq effekt uchun Android 13 yoki yangisi kerak; Android 12'da faqat xira (blur) ishlaydi, eskirog'ida ikkalasi ham yo'q.\n\n"
-                        + "Telegram odatda bu effektni zaif telefonlarda o'chirib qo'yadi. Bu yerda uni majburan yoqishingiz mumkin, lekin batareyani ko'proq sarflaydi "
-                        + "va eski telefonlarda ilovani sekinlashtirishi mumkin.\n\n"
+                        + "Telegram bu effektlarni zaif telefonlarda (masalan, Redmi Note 11 sinfida) o'chirib qo'yadi. \"Majburan yoqish\" xira (blur) effektini shunday telefonlarda ham yoqadi: "
+                        + "chat paneli va menyular orqasi xira bo'ladi. Batareyani ko'proq sarflaydi va ilovani sekinlashtirishi mumkin, sekin bo'lsa o'chiring.\n\n"
                         + "O'zgarish ilova qayta ishga tushgandan keyin to'liq qo'llanadi.");
                 break;
 

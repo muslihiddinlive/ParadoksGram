@@ -95,6 +95,15 @@ public final class ParadoksConfig {
         prefs().edit().putInt("update_announced", build).apply();
     }
 
+    /** Turns on Telegram's blur-behind effect even on phones it considers too weak (and on Android below 12). */
+    public static boolean forceBlur() {
+        return prefs().getBoolean("force_blur", false);
+    }
+
+    public static void setForceBlur(boolean value) {
+        prefs().edit().putBoolean("force_blur", value).apply();
+    }
+
     public static boolean trackEdits() {
         return prefs().getBoolean("track_edits", true);
     }
