@@ -195,10 +195,13 @@ public class ParadoksSettingsPageActivity extends BaseFragment {
                 checkWarn("O'chirilgan xabarlarni saqlash", ParadoksConfig::keepDeleted, ParadoksConfig::setKeepDeleted);
                 checkWarn("O'chirilgan media'ni saqlash", ParadoksConfig::keepDeletedMedia, ParadoksConfig::setKeepDeletedMedia);
                 check("Media'ni oldindan saqlash", ParadoksConfig::preSaveMedia, ParadoksConfig::setPreSaveMedia);
+                check("Saqlangan media'ni chatda ko'rsatish", ParadoksConfig::restoreBackupMedia, ParadoksConfig::setRestoreBackupMedia);
                 check("Tahrirlar tarixini saqlash", ParadoksConfig::trackEdits, ParadoksConfig::setTrackEdits);
                 info("Kimdir xabarini o'chirsa, u chatingizda qoladi va \"o'chirilgan\" belgisi chiqadi. Rasm, video va fayllarning nusxasi "
                         + "ilova papkasida saqlanadi (150 MB gacha). Oldindan saqlash yangi kelgan rasm va fayllarni fonda yuklab qo'yadi "
                         + "(faqat Wi-Fi, shaxsiy chat va guruhlarda, 25 MB gacha), shunda keyin o'chirilsa ham nusxasi tayyor bo'ladi. "
+                        + "\"Saqlangan media'ni chatda ko'rsatish\": o'chirilgan xabardagi rasm yoki video server'dan o'chib ketgan bo'lsa ham, chatning o'zida ochiladi "
+                        + "(saqlangan fayldan, u bo'lmasa bazadagi nusxadan yuklab).\n\n"
                         + "Tahrirlangan xabarlarning eski variantlari saqlanadi, ularni xabar menyusidagi \"Tahrirlar tarixi\" dan ko'rasiz.\n\n"
                         + "Diqqat: bu boshqalarning maxfiyligiga tegadi. Saqlanganlarni tarqatmang.");
                 header("Bildirishnoma va tozalash");

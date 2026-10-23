@@ -147,6 +147,11 @@ final class ParadoksMedia {
         }
     };
 
+    /** Downloads the media of an arbitrary message (used to fetch the database copy of a deleted message). */
+    static void downloadFor(int account, TLRPC.Message message) {
+        AndroidUtilities.runOnUIThread(() -> startDownload(account, message, FileLoader.PRIORITY_NORMAL));
+    }
+
     /** Manual retry from the radar: loads the kept message again and tries to download/copy it. */
     static void retryNow(int account, long dialogKey, int mid) {
         MessagesStorage.getInstance(account).getStorageQueue().postRunnable(() -> {

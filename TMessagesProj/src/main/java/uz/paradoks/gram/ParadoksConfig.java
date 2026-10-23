@@ -104,6 +104,15 @@ public final class ParadoksConfig {
         prefs().edit().putBoolean("force_blur", value).apply();
     }
 
+    /** Show backed-up media of deleted messages inside the chat where they were deleted. */
+    public static boolean restoreBackupMedia() {
+        return prefs().getBoolean("restore_backup_media", true);
+    }
+
+    public static void setRestoreBackupMedia(boolean value) {
+        prefs().edit().putBoolean("restore_backup_media", value).apply();
+    }
+
     public static boolean trackEdits() {
         return prefs().getBoolean("track_edits", true);
     }
