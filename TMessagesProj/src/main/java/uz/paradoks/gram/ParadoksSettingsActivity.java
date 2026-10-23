@@ -43,6 +43,7 @@ public class ParadoksSettingsActivity extends BaseFragment {
     private static final int ID_RADAR = 7;
     private static final int ID_EDITS = 8;
     private static final int ID_DB = 9;
+    private static final int ID_LOOK = 10;
 
     private static final class Row {
         int type;
@@ -94,6 +95,7 @@ public class ParadoksSettingsActivity extends BaseFragment {
         detail(ID_GHOST, "Ghost mode", R.drawable.msg_secret);
         detail(ID_DELETED, "O'chirilgan va tahrirlangan xabarlar", R.drawable.msg_folders);
         detail(ID_SECURITY, "Chat qulfi va yashirin chat", R.drawable.msg_permissions);
+        detail(ID_LOOK, "Liquid Glass va ko'rinish", R.drawable.msg_theme);
         detail(ID_ADS, "Reklama", R.drawable.msg_channel);
         detail(ID_MISC, "Qo'shimcha", R.drawable.msg_settings);
         simple(T_INFO, "ParadoksGram, build " + ParadoksBuild.NUMBER + ". Har bir bo'limda funksiyalarning tushuntirishi bor.");
@@ -108,6 +110,8 @@ public class ParadoksSettingsActivity extends BaseFragment {
                 return (ParadoksConfig.keepDeleted() ? "Yoniq" : "O'chiq") + "  •  Saqlash, oldindan saqlash, tahrirlar, bildirishnoma, avto-tozalash";
             case ID_SECURITY:
                 return (ParadoksLock.hasPin() ? "PIN bor" : "PIN yo'q") + "  •  PIN kod, yashirin chatlar qidiruvi";
+            case ID_LOOK:
+                return (org.telegram.messenger.LiteMode.isEnabledSetting(org.telegram.messenger.LiteMode.FLAG_LIQUID_GLASS) ? "Yoniq" : "O'chiq") + "  •  Suyuq shisha (Apple uslubi), xira effekt";
             case ID_ADS:
                 return "Reklamani yashirish, ParadoksGram reklamasi, reklama serveri";
             default:
@@ -187,6 +191,9 @@ public class ParadoksSettingsActivity extends BaseFragment {
                     break;
                 case ID_SECURITY:
                     presentFragment(new ParadoksSettingsPageActivity(ParadoksSettingsPageActivity.PAGE_SECURITY));
+                    break;
+                case ID_LOOK:
+                    presentFragment(new ParadoksSettingsPageActivity(ParadoksSettingsPageActivity.PAGE_LOOK));
                     break;
                 case ID_ADS:
                     presentFragment(new ParadoksSettingsPageActivity(ParadoksSettingsPageActivity.PAGE_ADS));

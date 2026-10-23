@@ -35,6 +35,7 @@ public class ParadoksSettingsPageActivity extends BaseFragment {
     public static final int PAGE_SECURITY = 2;
     public static final int PAGE_ADS = 3;
     public static final int PAGE_MISC = 4;
+    public static final int PAGE_LOOK = 5;
 
     private interface BoolGet {
         boolean get();
@@ -113,6 +114,43 @@ public class ParadoksSettingsPageActivity extends BaseFragment {
         rows.add(row);
     }
 
+    private String glassSupportText() {
+        int sdk = android.os.Build.VERSION.SDK_INT;
+        String version = "Android " + android.os.Build.VERSION.RELEASE;
+        if (sdk >= 33) {
+            return version + ": to'liq qo'llab-quvvatlanadi";
+        } else if (sdk >= 31) {
+            return version + ": faqat xira (Liquid Glass uchun Android 13+)";
+        }
+        return version + ": qo'llab-quvvatlanmaydi (Android 12+ kerak)";
+    }
+
+    private void askRestart() {
+        if (getParentActivity() == null) {
+            return;
+        }
+        AlertDialog.Builder builder = new AlertDialog.Builder(getParentActivity());
+        builder.setTitle("Qayta ishga tushirish");
+        builder.setMessage("O'zgarish to'liq qo'llanishi uchun ilovani qayta ishga tushirish kerak.");
+        builder.setPositiveButton("Hozir qayta ishga tushirish", (d, w) -> restartApp());
+        builder.setNegativeButton("Keyinroq", null);
+        showDialog(builder.create());
+    }
+
+    private static void restartApp() {
+        try {
+            android.content.Context context = org.telegram.messenger.ApplicationLoader.applicationContext;
+            android.content.Intent intent = context.getPackageManager().getLaunchIntentForPackage(context.getPackageName());
+            intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK | android.content.Intent.FLAG_ACTIVITY_CLEAR_TASK);
+            android.app.PendingIntent pending = android.app.PendingIntent.getActivity(context, 7731, intent,
+                    android.app.PendingIntent.FLAG_CANCEL_CURRENT | android.app.PendingIntent.FLAG_IMMUTABLE);
+            ((android.app.AlarmManager) context.getSystemService(android.content.Context.ALARM_SERVICE))
+                    .set(android.app.AlarmManager.RTC, System.currentTimeMillis() + 400, pending);
+            System.exit(0);
+        } catch (Throwable ignore) {
+        }
+    }
+
     private String title() {
         switch (page) {
             case PAGE_GHOST:
@@ -123,6 +161,8 @@ public class ParadoksSettingsPageActivity extends BaseFragment {
                 return "Chat qulfi va yashirin chat";
             case PAGE_ADS:
                 return "Reklama";
+            case PAGE_LOOK:
+                return "Liquid Glass va ko'rinish";
             default:
                 return "Qo'shimcha";
         }
@@ -202,6 +242,25 @@ public class ParadoksSettingsPageActivity extends BaseFragment {
                         + "Serverga Telegram ma'lumotlaringiz yuborilmaydi, faqat reklama raqami, hodisa turi (ko'rildi yoki bosildi) va tasodifiy anonim raqam.\n\n"
                         + "Reaksiya yoki izoh yozganingizda o'sha chatning reklamasi ko'rinadi; reklama haqiqatan ekranda ko'ringandagina hisoblanadi. "
                         + "Server manzili bo'sh bo'lsa, ParadoksGram reklamasi chiqmaydi.");
+                break;
+
+            case PAGE_LOOK:
+                header("Liquid Glass");
+                check("Liquid Glass (Apple uslubi)", () -> org.telegram.messenger.LiteMode.isEnabledSetting(org.telegram.messenger.LiteMode.FLAG_LIQUID_GLASS), v -> {
+                    org.telegram.messenger.LiteMode.toggleFlag(org.telegram.messenger.LiteMode.FLAG_LIQUID_GLASS, v);
+                    askRestart();
+                });
+                check("Xira (blur) effekti", () -> org.telegram.messenger.LiteMode.isEnabledSetting(org.telegram.messenger.LiteMode.FLAG_CHAT_BLUR), v -> {
+                    org.telegram.messenger.LiteMode.toggleFlag(org.telegram.messenger.LiteMode.FLAG_CHAT_BLUR, v);
+                    askRestart();
+                });
+                value("Qurilma", this::glassSupportText, () -> {
+                });
+                info("Liquid Glass: iOS'dagi kabi shaffof, yorug'likni sindiradigan \"suyuq shisha\". Pastki tab paneli, chat va profil oynalaridagi panellarga qo'llanadi. "
+                        + "To'liq effekt uchun Android 13 yoki yangisi kerak; Android 12'da faqat xira (blur) ishlaydi, eskirog'ida ikkalasi ham yo'q.\n\n"
+                        + "Telegram odatda bu effektni zaif telefonlarda o'chirib qo'yadi. Bu yerda uni majburan yoqishingiz mumkin, lekin batareyani ko'proq sarflaydi "
+                        + "va eski telefonlarda ilovani sekinlashtirishi mumkin.\n\n"
+                        + "O'zgarish ilova qayta ishga tushgandan keyin to'liq qo'llanadi.");
                 break;
 
             default:

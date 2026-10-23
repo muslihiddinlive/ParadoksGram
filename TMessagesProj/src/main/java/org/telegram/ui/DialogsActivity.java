@@ -7324,6 +7324,11 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
                 fragmentSearchField.editText.clearFocus();
             }
             return false;
+        } else if (uz.paradoks.gram.ParadoksHidden.isShowing()) { // ParadoksGram: Back leaves the hidden chats list instead of closing the app
+            if (invoked) {
+                uz.paradoks.gram.ParadoksHidden.toggleMode(this, currentAccount);
+            }
+            return false;
         } else if (filterTabsView != null && filterTabsView.getVisibility() == View.VISIBLE && !tabsAnimationInProgress && !filterTabsView.isAnimatingIndicator() && !startedTracking && !filterTabsView.isFirstTabSelected()) {
             if (invoked) filterTabsView.selectFirstTab();
             return false;
