@@ -63,6 +63,14 @@ public class ParadoksDeletedActivity extends BaseFragment {
     private final ArrayList<Item> allDeleted = new ArrayList<>();
     private final ArrayList<Item> allEdited = new ArrayList<>();
     private int mode; // 0 = deleted, 1 = edited
+
+    public ParadoksDeletedActivity() {
+    }
+
+    /** @param startMode 0 = deleted messages, 1 = edited messages */
+    public ParadoksDeletedActivity(int startMode) {
+        this.mode = startMode;
+    }
     private int typeFilter; // 0 all, 1 media, 2 text
     private int periodFilter; // 0 all, 1 today, 2 = 7 days, 3 = 30 days
     private String query = "";

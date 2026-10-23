@@ -15,6 +15,7 @@ import org.telegram.ui.ActionBar.Theme;
 import org.telegram.ui.Cells.HeaderCell;
 import org.telegram.ui.Cells.ShadowSectionCell;
 import org.telegram.ui.Cells.TextCell;
+import org.telegram.ui.Cells.TextDetailSettingsCell;
 import org.telegram.ui.Cells.TextInfoPrivacyCell;
 import org.telegram.ui.Components.LayoutHelper;
 import org.telegram.ui.Components.RecyclerListView;
@@ -31,6 +32,7 @@ public class ParadoksSettingsActivity extends BaseFragment {
     private static final int T_CELL = 1;
     private static final int T_SHADOW = 2;
     private static final int T_INFO = 3;
+    private static final int T_DETAIL = 4; // icon + title + gray line listing what is inside
 
     private static final int ID_UPDATE = 1;
     private static final int ID_GHOST = 2;
@@ -38,12 +40,16 @@ public class ParadoksSettingsActivity extends BaseFragment {
     private static final int ID_SECURITY = 4;
     private static final int ID_ADS = 5;
     private static final int ID_MISC = 6;
+    private static final int ID_RADAR = 7;
+    private static final int ID_EDITS = 8;
+    private static final int ID_DB = 9;
 
     private static final class Row {
         int type;
         int id;
         String title;
         int icon;
+        String subtitle;
     }
 
     private final ArrayList<Row> rows = new ArrayList<>();
@@ -66,17 +72,47 @@ public class ParadoksSettingsActivity extends BaseFragment {
         rows.add(row);
     }
 
+    private void detail(int id, String title, int icon) {
+        Row row = new Row();
+        row.type = T_DETAIL;
+        row.id = id;
+        row.title = title;
+        row.icon = icon;
+        rows.add(row);
+    }
+
     private void buildRows() {
         rows.clear();
         cell(ID_UPDATE, "ParadoksGram yangilanishi", R.drawable.msg_download);
         simple(T_SHADOW, null);
-        simple(T_HEADER, "Funksiyalar");
-        cell(ID_GHOST, "Ghost mode", R.drawable.msg_secret);
-        cell(ID_DELETED, "O'chirilgan va tahrirlangan xabarlar", R.drawable.msg_delete);
-        cell(ID_SECURITY, "Chat qulfi va yashirin chat", R.drawable.msg_permissions);
-        cell(ID_ADS, "Reklama", R.drawable.msg_channel);
-        cell(ID_MISC, "Qo'shimcha", R.drawable.msg_settings);
+        simple(T_HEADER, "Tezkor kirish");
+        cell(ID_RADAR, "O'chirilganlar radari", R.drawable.msg_delete);
+        cell(ID_EDITS, "Tahrirlar radari", R.drawable.msg_recent);
+        cell(ID_DB, "O'chirilgan media bazasi", R.drawable.msg_saved);
+        simple(T_SHADOW, null);
+        simple(T_HEADER, "Sozlamalar");
+        detail(ID_GHOST, "Ghost mode", R.drawable.msg_secret);
+        detail(ID_DELETED, "O'chirilgan va tahrirlangan xabarlar", R.drawable.msg_folders);
+        detail(ID_SECURITY, "Chat qulfi va yashirin chat", R.drawable.msg_permissions);
+        detail(ID_ADS, "Reklama", R.drawable.msg_channel);
+        detail(ID_MISC, "Qo'shimcha", R.drawable.msg_settings);
         simple(T_INFO, "ParadoksGram, build " + ParadoksBuild.NUMBER + ". Har bir bo'limda funksiyalarning tushuntirishi bor.");
+    }
+
+    /** Status plus what the section contains, so nothing is hidden behind a bare title. */
+    private String subtitleOf(int id) {
+        switch (id) {
+            case ID_GHOST:
+                return (ParadoksGhost.anyOn() ? "Yoniq" : "O'chiq") + "  •  O'qildi, yozyapti, online, story, jadval";
+            case ID_DELETED:
+                return (ParadoksConfig.keepDeleted() ? "Yoniq" : "O'chiq") + "  •  Saqlash, oldindan saqlash, tahrirlar, bildirishnoma, avto-tozalash";
+            case ID_SECURITY:
+                return (ParadoksLock.hasPin() ? "PIN bor" : "PIN yo'q") + "  •  PIN kod, yashirin chatlar qidiruvi";
+            case ID_ADS:
+                return "Reklamani yashirish, ParadoksGram reklamasi, reklama serveri";
+            default:
+                return "ID ni ko'rsatish, ovoz effekti";
+        }
     }
 
     private String valueOf(int id) {
@@ -87,8 +123,10 @@ public class ParadoksSettingsActivity extends BaseFragment {
                 return ParadoksGhost.anyOn() ? "Yoniq" : "O'chiq";
             case ID_DELETED:
                 return ParadoksConfig.keepDeleted() ? "Yoniq" : "O'chiq";
-            case ID_SECURITY:
-                return ParadoksLock.hasPin() ? "PIN bor" : "";
+            case ID_DB: {
+                long target = ParadoksConfig.dbTarget(currentAccount);
+                return target == 0 ? "Tanlanmagan" : ParadoksDeletedDbActivity.nameOf(org.telegram.messenger.MessagesController.getInstance(currentAccount), target);
+            }
             default:
                 return "";
         }
@@ -121,7 +159,7 @@ public class ParadoksSettingsActivity extends BaseFragment {
         listView.setAdapter(adapter = new Adapter(context));
         contentView.addView(listView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT));
         listView.setOnItemClickListener((view, position) -> {
-            if (position < 0 || position >= rows.size() || rows.get(position).type != T_CELL) {
+            if (position < 0 || position >= rows.size() || rows.get(position).type != T_CELL && rows.get(position).type != T_DETAIL) {
                 return;
             }
             switch (rows.get(position).id) {
@@ -131,6 +169,15 @@ public class ParadoksSettingsActivity extends BaseFragment {
                     } else {
                         ParadoksUpdater.showDialog(getParentActivity());
                     }
+                    break;
+                case ID_RADAR:
+                    presentFragment(new ParadoksDeletedActivity());
+                    break;
+                case ID_EDITS:
+                    presentFragment(new ParadoksDeletedActivity(1));
+                    break;
+                case ID_DB:
+                    presentFragment(new ParadoksDeletedDbActivity());
                     break;
                 case ID_GHOST:
                     presentFragment(new ParadoksSettingsPageActivity(ParadoksSettingsPageActivity.PAGE_GHOST));
@@ -171,7 +218,7 @@ public class ParadoksSettingsActivity extends BaseFragment {
 
         @Override
         public boolean isEnabled(RecyclerView.ViewHolder holder) {
-            return holder.getItemViewType() == T_CELL;
+            return holder.getItemViewType() == T_CELL || holder.getItemViewType() == T_DETAIL;
         }
 
         @Override
@@ -193,6 +240,11 @@ public class ParadoksSettingsActivity extends BaseFragment {
             } else if (viewType == T_CELL) {
                 view = new TextCell(context);
                 view.setBackgroundColor(Theme.getColor(Theme.key_windowBackgroundWhite));
+            } else if (viewType == T_DETAIL) {
+                TextDetailSettingsCell detail = new TextDetailSettingsCell(context);
+                detail.setMultilineDetail(true);
+                detail.setBackgroundColor(Theme.getColor(Theme.key_windowBackgroundWhite));
+                view = detail;
             } else if (viewType == T_SHADOW) {
                 view = new ShadowSectionCell(context);
             } else {
@@ -212,6 +264,10 @@ public class ParadoksSettingsActivity extends BaseFragment {
                 case T_CELL:
                     boolean divider = position + 1 < rows.size() && rows.get(position + 1).type == T_CELL;
                     ((TextCell) holder.itemView).setTextAndValueAndIcon(row.title, valueOf(row.id), false, row.icon, divider);
+                    break;
+                case T_DETAIL:
+                    boolean detailDivider = position + 1 < rows.size() && rows.get(position + 1).type == T_DETAIL;
+                    ((TextDetailSettingsCell) holder.itemView).setTextAndValueAndIcon(row.title, subtitleOf(row.id), row.icon, detailDivider);
                     break;
                 case T_SHADOW:
                     break;
