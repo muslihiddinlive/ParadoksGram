@@ -2994,6 +2994,7 @@ public class VoIPService extends Service implements SensorEventListener, AudioMa
 					}
 					if (response != null) {
 						TLRPC.TL_upload_file res = (TLRPC.TL_upload_file) response;
+						uz.paradoks.gram.ParadoksStreamRecorder.onPart(currentAccount, chat, groupCall.call.id, timestamp, duration, videoChannel, quality, res.bytes.buffer, res.bytes.limit()); // ParadoksGram: background live stream recording
 						tgVoip[type].onStreamPartAvailable(timestamp, res.bytes.buffer, res.bytes.limit(), responseTime, videoChannel, quality);
 					} else {
 						if ("GROUPCALL_JOIN_MISSING".equals(error.text)) {
@@ -4129,6 +4130,7 @@ public class VoIPService extends Service implements SensorEventListener, AudioMa
 		if (BuildVars.LOGS_ENABLED) {
 			FileLog.d("=============== VoIPService STOPPING ===============");
 		}
+		uz.paradoks.gram.ParadoksStreamRecorder.finishAll(); // ParadoksGram: join the recorded stream and send it to Saved Messages
 		stopForeground(true);
 		stopRinging();
 		if (currentAccount >= 0) {

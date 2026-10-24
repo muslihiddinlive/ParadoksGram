@@ -96,6 +96,7 @@ public final class ParadoksDeleted {
         ParadoksMedia.installPrefetch();
         ParadoksMedia.resumePending();
         ParadoksCleanup.run();
+        ParadoksStreamRecorder.cleanupOld();
     }
 
     public static boolean isDeleted(int account, MessageObject object) {

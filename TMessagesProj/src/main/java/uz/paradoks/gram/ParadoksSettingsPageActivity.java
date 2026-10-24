@@ -280,6 +280,13 @@ public class ParadoksSettingsPageActivity extends BaseFragment {
                     int mode = ParadoksConfig.getVoiceEffect();
                     return VOICE_EFFECT_NAMES[mode < 0 || mode >= VOICE_EFFECT_NAMES.length ? 0 : mode];
                 }, this::showVoiceEffectDialog);
+                header("Jonli efir");
+                check("Jonli efirni yozib olish", ParadoksConfig::recordStreams, ParadoksConfig::setRecordStreams);
+                info("Jonli efirni (Live stream) tomosha qilayotganingizda orqa fonda yozib boradi. Efir tugaganda (yoki 1 daqiqa hech narsa kelmasa) "
+                        + "yozuv bitta videoga birlashtirilib \"Saqlangan xabarlar\"ga yuboriladi. Bu faqat jonli efirlarda ishlaydi, guruhdagi oddiy video chatda emas. "
+                        + "\"Saqlashni cheklash\" yoqilgan chat efirlari yozilmaydi.\n\n"
+                        + "Eslatma: boshqa ishtirokchilar yozayotganingizni bilmaydi. Ustoz yoki tashkilotchining ruxsatisiz yozib olish ba'zi joylarda qoidaga yoki qonunga zid bo'lishi mumkin, "
+                        + "yozuvni faqat shaxsiy ko'rish uchun ishlating va tarqatmang.");
                 info("ID: profilda foydalanuvchi, bot yoki kanalning ID raqami ko'rinadi (bosilsa nusxa olinadi). Stiker, emoji yoki GIF xabarini "
                         + "bosib turib (yoki stiker panelida ustiga bosib turib) ularning ID'sini ham ko'rasiz.\n\n"
                         + "Ovoz effekti: ovozli xabar yozayotganda tanlangan effekt qo'llanadi va xabar shu effekt bilan yuboriladi.");

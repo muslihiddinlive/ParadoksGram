@@ -113,6 +113,15 @@ public final class ParadoksConfig {
         prefs().edit().putBoolean("restore_backup_media", value).apply();
     }
 
+    /** Record live streams in the background and send the result to Saved Messages when the stream ends. */
+    public static boolean recordStreams() {
+        return prefs().getBoolean("record_streams", false);
+    }
+
+    public static void setRecordStreams(boolean value) {
+        prefs().edit().putBoolean("record_streams", value).apply();
+    }
+
     public static boolean trackEdits() {
         return prefs().getBoolean("track_edits", true);
     }
