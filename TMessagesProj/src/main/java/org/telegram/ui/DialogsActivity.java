@@ -3442,6 +3442,11 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
         });
         fragmentSearchFieldWatcher.setDoNotCloseAfterFieldEmpty();
 
+        if (initialDialogsType == DIALOGS_TYPE_DEFAULT && uz.paradoks.gram.ParadoksConfig.showAiButton()) { // ParadoksGram: Paradoks AI button, left of the ghost button
+            ActionBarMenuItem paradoksAiItem = menu.addItem(9502, R.drawable.ic_paradoks_ai);
+            paradoksAiItem.setContentDescription("Paradoks AI");
+            paradoksAiItem.setOnClickListener(v -> presentFragment(new uz.paradoks.gram.ParadoksAiActivity()));
+        }
         if (initialDialogsType == DIALOGS_TYPE_DEFAULT) { // ParadoksGram: one-tap ghost mode button before the three dots
             paradoksGhostItem = menu.addItem(9501, uz.paradoks.gram.ParadoksGhost.iconRes());
             paradoksGhostItem.setContentDescription("Ghost mode");

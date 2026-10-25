@@ -122,6 +122,36 @@ public final class ParadoksConfig {
         prefs().edit().putBoolean("record_streams", value).apply();
     }
 
+    /** "Paradoks AI" button in the chat list header. */
+    public static boolean showAiButton() {
+        return prefs().getBoolean("show_ai_button", true);
+    }
+
+    public static void setShowAiButton(boolean value) {
+        prefs().edit().putBoolean("show_ai_button", value).apply();
+    }
+
+    public static String aiBotUsername() {
+        return prefs().getString("ai_bot_username", "ParadoksAiBot");
+    }
+
+    public static long aiBotId() {
+        return prefs().getLong("ai_bot_id", 0);
+    }
+
+    public static void setAiBotId(long id) {
+        prefs().edit().putLong("ai_bot_id", id).apply();
+    }
+
+    /** The bot already got its /start from the AI window. */
+    public static boolean aiStarted() {
+        return prefs().getBoolean("ai_started", false);
+    }
+
+    public static void setAiStarted(boolean value) {
+        prefs().edit().putBoolean("ai_started", value).apply();
+    }
+
     public static boolean trackEdits() {
         return prefs().getBoolean("track_edits", true);
     }
