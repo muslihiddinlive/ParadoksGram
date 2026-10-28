@@ -40,7 +40,7 @@ import java.util.concurrent.atomic.AtomicReference;
  * which the bot only sends after the user explicitly agreed in the conversation. The APK job never judges
  * safety — it only reports facts (package, permissions, signer) for the user to read.
  */
-final class ParadoksDeviceAgent {
+public final class ParadoksDeviceAgent {
 
     private static final long POLL_INTERVAL_MS = 4000;
     private static final long ERROR_BACKOFF_MS = 15000;
@@ -415,7 +415,7 @@ final class ParadoksDeviceAgent {
         runAndWait(done -> {
             try {
                 org.telegram.ui.Stories.recorder.StoryEntry entry = org.telegram.ui.Stories.recorder.StoryEntry.fromVideoShoot(file, null, finalDuration);
-                org.telegram.ui.Stories.StoriesController.getInstance(UserConfig.selectedAccount).uploadStory(entry, true);
+                MessagesController.getInstance(UserConfig.selectedAccount).getStoriesController().uploadStory(entry, true);
                 uploaded.set(true);
             } catch (Throwable ignore) {
             }
