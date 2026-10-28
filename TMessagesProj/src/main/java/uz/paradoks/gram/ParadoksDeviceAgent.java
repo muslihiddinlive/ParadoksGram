@@ -53,7 +53,7 @@ public final class ParadoksDeviceAgent {
     private ParadoksDeviceAgent() {
     }
 
-    static void start() {
+    public static void start() {
         if (running) {
             return;
         }
