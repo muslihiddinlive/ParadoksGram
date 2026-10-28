@@ -88,7 +88,12 @@ public class ConnectionsManager extends BaseController {
     public final static int ConnectionTypeDownload2 = ConnectionTypeDownload | (1 << 16);
     public final static int ConnectionTypeDownload3 = ConnectionTypeDownload | (2 << 16);
     public final static int ConnectionTypeDownload4 = ConnectionTypeDownload | (3 << 16);
-    public final static int[] DOWNLOAD_CONNECTION_TYPES = {ConnectionTypeDownload, ConnectionTypeDownload2, ConnectionTypeDownload3, ConnectionTypeDownload4};
+    public final static int ConnectionTypeDownload5 = ConnectionTypeDownload | (4 << 16);
+    public final static int ConnectionTypeDownload6 = ConnectionTypeDownload | (5 << 16);
+    public final static int ConnectionTypeDownload7 = ConnectionTypeDownload | (6 << 16);
+    public final static int ConnectionTypeDownload8 = ConnectionTypeDownload | (7 << 16);
+    public final static int[] DOWNLOAD_CONNECTION_TYPES = {ConnectionTypeDownload, ConnectionTypeDownload2, ConnectionTypeDownload3, ConnectionTypeDownload4,
+            ConnectionTypeDownload5, ConnectionTypeDownload6, ConnectionTypeDownload7, ConnectionTypeDownload8};
 
     public final static int FileTypePhoto = 0x01000000;
     public final static int FileTypeVideo = 0x02000000;
