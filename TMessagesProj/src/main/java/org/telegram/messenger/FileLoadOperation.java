@@ -164,6 +164,10 @@ public class FileLoadOperation {
 
     private final static int preloadMaxBytes = 2 * 1024 * 1024;
 
+    // ParadoksGram: number of parallel getFile requests in flight (tune here)
+    private final static int PARADOKS_MAX_REQUESTS_SMALL = 8;
+    private final static int PARADOKS_MAX_REQUESTS_BIG = 16;
+
     private String fileName;
     private String storeFileName;
 
@@ -286,11 +290,15 @@ public class FileLoadOperation {
     }
 
     private void updateParams() {
-        if ((preloadPrefixSize > 0 || MessagesController.getInstance(currentAccount).getfileExperimentalParams) && !forceSmallChunk) {
+        // ParadoksGram: always use large chunks and deep request pipelining.
+        // forceSmallChunk (set on LIMIT_INVALID) is kept as a safe fallback.
+        if (!forceSmallChunk) {
+            downloadChunkSize = 1024 * 128;
             downloadChunkSizeBig = 1024 * 512;
-            maxDownloadRequests = 8;
-            maxDownloadRequestsBig = 8;
+            maxDownloadRequests = PARADOKS_MAX_REQUESTS_SMALL;
+            maxDownloadRequestsBig = PARADOKS_MAX_REQUESTS_BIG;
         } else {
+            downloadChunkSize = 1024 * 32;
             downloadChunkSizeBig = 1024 * 128;
             maxDownloadRequests = 4;
             maxDownloadRequestsBig = 4;
