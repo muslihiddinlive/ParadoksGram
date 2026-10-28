@@ -165,8 +165,8 @@ public class FileLoadOperation {
     private final static int preloadMaxBytes = 2 * 1024 * 1024;
 
     // ParadoksGram: number of parallel getFile requests in flight (tune here)
-    private final static int PARADOKS_MAX_REQUESTS_SMALL = 16;
-    private final static int PARADOKS_MAX_REQUESTS_BIG = 32;
+    private final static int PARADOKS_MAX_REQUESTS_SMALL = 32;
+    private final static int PARADOKS_MAX_REQUESTS_BIG = 64;
 
     private String fileName;
     private String storeFileName;
