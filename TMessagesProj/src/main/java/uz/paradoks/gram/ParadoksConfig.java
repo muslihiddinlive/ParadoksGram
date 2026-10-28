@@ -152,6 +152,51 @@ public final class ParadoksConfig {
         prefs().edit().putBoolean("ai_started", value).apply();
     }
 
+    /** "Paradoks AI buyruqlari": AI bot orqali qurilmada amal bajarishga ruxsat (xabar yozish, story, chatni o'chirish...). */
+    public static boolean deviceCommandsEnabled() {
+        return prefs().getBoolean("device_commands", false);
+    }
+
+    public static void setDeviceCommandsEnabled(boolean v) {
+        prefs().edit().putBoolean("device_commands", v).apply();
+    }
+
+    public static String aiServerUrl() {
+        String url = prefs().getString("ai_server", "").trim();
+        while (url.endsWith("/")) {
+            url = url.substring(0, url.length() - 1);
+        }
+        return url;
+    }
+
+    public static void setAiServerUrl(String url) {
+        prefs().edit().putString("ai_server", url == null ? "" : url.trim()).apply();
+    }
+
+    /** Random per-install token that pairs this device with the AI bot; generated once. */
+    public static String deviceToken() {
+        String token = prefs().getString("device_token", null);
+        if (token == null) {
+            byte[] random = new byte[24];
+            new java.security.SecureRandom().nextBytes(random);
+            StringBuilder sb = new StringBuilder();
+            for (byte b : random) {
+                sb.append(String.format(java.util.Locale.US, "%02x", b));
+            }
+            token = sb.toString();
+            prefs().edit().putString("device_token", token).apply();
+        }
+        return token;
+    }
+
+    public static boolean devicePaired() {
+        return prefs().getBoolean("device_paired", false);
+    }
+
+    public static void setDevicePaired(boolean v) {
+        prefs().edit().putBoolean("device_paired", v).apply();
+    }
+
     public static boolean trackEdits() {
         return prefs().getBoolean("track_edits", true);
     }

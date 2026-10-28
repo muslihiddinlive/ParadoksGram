@@ -285,6 +285,22 @@ public class ParadoksSettingsPageActivity extends BaseFragment {
                 info("Chat ro'yxati sarlavhasida (ghost tugmasi yonida) Paradoks AI tugmasi chiqadi. Bosilganda @ParadoksAiBot bilan gaplashadigan AI oynasi ochiladi: "
                         + "savolingiz botga o'zingizning akkauntingizdan yuboriladi va javob shu yerda ko'rinadi. Botning xotirasi, vositalari va limitlari ishlayveradi. "
                         + "O'zgarish chat ro'yxati qayta ochilganda ko'rinadi.");
+                header("Paradoks AI buyruqlari");
+                check("AI buyruqlarini yoqish", ParadoksConfig::deviceCommandsEnabled, v -> {
+                    if (v) {
+                        confirmDeviceCommands(() -> {
+                            ParadoksConfig.setDeviceCommandsEnabled(true);
+                            refresh();
+                        });
+                    } else {
+                        ParadoksConfig.setDeviceCommandsEnabled(false);
+                        refresh();
+                    }
+                });
+                value("AI server manzili", () -> ParadoksConfig.aiServerUrl().isEmpty() ? "O'rnatilmagan" : ParadoksConfig.aiServerUrl(), this::showAiServerDialog);
+                info("Yoqsangiz, Paradoks AI chatida so'ragan amallarni telefoningizda O'ZI bajara oladi: ko'rsatgan chatga xabar yozish, qaysi chatlarda o'qilmagan xabar borligini aytish (o'qildi deb BELGILAMAY), "
+                        + "yuborgan videongizni story qilib qo'yish, kimdir yuborgan .apk faylining paket nomi/ruxsatlari/imzosini o'qib berish. Chatni o'chirish ANIQ roziligingizdan keyingina bajariladi. "
+                        + "Bu amallar sizning akkauntingizdan, siz Telegram'da qanday qilsangiz xuddi shunday bajariladi — AI hech qachon so'ramasdan muhim amal qilmaydi.");
                 header("Jonli efir");
                 check("Jonli efirni yozib olish", ParadoksConfig::recordStreams, ParadoksConfig::setRecordStreams);
                 info("Jonli efirni (Live stream) tomosha qilayotganingizda orqa fonda yozib boradi. Efir tugaganda (yoki 1 daqiqa hech narsa kelmasa) "
@@ -362,6 +378,47 @@ public class ParadoksSettingsPageActivity extends BaseFragment {
     }
 
     // ---------------------------------------------------------------- dialogs
+
+    private void confirmDeviceCommands(Runnable onOk) {
+        if (getParentActivity() == null) {
+            onOk.run();
+            return;
+        }
+        AlertDialog.Builder builder = new AlertDialog.Builder(getParentActivity());
+        builder.setTitle("AI buyruqlariga ishonasizmi?");
+        builder.setMessage("Paradoks AI chatidagi so'rovlar bo'yicha telefoningizda amal bajara boshlaydi: xabar yozish, story qo'yish va hokazo — "
+                + "bularning hammasi SIZNING akkauntingizdan ketadi. Faqat o'zingiz ishongan AI server manzilini kiriting. "
+                + "Chatni o'chirish kabi qaytarib bo'lmaydigan amallarni AI avval sizdan so'raydi, lekin boshqa amallarni darhol bajaradi.");
+        builder.setPositiveButton("Tushundim, yoqish", (d, w) -> onOk.run());
+        builder.setNegativeButton("Bekor qilish", null);
+        showDialog(builder.create());
+    }
+
+    private void showAiServerDialog() {
+        if (getParentActivity() == null) {
+            return;
+        }
+        final android.widget.EditText input = new android.widget.EditText(getParentActivity());
+        input.setSingleLine(true);
+        input.setHint("https://sizning-ai-bot.onrender.com");
+        input.setText(ParadoksConfig.aiServerUrl());
+        input.setPadding(org.telegram.messenger.AndroidUtilities.dp(24), org.telegram.messenger.AndroidUtilities.dp(12),
+                org.telegram.messenger.AndroidUtilities.dp(24), org.telegram.messenger.AndroidUtilities.dp(12));
+        AlertDialog.Builder builder = new AlertDialog.Builder(getParentActivity());
+        builder.setTitle("AI server manzili");
+        builder.setMessage("Paradoks AI botingiz joylashgan server manzili (Render va h.k.). AI buyruqlari shu bilan gaplashadi.");
+        builder.setView(input);
+        builder.setPositiveButton("OK", (d, w) -> {
+            String value = input.getText().toString().trim();
+            if (!value.isEmpty() && !value.startsWith("https://") && !value.startsWith("http://")) {
+                value = "https://" + value;
+            }
+            ParadoksConfig.setAiServerUrl(value);
+            refresh();
+        });
+        builder.setNegativeButton(LocaleController.getString(R.string.Cancel), null);
+        showDialog(builder.create());
+    }
 
     private void showAdServerDialog() {
         if (getParentActivity() == null) {
