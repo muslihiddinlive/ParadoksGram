@@ -433,11 +433,12 @@ public final class ParadoksDeviceAgent {
     private static File waitForFile(TLRPC.Message message) throws InterruptedException {
         AtomicReference<File> result = new AtomicReference<>();
         for (int i = 0; i < FILE_WAIT_MS / 500; i++) {
+            final boolean firstAttempt = i == 0;
             runAndWait(done -> {
                 File file = FileLoader.getInstance(UserConfig.selectedAccount).getPathToMessage(message);
                 if (file != null && file.exists()) {
                     result.set(file);
-                } else if (i == 0 && message.media != null && message.media.document != null) {
+                } else if (firstAttempt && message.media != null && message.media.document != null) {
                     FileLoader.getInstance(UserConfig.selectedAccount).loadFile(message.media.document, message, FileLoader.PRIORITY_HIGH, 0);
                 }
                 done.run();
