@@ -329,8 +329,25 @@ public class ParadoksAiActivity extends BaseFragment implements NotificationCent
                         loaded.add(object);
                     }
                 }
+                // Keep messages that arrived while the history request was in flight (for example the one
+                // the user just sent): they are not in the server answer yet, and replacing the list
+                // wholesale made them vanish.
+                ArrayList<MessageObject> merged = new ArrayList<>(loaded);
+                for (MessageObject existing : messages) {
+                    boolean present = false;
+                    for (MessageObject item : loaded) {
+                        if (item.getId() == existing.getId()) {
+                            present = true;
+                            break;
+                        }
+                    }
+                    if (!present) {
+                        merged.add(existing);
+                    }
+                }
+                Collections.sort(merged, (a, b) -> Integer.compare(a.messageOwner.date, b.messageOwner.date));
                 messages.clear();
-                messages.addAll(loaded);
+                messages.addAll(merged);
             }
             refresh(true);
         }));
