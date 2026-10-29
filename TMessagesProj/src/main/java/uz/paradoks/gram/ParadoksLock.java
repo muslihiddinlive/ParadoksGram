@@ -5,11 +5,18 @@ import android.text.InputType;
 import android.widget.EditText;
 import android.widget.Toast;
 
+import androidx.biometric.BiometricManager;
+import androidx.biometric.BiometricPrompt;
+import androidx.core.content.ContextCompat;
+import androidx.fragment.app.FragmentActivity;
+
 import org.telegram.messenger.AndroidUtilities;
+import org.telegram.messenger.ApplicationLoader;
 import org.telegram.messenger.LocaleController;
 import org.telegram.messenger.R;
 import org.telegram.ui.ActionBar.AlertDialog;
 import org.telegram.ui.ActionBar.BaseFragment;
+import org.telegram.ui.LaunchActivity;
 
 import java.security.MessageDigest;
 import java.security.SecureRandom;
@@ -129,6 +136,53 @@ public final class ParadoksLock {
         }
     }
 
+    // ------------------------------------------------------------------ fingerprint / face
+
+    /** True when this phone can check a fingerprint or face. */
+    public static boolean biometricAvailable() {
+        try {
+            return BiometricManager.from(ApplicationLoader.applicationContext)
+                    .canAuthenticate(BiometricManager.Authenticators.BIOMETRIC_WEAK) == BiometricManager.BIOMETRIC_SUCCESS;
+        } catch (Throwable t) {
+            return false;
+        }
+    }
+
+    /** Fingerprint / face unlock is on, a PIN exists (it stays the fallback) and the phone supports it. */
+    private static boolean biometricUsable() {
+        return ParadoksConfig.lockBiometric() && hasPin() && biometricAvailable() && LaunchActivity.instance != null;
+    }
+
+    /** Shows the system fingerprint prompt. Any failure, cancel or the "PIN" button calls {@code fallback} (the PIN dialog). */
+    private static void promptBiometric(String title, Runnable onSuccess, Runnable fallback) {
+        final FragmentActivity activity = LaunchActivity.instance;
+        if (activity == null) {
+            fallback.run();
+            return;
+        }
+        try {
+            BiometricPrompt prompt = new BiometricPrompt(activity, ContextCompat.getMainExecutor(activity), new BiometricPrompt.AuthenticationCallback() {
+                @Override
+                public void onAuthenticationSucceeded(BiometricPrompt.AuthenticationResult result) {
+                    onSuccess.run();
+                }
+
+                @Override
+                public void onAuthenticationError(int errorCode, CharSequence errString) {
+                    fallback.run();
+                }
+            });
+            BiometricPrompt.PromptInfo info = new BiometricPrompt.PromptInfo.Builder()
+                    .setTitle(title)
+                    .setNegativeButtonText("PIN kiritish")
+                    .setAllowedAuthenticators(BiometricManager.Authenticators.BIOMETRIC_WEAK)
+                    .build();
+            prompt.authenticate(info);
+        } catch (Throwable t) {
+            fallback.run();
+        }
+    }
+
     /** Called from ChatActivity.onResume: hides a locked chat and asks for the PIN. */
     public static void onChatResume(BaseFragment fragment, int account, long dialogId) {
         if (!isLocked(account, dialogId) || UNLOCKED.contains(key(account, dialogId))) {
@@ -144,14 +198,27 @@ public final class ParadoksLock {
         promptUnlock(fragment, account, dialogId, "");
     }
 
+    private static void unlockChat(BaseFragment fragment, int account, long dialogId) {
+        prompting = false;
+        UNLOCKED.add(key(account, dialogId));
+        if (fragment.getFragmentView() != null) {
+            fragment.getFragmentView().setVisibility(android.view.View.VISIBLE);
+        }
+    }
+
     private static void promptUnlock(BaseFragment fragment, int account, long dialogId, String error) {
+        if (error.isEmpty() && biometricUsable()) {
+            promptBiometric("Chat qulflangan", () -> unlockChat(fragment, account, dialogId),
+                    () -> promptUnlockPin(fragment, account, dialogId, ""));
+            return;
+        }
+        promptUnlockPin(fragment, account, dialogId, error);
+    }
+
+    private static void promptUnlockPin(BaseFragment fragment, int account, long dialogId, String error) {
         askPin(fragment, "Chat qulflangan", error.isEmpty() ? "PIN kodni kiriting" : error, false, pin -> {
             if (check(pin)) {
-                prompting = false;
-                UNLOCKED.add(key(account, dialogId));
-                if (fragment.getFragmentView() != null) {
-                    fragment.getFragmentView().setVisibility(android.view.View.VISIBLE);
-                }
+                unlockChat(fragment, account, dialogId);
             } else {
                 promptUnlock(fragment, account, dialogId, "PIN noto'g'ri, qayta urinib ko'ring");
             }
@@ -214,6 +281,14 @@ public final class ParadoksLock {
             setNewPin(fragment, onSuccess);
             return;
         }
+        if (biometricUsable()) {
+            promptBiometric(title, onSuccess, () -> verifyPin(fragment, title, onSuccess));
+            return;
+        }
+        verifyPin(fragment, title, onSuccess);
+    }
+
+    private static void verifyPin(BaseFragment fragment, String title, Runnable onSuccess) {
         askPin(fragment, title, "PIN kodni kiriting", true, pin -> {
             if (check(pin)) {
                 onSuccess.run();

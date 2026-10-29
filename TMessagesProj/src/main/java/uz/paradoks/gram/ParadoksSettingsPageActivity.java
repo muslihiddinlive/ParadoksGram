@@ -227,8 +227,20 @@ public class ParadoksSettingsPageActivity extends BaseFragment {
                         adapter.notifyDataSetChanged();
                     }
                 }));
+                check("Barmoq izi / yuz bilan ochish", ParadoksConfig::lockBiometric, v -> {
+                    if (v && !ParadoksLock.hasPin()) {
+                        android.widget.Toast.makeText(getParentActivity(), "Avval PIN kod o'rnating", android.widget.Toast.LENGTH_LONG).show();
+                    } else if (v && !ParadoksLock.biometricAvailable()) {
+                        android.widget.Toast.makeText(getParentActivity(),
+                                "Bu telefonda barmoq izi yoki yuz bilan ochish sozlanmagan", android.widget.Toast.LENGTH_LONG).show();
+                    } else {
+                        ParadoksConfig.setLockBiometric(v);
+                    }
+                    refresh();
+                });
                 check("Qidiruvda yashirin chatlarni ko'rsatish", ParadoksConfig::showHiddenInSearch, ParadoksConfig::setShowHiddenInSearch);
-                info("Chat menyusidagi \"Chat qulfi\" chatni qulflaydi va u har ochilganda PIN so'raydi. PIN faqat shifrlangan (hash) ko'rinishida saqlanadi.\n\n"
+                info("Chat menyusidagi \"Chat qulfi\" chatni qulflaydi va u har ochilganda PIN so'raydi. PIN faqat shifrlangan (hash) ko'rinishida saqlanadi. "
+                        + "Barmoq izi yoqilsa, avval barmoq izi so'raladi; bo'lmasa yoki bekor qilsangiz, PIN so'raladi.\n\n"
                         + "\"Yashirin chat\" ro'yxat, forward va bildirishnomalardan yo'qoladi. Tumbler yoqilsa, ular qidiruvda ham ko'rinadi; "
                         + "o'chiq bo'lsa, yashirinlarni ko'rish uchun qidiruv belgisini bosib turing va PIN kiriting.\n\n"
                         + "Ikkalasi ham ilovaning o'zida ishlaydi, ular haqida Telegram serveriga hech narsa yuborilmaydi.");
@@ -286,8 +298,88 @@ public class ParadoksSettingsPageActivity extends BaseFragment {
                     int mode = ParadoksConfig.getVoiceEffect();
                     return VOICE_EFFECT_NAMES[mode < 0 || mode >= VOICE_EFFECT_NAMES.length ? 0 : mode];
                 }, this::showVoiceEffectDialog);
+                header("Matn va tasodifiy bosish");
+                check("Lotin \u2194 Kirill o'girish", ParadoksConfig::translitEnabled, ParadoksConfig::setTranslitEnabled);
+                check("Qo'ng'iroq oldidan so'rash", ParadoksConfig::confirmCalls, ParadoksConfig::setConfirmCalls);
+                info("Lotin \u2194 Kirill: yozish maydonida matnni belgilang va menyudan \"Lotin \u2194 Kirill\" ni tanlang; xabar menyusida ham shu band bor, "
+                        + "natija oynada ko'rinadi va nusxa olinadi. Yo'nalish matndan o'zi aniqlanadi (o', g', sh, ch, yo, ye, ts qoidalari bilan). "
+                        + "Havola, @username va #teg o'zgarmaydi.\n\n"
+                        + "Qo'ng'iroq oldidan so'rash: ovozli yoki video qo'ng'iroq tugmasi bosilganda \"Qo'ng'iroq qilinsinmi?\" deb so'raydi.");
+                header("Proxy ro'yxati");
+                check("Proxy ro'yxatidan avto-ulanish", ParadoksConfig::proxyFeedEnabled, v -> {
+                    ParadoksConfig.setProxyFeedEnabled(v);
+                    if (v && !ParadoksConfig.proxyFeedUrl().isEmpty()) {
+                        ParadoksProxyFeed.refresh();
+                    }
+                    refresh();
+                });
+                value("Ro'yxat manzili", () -> {
+                    String raw = ParadoksConfig.proxyFeedUrlRaw();
+                    if (raw.isEmpty()) {
+                        return "O'rnatilmagan";
+                    }
+                    return ParadoksConfig.proxyFeedUrl().isEmpty() ? "HTTPS emas, ishlatilmaydi" : raw;
+                }, () -> showTextDialog("Proxy ro'yxati manzili",
+                        "Har qatorda bitta proxy havolasi (tg://proxy?... yoki https://t.me/proxy?...) bo'lgan matn faylning https:// manzili.",
+                        "https://example.com/proxies.txt", ParadoksConfig.proxyFeedUrlRaw(), value -> {
+                            String url = ParadoksConfig.normalizeServerUrl(value);
+                            if (!url.isEmpty() && !ParadoksConfig.isAllowedServerUrl(url)) {
+                                toast("Manzil https:// bilan boshlanishi kerak. Saqlanmadi.");
+                                return;
+                            }
+                            ParadoksConfig.setProxyFeedUrl(url);
+                            refresh();
+                        }));
+                value("Holat", () -> ParadoksConfig.proxyFeedStatus().isEmpty() ? "-" : ParadoksConfig.proxyFeedStatus(), () -> {
+                    if (ParadoksConfig.proxyFeedUrl().isEmpty()) {
+                        toast("Avval ro'yxat manzilini kiriting");
+                    } else if (!ParadoksConfig.proxyFeedEnabled()) {
+                        toast("Avval \"Proxy ro'yxatidan avto-ulanish\" ni yoqing");
+                    } else {
+                        ParadoksProxyFeed.refreshNow();
+                        toast("Yangilanmoqda...");
+                    }
+                });
+                info("Yoqilsa, ilova ro'yxatni 6 soatda bir yuklab, Telegram'ning proxy ro'yxatiga qo'shadi (sizning proxylaringiz o'chirilmaydi). "
+                        + "\"Connecting...\" holatida 30 soniya turib qolsa, ro'yxatni yangilab, hammasini tekshiradi va eng tezkoriga ulanadi. "
+                        + "\"Holat\" qatoriga bossangiz, hozir yangilab ulanadi.\n\n"
+                        + "Faqat ishonchli manbadan foydalaning: proxy server trafikingiz borishini ko'radi (xabar matnlarini emas, ular shifrlangan).");
+                header("Minecraft server");
+                value("Server manzili", () -> ParadoksConfig.mcHost().isEmpty() ? "O'rnatilmagan" : ParadoksConfig.mcHost() + ":" + ParadoksConfig.mcPort(),
+                        () -> showTextDialog("Bedrock server", "Manzil yoki manzil:port (standart port 19132).", "play.example.uz:19132",
+                                ParadoksConfig.mcHost().isEmpty() ? "" : ParadoksConfig.mcHost() + ":" + ParadoksConfig.mcPort(), value -> {
+                                    String text = value.trim();
+                                    int port = 19132;
+                                    int colon = text.lastIndexOf(':');
+                                    if (colon > 0) {
+                                        try {
+                                            port = Integer.parseInt(text.substring(colon + 1).trim());
+                                            text = text.substring(0, colon);
+                                        } catch (NumberFormatException e) {
+                                            toast("Port noto'g'ri");
+                                            return;
+                                        }
+                                    }
+                                    if (port <= 0 || port > 65535) {
+                                        toast("Port noto'g'ri");
+                                        return;
+                                    }
+                                    ParadoksConfig.setMcServer(text, port);
+                                    mcStatusText = null;
+                                    refresh();
+                                }));
+                value("Holat", () -> mcStatusText == null ? "Bosib tekshiring" : mcStatusText, () -> {
+                    mcStatusText = "Tekshirilmoqda...";
+                    refresh();
+                    ParadoksMcStatus.check(text -> {
+                        mcStatusText = text;
+                        refresh();
+                    });
+                });
+                info("Bedrock serveringiz online ekanini, nechta o'yinchi borligini va ping'ini ko'rsatadi. \"Holat\" qatoriga bosganda server'ga bitta UDP so'rov yuboriladi.");
                 header("Paradoks AI");
                 check("Sarlavhada Paradoks AI tugmasi", ParadoksConfig::showAiButton, ParadoksConfig::setShowAiButton);
+                check("Xabar menyusida AI bilan tarjima va tushuntirish", ParadoksConfig::aiMessageTools, ParadoksConfig::setAiMessageTools);
                 info("Chat ro'yxati sarlavhasida (ghost tugmasi yonida) Paradoks AI tugmasi chiqadi. Bosilganda @ParadoksAiBot bilan gaplashadigan AI oynasi ochiladi: "
                         + "savolingiz botga o'zingizning akkauntingizdan yuboriladi va javob shu yerda ko'rinadi. Botning xotirasi, vositalari va limitlari ishlayveradi. "
                         + "O'zgarish chat ro'yxati qayta ochilganda ko'rinadi.");
@@ -411,6 +503,37 @@ public class ParadoksSettingsPageActivity extends BaseFragment {
     }
 
     // ---------------------------------------------------------------- dialogs
+
+    private String mcStatusText;
+
+    private interface StringSet {
+        void set(String value);
+    }
+
+    private void toast(String text) {
+        if (getParentActivity() != null) {
+            android.widget.Toast.makeText(getParentActivity(), text, android.widget.Toast.LENGTH_LONG).show();
+        }
+    }
+
+    private void showTextDialog(String title, String message, String hint, String current, StringSet onOk) {
+        if (getParentActivity() == null) {
+            return;
+        }
+        final android.widget.EditText input = new android.widget.EditText(getParentActivity());
+        input.setSingleLine(true);
+        input.setHint(hint);
+        input.setText(current);
+        input.setPadding(org.telegram.messenger.AndroidUtilities.dp(24), org.telegram.messenger.AndroidUtilities.dp(12),
+                org.telegram.messenger.AndroidUtilities.dp(24), org.telegram.messenger.AndroidUtilities.dp(12));
+        AlertDialog.Builder builder = new AlertDialog.Builder(getParentActivity());
+        builder.setTitle(title);
+        builder.setMessage(message);
+        builder.setView(input);
+        builder.setPositiveButton("OK", (d, w) -> onOk.set(input.getText().toString().trim()));
+        builder.setNegativeButton(LocaleController.getString(R.string.Cancel), null);
+        showDialog(builder.create());
+    }
 
     private void confirmDisableActionConfirm(Runnable onOk) {
         if (getParentActivity() == null) {

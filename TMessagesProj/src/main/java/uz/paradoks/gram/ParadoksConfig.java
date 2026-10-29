@@ -161,6 +161,94 @@ public final class ParadoksConfig {
         prefs().edit().putBoolean("device_commands", v).apply();
     }
 
+    /** Proxy list feed: download proxies from an HTTPS list and switch to the fastest when stuck on "Connecting...". */
+    public static boolean proxyFeedEnabled() {
+        return prefs().getBoolean("proxy_feed", false);
+    }
+
+    public static void setProxyFeedEnabled(boolean v) {
+        prefs().edit().putBoolean("proxy_feed", v).apply();
+    }
+
+    public static String proxyFeedUrlRaw() {
+        return stripSlashes(prefs().getString("proxy_feed_url", ""));
+    }
+
+    /** The feed address if it is HTTPS, otherwise empty. */
+    public static String proxyFeedUrl() {
+        String url = proxyFeedUrlRaw();
+        return isAllowedServerUrl(url) ? url : "";
+    }
+
+    public static void setProxyFeedUrl(String url) {
+        prefs().edit().putString("proxy_feed_url", url == null ? "" : url.trim()).putLong("proxy_feed_last", 0).apply();
+    }
+
+    public static long proxyFeedLastFetch() {
+        return prefs().getLong("proxy_feed_last", 0);
+    }
+
+    public static void setProxyFeedLastFetch(long time) {
+        prefs().edit().putLong("proxy_feed_last", time).apply();
+    }
+
+    public static String proxyFeedStatus() {
+        return prefs().getString("proxy_feed_status", "");
+    }
+
+    public static void setProxyFeedStatus(String text) {
+        prefs().edit().putString("proxy_feed_status", text == null ? "" : text).apply();
+    }
+
+    /** Bedrock server whose status is shown in settings. */
+    public static String mcHost() {
+        return prefs().getString("mc_host", "").trim();
+    }
+
+    public static int mcPort() {
+        return prefs().getInt("mc_port", 19132);
+    }
+
+    public static void setMcServer(String host, int port) {
+        prefs().edit().putString("mc_host", host == null ? "" : host.trim()).putInt("mc_port", port).apply();
+    }
+
+    /** Ask before an outgoing call. */
+    public static boolean confirmCalls() {
+        return prefs().getBoolean("confirm_calls", false);
+    }
+
+    public static void setConfirmCalls(boolean v) {
+        prefs().edit().putBoolean("confirm_calls", v).apply();
+    }
+
+    /** "AI bilan tarjima / tushuntirish" items in the message menu. */
+    public static boolean aiMessageTools() {
+        return prefs().getBoolean("ai_message_tools", true);
+    }
+
+    public static void setAiMessageTools(boolean v) {
+        prefs().edit().putBoolean("ai_message_tools", v).apply();
+    }
+
+    /** Unlock locked chats with a fingerprint / face first; the PIN stays as the fallback.*/
+    public static boolean lockBiometric() {
+        return prefs().getBoolean("lock_biometric", false);
+    }
+
+    public static void setLockBiometric(boolean v) {
+        prefs().edit().putBoolean("lock_biometric", v).apply();
+    }
+
+    /** Lotin / Kirill converter in the message menu and the input field selection menu. */
+    public static boolean translitEnabled() {
+        return prefs().getBoolean("translit", true);
+    }
+
+    public static void setTranslitEnabled(boolean v) {
+        prefs().edit().putBoolean("translit", v).apply();
+    }
+
     /** AI server address as saved, even if it is not secure (used only to show it in settings). */
     public static String aiServerUrlRaw() {
         return stripSlashes(prefs().getString("ai_server", ""));

@@ -53,8 +53,6 @@ public final class ParadoksBackup {
         SCHEMA.put("restore_backup_media", T_BOOL);
         SCHEMA.put("record_streams", T_BOOL);
         SCHEMA.put("show_ai_button", T_BOOL);
-        SCHEMA.put("ai_server", T_STRING);
-        SCHEMA.put("device_commands", T_BOOL);
         SCHEMA.put("track_edits", T_BOOL);
         SCHEMA.put("ghost_split", T_BOOL);
         SCHEMA.put("ghost_read", T_BOOL);
@@ -67,7 +65,6 @@ public final class ParadoksBackup {
         SCHEMA.put("ghost_sched_end", T_INT);
         SCHEMA.put("hide_sponsored", T_BOOL);
         SCHEMA.put("own_ads", T_BOOL);
-        SCHEMA.put("ad_server", T_STRING);
         SCHEMA.put("ad_on_interaction", T_BOOL);
         SCHEMA.put("hidden_chats", T_STRING_SET);
         SCHEMA.put("hidden_in_search", T_BOOL);
@@ -75,6 +72,14 @@ public final class ParadoksBackup {
         SCHEMA.put("lock_salt", T_STRING);
         SCHEMA.put("lock_chats", T_STRING_SET);
         SCHEMA.put("voice_effect", T_INT);
+        // ParadoksGram: not in the file on purpose - ai_server, ad_server and device_commands (a file from someone else must not
+        // enable AI commands or point the app to another server), device_confirm_actions and proxy_feed (security switches).
+        SCHEMA.put("translit", T_BOOL);
+        SCHEMA.put("confirm_calls", T_BOOL);
+        SCHEMA.put("ai_message_tools", T_BOOL);
+        SCHEMA.put("lock_biometric", T_BOOL);
+        SCHEMA.put("mc_host", T_STRING);
+        SCHEMA.put("mc_port", T_INT);
         for (int a = 0; a < UserConfig.MAX_ACCOUNT_COUNT; a++) {
             SCHEMA.put("deleted_db_target_" + a, T_LONG);
         }
