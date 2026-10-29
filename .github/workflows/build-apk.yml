@@ -66,7 +66,7 @@ jobs:
             sed -i "s/public static String APP_HASH = \"[0-9a-f]*\";/public static String APP_HASH = \"${APP_HASH}\";/" "$F"
             echo "own API keys injected"
           else
-            echo "WARNING: APP_ID/APP_HASH secrets not set, using sample keys (login may be rate-limited)"
+            echo "::warning title=APP_ID/APP_HASH secrets missing::Building with Telegram's public sample API keys. Login can be rate-limited and the build is not using your own api_id. Add APP_ID and APP_HASH in Settings > Secrets and variables > Actions."
           fi
 
       - name: Limit ABIs to arm64 (faster, smaller)
