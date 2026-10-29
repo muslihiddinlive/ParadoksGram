@@ -75,9 +75,8 @@ public final class ParadoksConnWatch implements NotificationCenter.NotificationC
         try {
             new AlertDialog.Builder(activity)
                     .setTitle("Ulanish muammosi")
-                    .setMessage("Ilova uzoq vaqt \"Connecting...\" holatida turibdi.\n\nHisobot yuborilsinmi? Unda qurilma, vaqt, taxminiy hudud (mamlakat), "
-                            + "taxminiy sabablar va texnik log bo'ladi. Xabar matnlari, kontaktlar, telefon raqami va GPS joylashuv yuborilmaydi.")
-                    .setPositiveButton("Yuborish", (d, w) -> ParadoksErrorReport.sendAsync(activity, "ulanish muammosi", details))
+                    .setMessage("Ilova uzoq vaqt \"Connecting...\" holatida turibdi.\n\nXato hisobotini yuborishni xohlaysizmi? Keyingi oynada nimalar yuborilishini ko'rasiz.")
+                    .setPositiveButton("Davom etish", (d, w) -> ParadoksErrorReport.confirmAndSend(activity, "ulanish muammosi", details))
                     .setNeutralButton("Nusxa olish", (d, w) -> {
                         ClipboardManager cm = (ClipboardManager) activity.getSystemService(Context.CLIPBOARD_SERVICE);
                         if (cm != null) {

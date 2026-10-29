@@ -8,10 +8,17 @@ import android.net.NetworkCapabilities;
 import android.os.Build;
 import android.os.PowerManager;
 import android.telephony.TelephonyManager;
+import android.app.AlertDialog;
+import android.widget.CheckBox;
+import android.widget.LinearLayout;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import org.telegram.messenger.BuildVars;
 import org.telegram.messenger.SharedConfig;
+import org.telegram.messenger.UserConfig;
+import org.telegram.messenger.UserObject;
+import org.telegram.tgnet.TLRPC;
 
 import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
@@ -39,7 +46,7 @@ import java.util.UUID;
 public final class ParadoksErrorReport {
 
     /** Address of the deployed relay worker, e.g. "https://telegram-form.<account>.workers.dev". Empty = sending disabled. */
-    public static final String ENDPOINT = "";
+    public static final String ENDPOINT = "https://buildnoticer.soglomhayotila.workers.dev/report";
 
     private static final int MAX_LOG_LINES = 400;
     private static final int MAX_LOG_CHARS = 120000;
@@ -69,7 +76,7 @@ public final class ParadoksErrorReport {
     }
 
     /** Sends the report in a background thread and tells the user how it went. */
-    public static void sendAsync(final Activity activity, final String kind, final String details) {
+    public static void sendAsync(final Activity activity, final String kind, final String details, final boolean includeAccount) {
         if (!isConfigured()) {
             Toast.makeText(activity, "Hisobot manzili sozlanmagan", Toast.LENGTH_LONG).show();
             return;
@@ -80,7 +87,7 @@ public final class ParadoksErrorReport {
             try {
                 String summary = buildSummary(app, kind, details);
                 String log = scrub(details + "\n\n===== LOGCAT =====\n" + readLogcat());
-                ok = post(summary, log);
+                ok = post(summary, log, includeAccount ? accountText() : "");
             } catch (Throwable ignore) {
             }
             final boolean result = ok;
@@ -88,12 +95,62 @@ public final class ParadoksErrorReport {
         }, "paradoks-report").start();
     }
 
-    private static boolean post(String summary, String log) throws Exception {
+    /**
+     * Asks the user what may be sent. Account data (ID, username, phone number) goes along only when the
+     * user ticks the box; nothing is sent before "Yuborish" is pressed.
+     */
+    public static void confirmAndSend(final Activity activity, final String kind, final String details) {
+        try {
+            int pad = (int) (20 * activity.getResources().getDisplayMetrics().density);
+            LinearLayout layout = new LinearLayout(activity);
+            layout.setOrientation(LinearLayout.VERTICAL);
+            layout.setPadding(pad, pad / 2, pad, 0);
+            TextView text = new TextView(activity);
+            text.setText("Yuboriladi: qurilma, vaqt (soniyagacha), xato joyi, taxminiy hudud, taxminiy sabablar va texnik log. "
+                    + "Server shahar va provayder nomini o'zi qo'shadi.\n\nXabar matnlari va kontaktlar yuborilmaydi. GPS joylashuv ham yuborilmaydi.");
+            layout.addView(text);
+            final CheckBox box = new CheckBox(activity);
+            box.setText("Akkaunt ma'lumotlarim ham yuborilsin (ID, username, telefon raqam)");
+            box.setChecked(false);
+            layout.addView(box);
+            new AlertDialog.Builder(activity)
+                    .setTitle("Hisobot yuborish")
+                    .setView(layout)
+                    .setPositiveButton("Yuborish", (d, w) -> sendAsync(activity, kind, details, box.isChecked()))
+                    .setNegativeButton("Bekor qilish", null)
+                    .show();
+        } catch (Throwable ignore) {
+        }
+    }
+
+    /** Account data of the current account, only used when the user agreed. */
+    private static String accountText() {
+        try {
+            TLRPC.User user = UserConfig.getInstance(UserConfig.selectedAccount).getCurrentUser();
+            if (user == null) {
+                return "";
+            }
+            String username = UserObject.getPublicUsername(user);
+            StringBuilder sb = new StringBuilder();
+            sb.append("ID: ").append(user.id).append('\n');
+            sb.append("Ism: ").append(user.first_name == null ? "" : user.first_name).append(' ').append(user.last_name == null ? "" : user.last_name).append('\n');
+            sb.append("Username: ").append(username == null || username.isEmpty() ? "-" : "@" + username).append('\n');
+            sb.append("Telefon: ").append(user.phone == null || user.phone.isEmpty() ? "-" : "+" + user.phone);
+            return sb.toString();
+        } catch (Throwable e) {
+            return "";
+        }
+    }
+
+    private static boolean post(String summary, String log, String account) throws Exception {
         String boundary = "----paradoks" + UUID.randomUUID().toString().replace("-", "");
         ByteArrayOutputStream body = new ByteArrayOutputStream();
         field(body, boundary, "name", "ParadoksGram Android");
         field(body, boundary, "contact", new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(new Date()));
-        field(body, boundary, "message", summary.length() > 3400 ? summary.substring(0, 3400) : summary);
+        field(body, boundary, "message", summary.length() > 2500 ? summary.substring(0, 2500) : summary);
+        if (!account.isEmpty()) {
+            field(body, boundary, "user", account);
+        }
         body.write(("--" + boundary + "\r\nContent-Disposition: form-data; name=\"files\"; filename=\"paradoks-log.txt\"\r\nContent-Type: text/plain\r\n\r\n").getBytes(StandardCharsets.UTF_8));
         body.write(log.getBytes(StandardCharsets.UTF_8));
         body.write(("\r\n--" + boundary + "--\r\n").getBytes(StandardCharsets.UTF_8));
