@@ -109,6 +109,12 @@ public class FileLoadOperation {
         private boolean forceSmallChunk;
         public boolean cancelling, cancelled;
         public Runnable whenCancelled;
+        // ParadoksGram balancer bookkeeping
+        public int balancerSlot = -1;
+        public int balancerDc;
+        public long balancerAmount;
+        public long balancerStart;
+        public boolean balancerDone;
     }
 
     public static class Range {
@@ -167,6 +173,8 @@ public class FileLoadOperation {
     // ParadoksGram: number of parallel getFile requests in flight (tune here)
     private final static int PARADOKS_MAX_REQUESTS_SMALL = 32;
     private final static int PARADOKS_MAX_REQUESTS_BIG = 64;
+    private final static int PARADOKS_HUGE_FROM = 4 * 1024 * 1024;
+    private final static int PARADOKS_HUGE_CHUNK = 1024 * 1024;
 
     private String fileName;
     private String storeFileName;
@@ -850,8 +858,10 @@ public class FileLoadOperation {
                 currentMaxDownloadRequests = maxDownloadRequestsAnimation;
             } else {
                 boolean bigChunk = totalBytesCount >= bigFileSizeFrom;
-                currentDownloadChunkSize = bigChunk ? downloadChunkSizeBig : downloadChunkSize;
-                currentMaxDownloadRequests = bigChunk ? maxDownloadRequestsBig : maxDownloadRequests;
+                // ParadoksGram: 1 MB parts (the server maximum) for files of 4 MB and more, like the Windows client.
+                boolean hugeChunk = totalBytesCount >= PARADOKS_HUGE_FROM;
+                currentDownloadChunkSize = hugeChunk ? PARADOKS_HUGE_CHUNK : (bigChunk ? downloadChunkSizeBig : downloadChunkSize);
+                currentMaxDownloadRequests = (bigChunk || hugeChunk) ? maxDownloadRequestsBig : maxDownloadRequests;
             }
         }
         final boolean alreadyStarted = state != stateIdle;
@@ -2276,6 +2286,25 @@ public class FileLoadOperation {
         }
 
         for (int a = 0; a < count; a++) {
+            int balancerSlot = -1;
+            long balancerAmount = 0;
+            if (paradoksBalanced()) {
+                long[] inFlight = FileLoader.getInstance(currentAccount).paradoksInFlight(paradoksDcKey());
+                balancerSlot = ParadoksDownloadBalancer.acquire(currentAccount, paradoksDcKey(), currentDownloadChunkSize, inFlight);
+                if (balancerSlot < 0) {
+                    // All session windows of this data center are full. If this file has nothing in flight it would
+                    // never be woken up by an answer, so check again shortly.
+                    if (requestInfos.isEmpty() && !paradoksRetryScheduled && state == stateDownloading) {
+                        paradoksRetryScheduled = true;
+                        Utilities.stageQueue.postRunnable(() -> {
+                            paradoksRetryScheduled = false;
+                            startDownloadRequest(-1);
+                        }, 150);
+                    }
+                    break;
+                }
+                balancerAmount = ParadoksDownloadBalancer.lastAmountAtStart;
+            }
             long downloadOffset;
             if (isPreloadVideoOperation) {
                 if (moovFound != 0 && preloadNotRequestedBytesCount <= 0) {
@@ -2373,7 +2402,9 @@ public class FileLoadOperation {
             boolean isLast = totalBytesCount <= 0 || a == count - 1 || totalBytesCount > 0 && downloadOffset + currentDownloadChunkSize >= totalBytesCount;
             final TLObject request;
             int connectionType;
-            if (useConnectionType == -1) {
+            if (balancerSlot >= 0) {
+                connectionType = ConnectionsManager.DOWNLOAD_CONNECTION_TYPES[balancerSlot];
+            } else if (useConnectionType == -1) {
                 connectionType = ConnectionsManager.DOWNLOAD_CONNECTION_TYPES[requestsCount % ConnectionsManager.DOWNLOAD_CONNECTION_TYPES.length];
                 //globalRequestPointer++;
             } else {
@@ -2411,6 +2442,12 @@ public class FileLoadOperation {
             requestInfo.chunkSize = currentDownloadChunkSize;
             requestInfo.forceSmallChunk = forceSmallChunk;
             requestInfo.connectionType = connectionType;
+            if (balancerSlot >= 0) {
+                requestInfo.balancerSlot = balancerSlot;
+                requestInfo.balancerDc = paradoksDcKey();
+                requestInfo.balancerAmount = balancerAmount;
+                requestInfo.balancerStart = android.os.SystemClock.elapsedRealtime();
+            }
 
             if (!isPreloadVideoOperation && supportsPreloading && preloadStream != null && preloadedBytesRanges != null) {
                 PreloadRange range = preloadedBytesRanges.get(requestInfo.offset);
@@ -2501,6 +2538,12 @@ public class FileLoadOperation {
                         FileLog.d("frame get request completed " + priorityRequestInfo.offset);
                     }
                     priorityRequestInfo = null;
+                }
+                if (requestInfo.balancerSlot >= 0 && !requestInfo.balancerDone) {
+                    requestInfo.balancerDone = true;
+                    if (error == null) {
+                        ParadoksDownloadBalancer.onSuccess(currentAccount, requestInfo.balancerDc, requestInfo.balancerSlot, requestInfo.balancerAmount, requestInfo.balancerStart, requestInfo.chunkSize);
+                    }
                 }
                 if (error != null) {
                     if (requestInfo.whenCancelled != null) {
@@ -2648,5 +2691,28 @@ public class FileLoadOperation {
     // ParadoksGram: used by ParadoksDownloadService to show progress and decide whether to keep running.
     public long paradoksDownloadedBytes() {
         return downloadedBytes;
+    }
+
+    private boolean paradoksRetryScheduled;
+
+    private int paradoksDcKey() {
+        return isCdn ? cdnDatacenterId : datacenterId;
+    }
+
+    private boolean paradoksBalanced() {
+        return !isStory && !isStream && !isPreloadVideoOperation && streamPriorityStartOffset == 0;
+    }
+
+    /** Adds this operation's requests that still wait for an answer to perSlot (indexed by download session). */
+    protected void paradoksAddInFlight(int dcKey, long[] perSlot) {
+        try {
+            for (int a = 0, size = requestInfos.size(); a < size; a++) {
+                RequestInfo info = requestInfos.get(a);
+                if (info != null && info.balancerSlot >= 0 && !info.balancerDone && info.balancerDc == dcKey && info.balancerSlot < perSlot.length) {
+                    perSlot[info.balancerSlot] += info.chunkSize;
+                }
+            }
+        } catch (Throwable ignore) {
+        }
     }
 }

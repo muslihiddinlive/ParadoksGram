@@ -1202,6 +1202,15 @@ public class FileLoader extends BaseController {
         }
     }
 
+    /** ParadoksGram: bytes waiting for an answer per download session on the given data center, over all operations. */
+    public long[] paradoksInFlight(int dcKey) {
+        long[] result = new long[ConnectionsManager.DOWNLOAD_CONNECTION_TYPES.length];
+        for (FileLoadOperation operation : loadOperationPaths.values()) {
+            operation.paradoksAddInFlight(dcKey, result);
+        }
+        return result;
+    }
+
     /** ParadoksGram: {count, downloadedBytes, totalBytes} of big downloads that are still running. */
     public long[] paradoksBigDownloads() {
         long count = 0, done = 0, total = 0;
