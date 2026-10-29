@@ -44,6 +44,7 @@ public class ParadoksSettingsActivity extends BaseFragment {
     private static final int ID_EDITS = 8;
     private static final int ID_DB = 9;
     private static final int ID_LOOK = 10;
+    private static final int ID_DOWNLOADS = 11;
 
     private static final class Row {
         int type;
@@ -90,6 +91,7 @@ public class ParadoksSettingsActivity extends BaseFragment {
         cell(ID_RADAR, "O'chirilganlar radari", R.drawable.msg_delete);
         cell(ID_EDITS, "Tahrirlar radari", R.drawable.msg_recent);
         cell(ID_DB, "O'chirilgan media bazasi", R.drawable.msg_saved);
+        cell(ID_DOWNLOADS, "Yuklashlar", R.drawable.msg_download);
         simple(T_SHADOW, null);
         simple(T_HEADER, "Sozlamalar");
         detail(ID_GHOST, "Ghost mode", R.drawable.msg_secret);
@@ -182,6 +184,9 @@ public class ParadoksSettingsActivity extends BaseFragment {
                     break;
                 case ID_DB:
                     presentFragment(new ParadoksDeletedDbActivity());
+                    break;
+                case ID_DOWNLOADS:
+                    presentFragment(new ParadoksDownloadsActivity());
                     break;
                 case ID_GHOST:
                     presentFragment(new ParadoksSettingsPageActivity(ParadoksSettingsPageActivity.PAGE_GHOST));

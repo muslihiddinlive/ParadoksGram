@@ -1675,6 +1675,7 @@ public class ChatActivity extends BaseFragment implements
     private final static int paradoks_mark_read = 9201;
     private final static int paradoks_lock = 9202;
     private final static int paradoks_hide = 9203;
+    private final static int paradoks_ai_summary = 9204;
     private final static int scheduled = 63;
     private final static int edit_quick_reply = 64;
 
@@ -3975,6 +3976,8 @@ public class ChatActivity extends BaseFragment implements
                     uz.paradoks.gram.ParadoksLock.toggleChat(ChatActivity.this, currentAccount, dialog_id);
                 } else if (id == paradoks_hide) {
                     uz.paradoks.gram.ParadoksHidden.toggleChat(ChatActivity.this, currentAccount, dialog_id);
+                } else if (id == paradoks_ai_summary) {
+                    uz.paradoks.gram.ParadoksAiTools.summarizeChat(ChatActivity.this, getChatTitleForParadoks(), messages);
                 } else if (id == translate) {
                     getMessagesController().getTranslateController().setHideTranslateDialog(getDialogId(), false, true);
                     if (!getMessagesController().getTranslateController().toggleTranslatingDialog(getDialogId(), true)) {
@@ -4437,6 +4440,7 @@ public class ChatActivity extends BaseFragment implements
             }
             headerItem.lazilyAddSubItem(paradoks_lock, R.drawable.msg_secret, "Chat qulfi");
             headerItem.lazilyAddSubItem(paradoks_hide, R.drawable.msg_secret, "Yashirin chat");
+            headerItem.lazilyAddSubItem(paradoks_ai_summary, R.drawable.msg_text_check, "AI bilan qisqartirish");
             if (currentChat != null && !currentChat.creator && !ChatObject.hasAdminRights(currentChat)) {
                 headerItem.lazilyAddSubItem(report, R.drawable.msg_report, LocaleController.getString(R.string.ReportChat));
             }
@@ -24933,6 +24937,17 @@ public class ChatActivity extends BaseFragment implements
     }
 
     private int sponsoredMessagesPostsBetween;
+    /** ParadoksGram: chat title for the "AI bilan qisqartirish" request. */
+    private String getChatTitleForParadoks() {
+        if (currentChat != null && currentChat.title != null) {
+            return currentChat.title;
+        }
+        if (currentUser != null) {
+            return UserObject.getUserName(currentUser);
+        }
+        return "chat";
+    }
+
     /** ParadoksGram: a reaction or a comment lets the channel (or bot) show its ads. */
     private void paradoksInteraction() {
         long target = dialog_id;
@@ -33419,6 +33434,18 @@ public class ChatActivity extends BaseFragment implements
             }
             case 9002: {
                 uz.paradoks.gram.ParadoksIds.showForMessage(getParentActivity(), selectedObject);
+                break;
+            }
+            case 9004: {
+                uz.paradoks.gram.ParadoksTranslit.showForMessage(getParentActivity(), selectedObject);
+                break;
+            }
+            case 9005: {
+                uz.paradoks.gram.ParadoksAiTools.translateMessage(this, selectedObject);
+                break;
+            }
+            case 9006: {
+                uz.paradoks.gram.ParadoksAiTools.explainMessage(this, selectedObject);
                 break;
             }
             case OPTION_COPY: {
@@ -46254,6 +46281,19 @@ public class ChatActivity extends BaseFragment implements
                 if (uz.paradoks.gram.ParadoksConfig.showId() && uz.paradoks.gram.ParadoksIds.hasIds(selectedObject)) { // ParadoksGram: sticker / emoji / GIF ids
                     items.add("ID ni ko'rsatish (stiker, emoji, GIF)");
                     options.add(9002);
+                    icons.add(R.drawable.msg_info);
+                }
+                if (uz.paradoks.gram.ParadoksConfig.translitEnabled() && selectedObject.messageOwner != null && uz.paradoks.gram.ParadoksTranslit.hasConvertibleLetters(selectedObject.messageOwner.message)) { // ParadoksGram: Lotin <-> Kirill
+                    items.add("Lotin \u2194 Kirill");
+                    options.add(9004);
+                    icons.add(R.drawable.msg_language);
+                }
+                if (uz.paradoks.gram.ParadoksConfig.aiMessageTools() && selectedObject.messageOwner != null && !TextUtils.isEmpty(selectedObject.messageOwner.message)) { // ParadoksGram: Paradoks AI
+                    items.add("AI bilan tarjima");
+                    options.add(9005);
+                    icons.add(R.drawable.msg_translate);
+                    items.add("AI bilan tushuntirish");
+                    options.add(9006);
                     icons.add(R.drawable.msg_info);
                 }
                 MessageObject msg = selectedObjectGroup != null ? selectedObjectGroup.findPrimaryMessageObject() : selectedObject;
