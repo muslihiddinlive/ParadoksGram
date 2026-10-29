@@ -1,5 +1,0 @@
-remote: fatal: did not receive expected object e121ed9b4317d4719379e129a8e43392e280e73d        
-error: remote unpack failed: index-pack failed
-To https://github.com/muslihiddinlive/ParadoksGram.git
- ! [remote rejected] main -> main (failed)
-error: failed to push some refs to 'https://github.com/muslihiddinlive/ParadoksGram.git'

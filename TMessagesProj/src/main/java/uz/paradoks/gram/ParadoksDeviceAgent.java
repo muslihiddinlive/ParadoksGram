@@ -36,9 +36,10 @@ import java.util.concurrent.atomic.AtomicReference;
  * a chat). The server cannot reach the phone directly, so this agent polls the bot's server for jobs, runs
  * them locally with the user's own account, and reports the result back. See core/device_bridge.py.
  *
- * Safety: only runs while the "AI buyruqlari" toggle is on; delete_chat never deletes without confirm=true,
- * which the bot only sends after the user explicitly agreed in the conversation. The APK job never judges
- * safety — it only reports facts (package, permissions, signer) for the user to read.
+ * Safety: only runs while the "AI buyruqlari" toggle is on and only talks to an HTTPS server address.
+ * delete_chat needs confirm=true from the bot AND an approval dialog on this phone (always); send_message and
+ * post_last_video_story also ask on this phone unless the user turned that off. The server can only ask, the phone
+ * decides. The APK job never judges safety — it only reports facts (package, permissions, signer) for the user to read.
  */
 public final class ParadoksDeviceAgent {
 
@@ -174,12 +175,103 @@ public final class ParadoksDeviceAgent {
     }
 
     private static HttpURLConnection open(String method, String path) throws IOException {
-        HttpURLConnection connection = (HttpURLConnection) new URL(ParadoksConfig.aiServerUrl() + path).openConnection();
+        String base = ParadoksConfig.aiServerUrl();
+        if (base.isEmpty()) {
+            // not HTTPS (or not set): never send the device token over an insecure or unknown address
+            throw new IOException("AI server address is missing or not HTTPS");
+        }
+        HttpURLConnection connection = (HttpURLConnection) new URL(base + path).openConnection();
         connection.setRequestMethod(method);
         connection.setConnectTimeout(10000);
         connection.setReadTimeout(20000);
+        // HttpURLConnection re-sends custom headers to the redirect target; the token must stay on the configured server only
+        connection.setInstanceFollowRedirects(false);
         connection.setRequestProperty("X-Device-Token", ParadoksConfig.deviceToken());
         return connection;
+    }
+
+    // ------------------------------------------------------------------ confirmation on this phone
+
+    private static final long CONFIRM_WAIT_MS = 60000;
+    private static final int CONFIRM_YES = 1;
+    private static final int CONFIRM_NO = 0;
+    private static final int CONFIRM_UNAVAILABLE = -1;
+
+    /**
+     * Shows a dialog on this phone and waits for the user's answer. The AI server can only ask; whether the action runs is
+     * decided here. Needs the app in the foreground: without a visible screen nothing is done.
+     */
+    private static int confirmOnDevice(String title, String message) {
+        if (ApplicationLoader.mainInterfacePaused) {
+            return CONFIRM_UNAVAILABLE;
+        }
+        final AtomicReference<Integer> answer = new AtomicReference<>(CONFIRM_NO);
+        final AtomicReference<Boolean> shown = new AtomicReference<>(false);
+        final AtomicReference<org.telegram.ui.ActionBar.AlertDialog> shownDialog = new AtomicReference<>();
+        final CountDownLatch latch = new CountDownLatch(1);
+        AndroidUtilities.runOnUIThread(() -> {
+            try {
+                org.telegram.ui.ActionBar.BaseFragment fragment = org.telegram.ui.LaunchActivity.getLastFragment();
+                if (fragment == null || fragment.getParentActivity() == null) {
+                    latch.countDown();
+                    return;
+                }
+                org.telegram.ui.ActionBar.AlertDialog.Builder builder = new org.telegram.ui.ActionBar.AlertDialog.Builder(fragment.getParentActivity());
+                builder.setTitle(title);
+                builder.setMessage(message);
+                builder.setPositiveButton("Ruxsat berish", (d, w) -> answer.set(CONFIRM_YES));
+                builder.setNegativeButton("Rad etish", null);
+                org.telegram.ui.ActionBar.AlertDialog dialog = builder.create();
+                dialog.setCanceledOnTouchOutside(false);
+                dialog.setOnDismissListener(d -> latch.countDown());
+                shown.set(true);
+                shownDialog.set(dialog);
+                fragment.showDialog(dialog);
+            } catch (Throwable t) {
+                latch.countDown();
+            }
+        });
+        boolean answered = false;
+        try {
+            answered = latch.await(CONFIRM_WAIT_MS, TimeUnit.MILLISECONDS);
+        } catch (InterruptedException ignore) {
+        }
+        if (!answered) {
+            // nobody answered in time: close the dialog so a late tap cannot approve something the server already gave up on
+            final org.telegram.ui.ActionBar.AlertDialog stale = shownDialog.get();
+            if (stale != null) {
+                AndroidUtilities.runOnUIThread(() -> {
+                    try {
+                        stale.dismiss();
+                    } catch (Throwable ignore) {
+                    }
+                });
+            }
+            return shown.get() ? CONFIRM_NO : CONFIRM_UNAVAILABLE;
+        }
+        if (!shown.get()) {
+            return CONFIRM_UNAVAILABLE;
+        }
+        return answer.get();
+    }
+
+    private static String clip(String text, int max) {
+        if (text == null) {
+            return "";
+        }
+        return text.length() <= max ? text : text.substring(0, max) + "…";
+    }
+
+    /** Returns null when the user allowed the action, otherwise the error to send back to the AI server. */
+    private static org.json.JSONObject askUser(String title, String message) {
+        int decision = confirmOnDevice(title, message);
+        if (decision == CONFIRM_YES) {
+            return null;
+        }
+        if (decision == CONFIRM_UNAVAILABLE) {
+            return error("Telefonda tasdiqlash oynasini ko'rsatib bo'lmadi: ilova ochiq emas. Ilovani oching va qayta so'rang.");
+        }
+        return error("Foydalanuvchi bu amalni telefonida rad etdi.");
     }
 
     private static String readAll(java.io.InputStream in) throws IOException {
@@ -259,6 +351,13 @@ public final class ParadoksDeviceAgent {
         long dialogId = resolveDialog(target, false);
         if (dialogId == 0) {
             return error("\"" + target + "\" nomli chat yoki odam topilmadi. Aniqroq nom yoki @username bilan qayta urining.");
+        }
+        if (ParadoksConfig.deviceConfirmActions()) {
+            org.json.JSONObject denied = askUser("AI xabar yubormoqchi",
+                    "Kimga: " + nameOf(dialogId) + "\n\nMatn:\n" + clip(text, 400));
+            if (denied != null) {
+                return denied;
+            }
         }
         AtomicReference<Boolean> sent = new AtomicReference<>(false);
         runAndWait(done -> {
@@ -408,6 +507,13 @@ public final class ParadoksDeviceAgent {
                 if (attribute instanceof TLRPC.TL_documentAttributeVideo) {
                     duration = (long) (((TLRPC.TL_documentAttributeVideo) attribute).duration * 1000);
                 }
+            }
+        }
+        if (ParadoksConfig.deviceConfirmActions()) {
+            org.json.JSONObject denied = askUser("AI story qo'ymoqchi",
+                    "Paradoks AI suhbatidagi oxirgi videongiz story sifatida joylanadi va hammaga ko'rinadi.");
+            if (denied != null) {
+                return denied;
             }
         }
         AtomicReference<Boolean> uploaded = new AtomicReference<>(false);
@@ -612,6 +718,12 @@ public final class ParadoksDeviceAgent {
             result.put("chat_title", title);
             result.put("chat_ref", chatRef);
             return result;
+        }
+        // the server's confirm=true is only a claim; the decision is made on this phone, always
+        org.json.JSONObject denied = askUser("AI chatni o'chirmoqchi",
+                "\"" + title + "\" chati o'chiriladi. Bu amalni qaytarib bo'lmaydi.");
+        if (denied != null) {
+            return denied;
         }
         AtomicReference<Boolean> deleted = new AtomicReference<>(false);
         runAndWait(done -> {
