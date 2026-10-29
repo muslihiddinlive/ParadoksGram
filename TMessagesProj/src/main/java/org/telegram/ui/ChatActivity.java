@@ -1676,6 +1676,7 @@ public class ChatActivity extends BaseFragment implements
     private final static int paradoks_lock = 9202;
     private final static int paradoks_hide = 9203;
     private final static int paradoks_export = 9204;
+    private final static int paradoks_clone = 9205;
     private final static int scheduled = 63;
     private final static int edit_quick_reply = 64;
 
@@ -3978,6 +3979,8 @@ public class ChatActivity extends BaseFragment implements
                     uz.paradoks.gram.ParadoksHidden.toggleChat(ChatActivity.this, currentAccount, dialog_id);
                 } else if (id == paradoks_export) {
                     uz.paradoks.gram.ParadoksExport.start(ChatActivity.this, currentAccount, dialog_id);
+                } else if (id == paradoks_clone) {
+                    uz.paradoks.gram.ParadoksClone.start(ChatActivity.this, currentAccount, dialog_id);
                 } else if (id == translate) {
                     getMessagesController().getTranslateController().setHideTranslateDialog(getDialogId(), false, true);
                     if (!getMessagesController().getTranslateController().toggleTranslatingDialog(getDialogId(), true)) {
@@ -4442,6 +4445,10 @@ public class ChatActivity extends BaseFragment implements
             headerItem.lazilyAddSubItem(paradoks_hide, R.drawable.msg_secret, "Yashirin chat");
             if (currentEncryptedChat == null) { // ParadoksGram: chat export (secret chats are not supported)
                 headerItem.lazilyAddSubItem(paradoks_export, R.drawable.msg_download, "Chatni eksport qilish");
+            }
+            // ParadoksGram: chat clone, only for public groups/channels and personal chats
+            if (uz.paradoks.gram.ParadoksClone.canClone(currentChat, currentUser, currentEncryptedChat)) {
+                headerItem.lazilyAddSubItem(paradoks_clone, R.drawable.msg_copy, "Chatni klon qilish");
             }
             if (currentChat != null && !currentChat.creator && !ChatObject.hasAdminRights(currentChat)) {
                 headerItem.lazilyAddSubItem(report, R.drawable.msg_report, LocaleController.getString(R.string.ReportChat));
