@@ -1067,6 +1067,7 @@ public class FileLoader extends BaseController {
         operation.setDelegate(fileLoadOperationDelegate);
 
         loadOperationPaths.put(finalFileName, operation);
+        ParadoksDownloadService.maybeStart(currentAccount, stream == null && !operation.isPreloadVideoOperation() ? Math.max(locationSize, document != null ? document.size : 0) : 0);
         operation.setPriority(priority);
         if (stream == null) {
             stream = FileStreamLoadOperation.allStreams.get(documentId);
@@ -1199,6 +1200,20 @@ public class FileLoader extends BaseController {
             FileLog.e(e, false);
             if (ignoreInterruption) awaitFileLoadOperation(latch, false);
         }
+    }
+
+    /** ParadoksGram: {count, downloadedBytes, totalBytes} of big downloads that are still running. */
+    public long[] paradoksBigDownloads() {
+        long count = 0, done = 0, total = 0;
+        for (FileLoadOperation operation : loadOperationPaths.values()) {
+            if (operation.isPreloadVideoOperation() || operation.isFinished() || operation.totalBytesCount < ParadoksDownloadService.MIN_SIZE) {
+                continue;
+            }
+            count++;
+            done += operation.paradoksDownloadedBytes();
+            total += operation.totalBytesCount;
+        }
+        return new long[]{count, done, total};
     }
 
     private void checkDownloadQueue(FileLoadOperation operation, FileLoaderPriorityQueue queue) {

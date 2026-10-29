@@ -2644,4 +2644,9 @@ public class FileLoadOperation {
     public boolean isFinished() {
         return state == stateFinished;
     }
+
+    // ParadoksGram: used by ParadoksDownloadService to show progress and decide whether to keep running.
+    public long paradoksDownloadedBytes() {
+        return downloadedBytes;
+    }
 }
