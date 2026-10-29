@@ -11318,17 +11318,15 @@ public class ChatActivityEnterView extends FrameLayout implements
         boolean wasVisible = botButton != null && botButton.getVisibility() == VISIBLE;
         if (hasBotWebView || hasBotCommands || hasQuickReplies || botReplyMarkup != null) {
             if (botReplyMarkup != null) {
-                if (isPopupShowing() && currentPopupContentType == POPUP_CONTENT_BOT_KEYBOARD && botReplyMarkup.is_persistent) {
-                    if (botButton != null && botButton.getVisibility() != GONE) {
-                        botButton.setVisibility(GONE);
-                    }
-                } else {
+                // ParadoksGram: always show the toggle button so the user can close even a persistent keyboard.
+                {
                     createBotButton();
                     if (botButton.getVisibility() != VISIBLE) {
                         botButton.setVisibility(VISIBLE);
                     }
-
-                    botButtonDrawable.setIcon(R.drawable.input_bot2, true);
+                    // Icon: chevron-down when keyboard is open (tap to close), bot icon when closed (tap to open).
+                    boolean keyboardOpen = isPopupShowing() && currentPopupContentType == POPUP_CONTENT_BOT_KEYBOARD;
+                    botButtonDrawable.setIcon(keyboardOpen ? R.drawable.ic_arrow_drop_down : R.drawable.input_bot2, true);
                     botButton.setContentDescription(getString("AccDescrBotKeyboard", R.string.AccDescrBotKeyboard));
                 }
             } else {
@@ -12695,6 +12693,10 @@ public class ChatActivityEnterView extends FrameLayout implements
             } else if (contentType == POPUP_CONTENT_BOT_KEYBOARD) {
                 samePannelWasVisible = botKeyboardViewVisible && botKeyboardView.getVisibility() == View.VISIBLE;
                 botKeyboardViewVisible = true;
+                // ParadoksGram: update toggle icon to "close" (chevron down) while keyboard is open.
+                if (botButton != null && botButtonDrawable != null) {
+                    botButtonDrawable.setIcon(R.drawable.ic_arrow_drop_down, true);
+                }
                 if (emojiView != null && emojiView.getVisibility() != GONE) {
                     viewParentForEmojiView.removeView(emojiView);
                     emojiView.setVisibility(GONE);
@@ -12901,6 +12903,10 @@ public class ChatActivityEnterView extends FrameLayout implements
             }
             if (contentType == POPUP_CONTENT_BOT_KEYBOARD && botButtonsMessageObject != null) {
                 MessagesController.getMainSettings(currentAccount).edit().putInt("closed_botkeyboard_" + getTopicKeyString(), botButtonsMessageObject.getId()).apply();
+            }
+            // ParadoksGram: update toggle icon back to "open" (bot icon) when keyboard is closed.
+            if (contentType == POPUP_CONTENT_BOT_KEYBOARD && botButton != null && botButtonDrawable != null && botReplyMarkup != null) {
+                botButtonDrawable.setIcon(R.drawable.input_bot2, true);
             }
             updateBotButton(true);
 
