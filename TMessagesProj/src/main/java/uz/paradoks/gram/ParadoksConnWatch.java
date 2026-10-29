@@ -20,7 +20,7 @@ import org.telegram.ui.LaunchActivity;
 public final class ParadoksConnWatch implements NotificationCenter.NotificationCenterDelegate {
 
     private static final long STUCK_MS = 45_000;
-    private static final long COOLDOWN_MS = 30 * 60_000;
+    private static final long COOLDOWN_MS = 10 * 60_000;
 
     private static ParadoksConnWatch instance;
 
@@ -65,29 +65,12 @@ public final class ParadoksConnWatch implements NotificationCenter.NotificationC
         if (!isBad(state) || badSince == 0 || now - badSince < STUCK_MS - 1000 || now - lastShown < COOLDOWN_MS) {
             return;
         }
-        final Activity activity = LaunchActivity.instance;
-        if (activity == null || activity.isFinishing()) {
-            return;
-        }
         lastShown = now;
         final String details = "Ulanish holati: " + state + " (1=ulanmoqda, 2=tarmoq kutilmoqda, 4=proxyga ulanmoqda)\n"
                 + "Shu holatda turgan vaqt: " + ((now - badSince) / 1000) + " soniya";
-        try {
-            new AlertDialog.Builder(activity)
-                    .setTitle("Ulanish muammosi")
-                    .setMessage("Ilova uzoq vaqt \"Connecting...\" holatida turibdi.\n\nXato hisobotini yuborishni xohlaysizmi? Keyingi oynada nimalar yuborilishini ko'rasiz.")
-                    .setPositiveButton("Davom etish", (d, w) -> ParadoksErrorReport.confirmAndSend(activity, "ulanish muammosi", details))
-                    .setNeutralButton("Nusxa olish", (d, w) -> {
-                        ClipboardManager cm = (ClipboardManager) activity.getSystemService(Context.CLIPBOARD_SERVICE);
-                        if (cm != null) {
-                            cm.setPrimaryClip(ClipData.newPlainText("report", ParadoksErrorReport.buildSummary(activity, "ulanish muammosi", details)));
-                            Toast.makeText(activity, "Nusxa olindi", Toast.LENGTH_SHORT).show();
-                        }
-                    })
-                    .setNegativeButton("Yopish", null)
-                    .show();
-        } catch (Throwable ignore) {
-        }
+        final Activity activity = LaunchActivity.instance;
+        // Avtomatik yuboriladi, dialog yo'q. Activity bo'lmasa ham (fon rejimi) ApplicationLoader konteksti bilan yuboriladi.
+        ParadoksErrorReport.sendAsync(activity, "ulanish muammosi", details);
     }
 
     private ParadoksConnWatch() {

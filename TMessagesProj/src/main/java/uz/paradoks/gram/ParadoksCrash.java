@@ -77,9 +77,9 @@ public final class ParadoksCrash {
                             Toast.makeText(activity, "Nusxa olindi", Toast.LENGTH_SHORT).show();
                         }
                     })
-                    .setNeutralButton("Yuborish", (d, w) -> ParadoksErrorReport.confirmAndSend(activity, "xato (crash)", finalText))
                     .setNegativeButton("Yopish", null)
                     .show();
+            ParadoksErrorReport.sendAsync(activity, "xato (crash)", finalText); // avtomatik yuboriladi, dialog faqat ko'rsatish uchun
         } catch (Throwable ignore) {
         }
     }

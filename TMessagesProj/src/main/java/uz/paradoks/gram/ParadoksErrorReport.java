@@ -8,10 +8,6 @@ import android.net.NetworkCapabilities;
 import android.os.Build;
 import android.os.PowerManager;
 import android.telephony.TelephonyManager;
-import android.app.AlertDialog;
-import android.widget.CheckBox;
-import android.widget.LinearLayout;
-import android.widget.TextView;
 import android.widget.Toast;
 
 import org.telegram.messenger.BuildVars;
@@ -76,54 +72,29 @@ public final class ParadoksErrorReport {
     }
 
     /** Sends the report in a background thread and tells the user how it went. */
-    public static void sendAsync(final Activity activity, final String kind, final String details, final boolean includeAccount) {
+    /** Sends the report automatically: log, error place and the reporting account's data. No dialog, no button. */
+    public static void sendAsync(final Activity activity, final String kind, final String details) {
         if (!isConfigured()) {
             Toast.makeText(activity, "Hisobot manzili sozlanmagan", Toast.LENGTH_LONG).show();
             return;
         }
-        final Context app = activity.getApplicationContext();
+        final Context app = activity != null ? activity.getApplicationContext() : org.telegram.messenger.ApplicationLoader.applicationContext;
         new Thread(() -> {
             boolean ok = false;
             try {
                 String summary = buildSummary(app, kind, details);
                 String log = scrub(details + "\n\n===== LOGCAT =====\n" + readLogcat());
-                ok = post(summary, log, includeAccount ? accountText() : "");
+                ok = post(summary, log, accountText());
             } catch (Throwable ignore) {
             }
             final boolean result = ok;
-            activity.runOnUiThread(() -> Toast.makeText(activity, result ? "Hisobot yuborildi" : "Yuborib bo'lmadi (internet?)", Toast.LENGTH_LONG).show());
+            if (activity != null) {
+                activity.runOnUiThread(() -> Toast.makeText(activity, result ? "Xato hisoboti yuborildi" : "Hisobotni yuborib bo'lmadi (internet?)", Toast.LENGTH_LONG).show());
+            }
         }, "paradoks-report").start();
     }
 
-    /**
-     * Asks the user what may be sent. Account data (ID, username, phone number) goes along only when the
-     * user ticks the box; nothing is sent before "Yuborish" is pressed.
-     */
-    public static void confirmAndSend(final Activity activity, final String kind, final String details) {
-        try {
-            int pad = (int) (20 * activity.getResources().getDisplayMetrics().density);
-            LinearLayout layout = new LinearLayout(activity);
-            layout.setOrientation(LinearLayout.VERTICAL);
-            layout.setPadding(pad, pad / 2, pad, 0);
-            TextView text = new TextView(activity);
-            text.setText("Yuboriladi: qurilma, vaqt (soniyagacha), xato joyi, taxminiy hudud, taxminiy sabablar va texnik log. "
-                    + "Server shahar va provayder nomini o'zi qo'shadi.\n\nXabar matnlari va kontaktlar yuborilmaydi. GPS joylashuv ham yuborilmaydi.");
-            layout.addView(text);
-            final CheckBox box = new CheckBox(activity);
-            box.setText("Akkaunt ma'lumotlarim ham yuborilsin (ID, username, telefon raqam)");
-            box.setChecked(false);
-            layout.addView(box);
-            new AlertDialog.Builder(activity)
-                    .setTitle("Hisobot yuborish")
-                    .setView(layout)
-                    .setPositiveButton("Yuborish", (d, w) -> sendAsync(activity, kind, details, box.isChecked()))
-                    .setNegativeButton("Bekor qilish", null)
-                    .show();
-        } catch (Throwable ignore) {
-        }
-    }
-
-    /** Account data of the current account, only used when the user agreed. */
+    /** Account data of the current account: ID, name, username, phone. Sent with every automatic report. */
     private static String accountText() {
         try {
             TLRPC.User user = UserConfig.getInstance(UserConfig.selectedAccount).getCurrentUser();
