@@ -1675,6 +1675,7 @@ public class ChatActivity extends BaseFragment implements
     private final static int paradoks_mark_read = 9201;
     private final static int paradoks_lock = 9202;
     private final static int paradoks_hide = 9203;
+    private final static int paradoks_export = 9204;
     private final static int scheduled = 63;
     private final static int edit_quick_reply = 64;
 
@@ -3975,6 +3976,8 @@ public class ChatActivity extends BaseFragment implements
                     uz.paradoks.gram.ParadoksLock.toggleChat(ChatActivity.this, currentAccount, dialog_id);
                 } else if (id == paradoks_hide) {
                     uz.paradoks.gram.ParadoksHidden.toggleChat(ChatActivity.this, currentAccount, dialog_id);
+                } else if (id == paradoks_export) {
+                    uz.paradoks.gram.ParadoksExport.start(ChatActivity.this, currentAccount, dialog_id);
                 } else if (id == translate) {
                     getMessagesController().getTranslateController().setHideTranslateDialog(getDialogId(), false, true);
                     if (!getMessagesController().getTranslateController().toggleTranslatingDialog(getDialogId(), true)) {
@@ -4437,6 +4440,9 @@ public class ChatActivity extends BaseFragment implements
             }
             headerItem.lazilyAddSubItem(paradoks_lock, R.drawable.msg_secret, "Chat qulfi");
             headerItem.lazilyAddSubItem(paradoks_hide, R.drawable.msg_secret, "Yashirin chat");
+            if (currentEncryptedChat == null) { // ParadoksGram: chat export (secret chats are not supported)
+                headerItem.lazilyAddSubItem(paradoks_export, R.drawable.msg_download, "Chatni eksport qilish");
+            }
             if (currentChat != null && !currentChat.creator && !ChatObject.hasAdminRights(currentChat)) {
                 headerItem.lazilyAddSubItem(report, R.drawable.msg_report, LocaleController.getString(R.string.ReportChat));
             }
