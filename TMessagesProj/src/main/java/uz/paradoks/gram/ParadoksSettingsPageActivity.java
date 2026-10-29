@@ -311,6 +311,14 @@ public class ParadoksSettingsPageActivity extends BaseFragment {
                 info("ID: profilda foydalanuvchi, bot yoki kanalning ID raqami ko'rinadi (bosilsa nusxa olinadi). Stiker, emoji yoki GIF xabarini "
                         + "bosib turib (yoki stiker panelida ustiga bosib turib) ularning ID'sini ham ko'rasiz.\n\n"
                         + "Ovoz effekti: ovozli xabar yozayotganda tanlangan effekt qo'llanadi va xabar shu effekt bilan yuboriladi.");
+                header("Sozlamalarni zaxiralash");
+                value("Sozlamalarni yuklab olish", () -> "JSON fayl", this::exportSettings);
+                value("Sozlamalarni tiklash", () -> "Fayldan", this::importSettings);
+                info("ParadoksGram'ning o'ziga tegishli sozlamalar (ghost mode, chat qulfi, yashirin/qulflangan chatlar ro'yxati, "
+                        + "reklama va AI server manzillari, o'chirilganlar bazasi manzili va h.k.) JSON faylga yoziladi. "
+                        + "Telegram akkaunti, xabarlar, kontaktlar va bu qurilmaning AI buyruqlari uchun kaliti FAYLGA yozilmaydi — ular qurilmada qoladi.\n\n"
+                        + "Faylda chat qulfi PIN'ining xeshi va qaysi chatlarni yashirgan/qulflaganingiz bor, shuning uchun uni faqat ishongan joyda saqlang. "
+                        + "Tiklashda faqat ParadoksGram taniydigan sozlamalar qo'llanadi, faylda boshqa nima bo'lsa ham e'tiborsiz qoldiriladi.");
                 break;
         }
     }
@@ -522,6 +530,103 @@ public class ParadoksSettingsPageActivity extends BaseFragment {
         builder.setPositiveButton("Tushundim, yoqish", (d, w) -> onOk.run());
         builder.setNegativeButton("Bekor qilish", null);
         showDialog(builder.create());
+    }
+
+    // ---------------------------------------------------------------- backup
+
+    private static final int REQ_IMPORT = 8821;
+
+    private void exportSettings() {
+        if (getParentActivity() == null) return;
+        new Thread(() -> {
+            try {
+                String json = ParadoksBackup.buildExportJson().toString(2);
+                java.io.File out = new java.io.File(ApplicationLoader.applicationContext.getExternalFilesDir(null),
+                        ParadoksBackup.suggestedFileName());
+                try (java.io.FileWriter fw = new java.io.FileWriter(out)) { fw.write(json); }
+                android.net.Uri uri = androidx.core.content.FileProvider.getUriForFile(
+                        ApplicationLoader.applicationContext,
+                        ApplicationLoader.applicationContext.getPackageName() + ".provider", out);
+                android.content.Intent share = new android.content.Intent(android.content.Intent.ACTION_SEND);
+                share.setType("application/json");
+                share.putExtra(android.content.Intent.EXTRA_STREAM, uri);
+                share.addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                org.telegram.messenger.AndroidUtilities.runOnUIThread(() -> {
+                    try {
+                        getParentActivity().startActivity(android.content.Intent.createChooser(share, "Sozlamalarni ulashish"));
+                    } catch (Throwable e) {
+                        toast(getParentActivity(), "Faylni ulashib bo'lmadi: " + out.getAbsolutePath());
+                    }
+                });
+            } catch (Throwable e) {
+                org.telegram.messenger.AndroidUtilities.runOnUIThread(() ->
+                        toast(getParentActivity(), "Eksport xatosi: " + e.getMessage()));
+            }
+        }, "ParadoksBackupExport").start();
+    }
+
+    private void importSettings() {
+        try {
+            android.content.Intent pick = new android.content.Intent(android.content.Intent.ACTION_GET_CONTENT);
+            pick.setType("*/*");
+            pick.addCategory(android.content.Intent.CATEGORY_OPENABLE);
+            startActivityForResult(android.content.Intent.createChooser(pick, "ParadoksGram sozlamalar faylini tanlang"), REQ_IMPORT);
+        } catch (Throwable e) {
+            toast(getParentActivity(), "Fayl tanlashni ochib bo'lmadi");
+        }
+    }
+
+    @Override
+    public void onActivityResultFragment(int requestCode, int resultCode, android.content.Intent data) {
+        if (requestCode != REQ_IMPORT || resultCode != android.app.Activity.RESULT_OK || data == null) return;
+        android.net.Uri uri = data.getData();
+        if (uri == null) return;
+        new Thread(() -> {
+            try {
+                java.io.InputStream in = ApplicationLoader.applicationContext.getContentResolver().openInputStream(uri);
+                if (in == null) throw new java.io.IOException("Faylni ochib bo'lmadi");
+                byte[] buf = new byte[2 * 1024 * 1024];
+                int n = 0, read;
+                while ((read = in.read(buf, n, buf.length - n)) > 0) n += read;
+                in.close();
+                String text = new String(buf, 0, n, java.nio.charset.StandardCharsets.UTF_8);
+                org.json.JSONObject root = ParadoksBackup.parse(text);
+                org.telegram.messenger.AndroidUtilities.runOnUIThread(() -> confirmRestore(root));
+            } catch (Throwable e) {
+                org.telegram.messenger.AndroidUtilities.runOnUIThread(() ->
+                        toast(getParentActivity(), "Fayl o'qib bo'lmadi: " + e.getMessage()));
+            }
+        }, "ParadoksBackupRead").start();
+    }
+
+    private void confirmRestore(org.json.JSONObject root) {
+        if (getParentActivity() == null) return;
+        String exportedAt = root.optString("exported_at", "?");
+        int build = root.optInt("build", 0);
+        new AlertDialog.Builder(getParentActivity())
+                .setTitle("Sozlamalarni tiklash")
+                .setMessage("Sana: " + exportedAt + "\nBuild: " + build + "\n\nJoriy sozlamalar o'chirib, fayldagilar qo'llanadi. Davom etasizmi?")
+                .setPositiveButton("Tiklash", (d, w) -> applyRestore(root))
+                .setNegativeButton(org.telegram.messenger.LocaleController.getString(R.string.Cancel), null)
+                .show();
+    }
+
+    private void applyRestore(org.json.JSONObject root) {
+        ParadoksBackup.Result r = ParadoksBackup.restore(root);
+        if (r.ok) {
+            buildRows();
+            if (adapter != null) adapter.notifyDataSetChanged();
+            toast(getParentActivity(), "Tiklandi: " + r.applied + " ta sozlama qo'llandi"
+                    + (r.skipped > 0 ? ", " + r.skipped + " ta e'tiborsiz" : ""));
+        } else {
+            toast(getParentActivity(), "Tiklash xatosi: " + r.error);
+        }
+    }
+
+    private static void toast(android.content.Context ctx, String msg) {
+        if (ctx == null) return;
+        org.telegram.messenger.AndroidUtilities.runOnUIThread(() ->
+                android.widget.Toast.makeText(ctx, msg, android.widget.Toast.LENGTH_LONG).show());
     }
 
     private void refresh() {
