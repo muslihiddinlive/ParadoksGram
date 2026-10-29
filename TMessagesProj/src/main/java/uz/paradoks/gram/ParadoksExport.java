@@ -869,7 +869,7 @@ public final class ParadoksExport {
 
         // -------------------------------------------------------------- JSON
 
-        private JSONObject buildJson(TLRPC.Message msg, boolean service, String from, String fromRef, String text, MediaInfo media,
+        private String buildJson(TLRPC.Message msg, boolean service, String from, String fromRef, String text, MediaInfo media,
                                      String fwdName, int fwdDate, int replyId, ArrayList<String[]> reactions) {
             JSONObject o = new JSONObject();
             put(o, "id", msg.id);
