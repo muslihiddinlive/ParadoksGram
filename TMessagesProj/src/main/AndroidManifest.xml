@@ -501,6 +501,12 @@
             android:foregroundServiceType="dataSync"
         />
         <service
+            android:name="uz.paradoks.gram.ParadoksCloneService"
+            android:enabled="true"
+            android:exported="false"
+            android:foregroundServiceType="dataSync"
+        />
+        <service
             android:name=".ImportingService"
             android:enabled="true"
             android:exported="true"

@@ -50,6 +50,188 @@ public final class ParadoksClone {
     private static final long CHUNK_PAUSE_MS = 1500;
 
     private static volatile boolean running;
+    private static volatile Job activeJob;
+    private static volatile String progressText = "";
+    private static volatile float progressFraction = -1;
+    private static volatile String lastResultText = "";
+
+    private static final String HISTORY_KEY = "clone_history";
+    private static final int HISTORY_MAX = 50;
+
+    public static boolean isRunning() {
+        return running;
+    }
+
+    /** Text for the notification and the list while a clone is running. */
+    public static String progressText() {
+        return progressText;
+    }
+
+    public static float progressFraction() {
+        return progressFraction;
+    }
+
+    public static String lastResultText() {
+        return lastResultText;
+    }
+
+    public static void stopActive() {
+        Job job = activeJob;
+        if (job != null) {
+            job.cancelled.set(true);
+            progressText = "To'xtatilmoqda...";
+        }
+    }
+
+    // ------------------------------------------------------------------ history of clones
+
+    /** One line of the "Klonlangan chatlar" list. */
+    public static final class Record {
+        public long id;
+        public long chatId;
+        public String source = "";
+        public String title = "";
+        public String status = "";
+        public String note = "";
+        public int forwarded;
+        public int failed;
+        public int total;
+
+        public String statusText() {
+            String counts = (forwarded + failed) + " / " + total;
+            switch (status) {
+                case "running":
+                    return "davom etmoqda: " + counts;
+                case "done":
+                    return "tayyor: " + forwarded + " ta xabar" + (failed > 0 ? " (" + failed + " tasi o'tmadi)" : "");
+                case "error":
+                    return "xato: " + (note == null || note.isEmpty() ? "noma'lum" : note) + " (" + counts + ")";
+                default:
+                    return "to'xtatilgan: " + counts;
+            }
+        }
+    }
+
+    private static android.content.SharedPreferences historyPrefs() {
+        return ApplicationLoader.applicationContext.getSharedPreferences("paradoks", Context.MODE_PRIVATE);
+    }
+
+    public static synchronized ArrayList<Record> history() {
+        ArrayList<Record> list = new ArrayList<>();
+        try {
+            org.json.JSONArray array = new org.json.JSONArray(historyPrefs().getString(HISTORY_KEY, "[]"));
+            for (int i = 0; i < array.length(); i++) {
+                org.json.JSONObject o = array.getJSONObject(i);
+                Record r = new Record();
+                r.id = Long.parseLong(o.optString("id", "0"));
+                r.chatId = Long.parseLong(o.optString("chat", "0"));
+                r.source = o.optString("source", "");
+                r.title = o.optString("title", "");
+                r.status = o.optString("status", "");
+                r.note = o.optString("note", "");
+                r.forwarded = o.optInt("forwarded");
+                r.failed = o.optInt("failed");
+                r.total = o.optInt("total");
+                // A clone that was running when the app died is no longer running.
+                if ("running".equals(r.status) && (activeJob == null || activeJob.recordId != r.id)) {
+                    r.status = "stopped";
+                }
+                list.add(r);
+            }
+        } catch (Throwable ignore) {
+        }
+        return list;
+    }
+
+    private static synchronized void upsert(Record record) {
+        ArrayList<Record> list = history();
+        boolean replaced = false;
+        for (int i = 0; i < list.size(); i++) {
+            if (list.get(i).id == record.id) {
+                list.set(i, record);
+                replaced = true;
+                break;
+            }
+        }
+        if (!replaced) {
+            list.add(0, record);
+        }
+        while (list.size() > HISTORY_MAX) {
+            list.remove(list.size() - 1);
+        }
+        writeHistory(list);
+    }
+
+    private static void writeHistory(ArrayList<Record> list) {
+        org.json.JSONArray array = new org.json.JSONArray();
+        try {
+            for (Record r : list) {
+                org.json.JSONObject o = new org.json.JSONObject();
+                o.put("id", String.valueOf(r.id));
+                o.put("chat", String.valueOf(r.chatId));
+                o.put("source", r.source);
+                o.put("title", r.title);
+                o.put("status", r.status);
+                o.put("note", r.note == null ? "" : r.note);
+                o.put("forwarded", r.forwarded);
+                o.put("failed", r.failed);
+                o.put("total", r.total);
+                array.put(o);
+            }
+        } catch (Throwable ignore) {
+        }
+        historyPrefs().edit().putString(HISTORY_KEY, array.toString()).apply();
+    }
+
+    public static synchronized void clearHistory() {
+        if (!running) {
+            writeHistory(new ArrayList<>());
+        }
+    }
+
+    private static String summaryOf(Result result) {
+        if (result.ok) {
+            return "Klon tayyor: " + result.forwarded + " ta xabar \"" + result.newTitle + "\" guruhiga o'tdi.";
+        } else if (result.cancelled) {
+            return "Klon to'xtatildi: " + result.forwarded + " ta xabar o'tgan edi.";
+        }
+        return "Klon xatosi: " + (result.error != null ? result.error : "noma'lum");
+    }
+
+    /** Dialog with the list of clones; a tap opens the new group. */
+    public static void showHistory(BaseFragment fragment) {
+        if (fragment == null || fragment.getParentActivity() == null) {
+            return;
+        }
+        final ArrayList<Record> list = history();
+        AlertDialog.Builder builder = new AlertDialog.Builder(fragment.getParentActivity());
+        builder.setTitle("Klonlangan chatlar");
+        if (list.isEmpty()) {
+            builder.setMessage("Hali chat klon qilinmagan. Chat menyusidagi \"Chatni klon qilish\" tugmasi fonda ishlaydi.");
+        } else {
+            CharSequence[] items = new CharSequence[list.size()];
+            for (int i = 0; i < list.size(); i++) {
+                Record r = list.get(i);
+                String status = running && activeJob != null && activeJob.recordId == r.id ? progressText : r.statusText();
+                items[i] = r.source + " -> " + r.title + "\n" + status;
+            }
+            builder.setItems(items, (d, which) -> {
+                long chatId = list.get(which).chatId;
+                if (chatId != 0) {
+                    Bundle args = new Bundle();
+                    args.putLong("chat_id", chatId);
+                    fragment.presentFragment(new ChatActivity(args));
+                }
+            });
+            if (running) {
+                builder.setNeutralButton("To'xtatish", (d, w) -> stopActive());
+            } else {
+                builder.setNeutralButton("Ro'yxatni tozalash", (d, w) -> clearHistory());
+            }
+        }
+        builder.setNegativeButton("Yopish", null);
+        fragment.showDialog(builder.create());
+    }
 
     // ------------------------------------------------------------------ eligibility
 
@@ -129,51 +311,27 @@ public final class ParadoksClone {
             return;
         }
         running = true;
-
-        LinearLayout layout = new LinearLayout(context);
-        layout.setOrientation(LinearLayout.VERTICAL);
-        layout.setPadding(AndroidUtilities.dp(24), AndroidUtilities.dp(8), AndroidUtilities.dp(24), 0);
-        final TextView status = new TextView(context);
-        status.setTextSize(15);
-        status.setTextColor(Theme.getColor(Theme.key_dialogTextBlack));
-        status.setText("Boshlanmoqda...");
-        layout.addView(status, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
-        final ProgressBar bar = new ProgressBar(context, null, android.R.attr.progressBarStyleHorizontal);
-        bar.setMax(1000);
-        bar.setIndeterminate(true);
-        LinearLayout.LayoutParams barParams = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-        barParams.topMargin = AndroidUtilities.dp(16);
-        layout.addView(bar, barParams);
-
         final Job job = new Job(account, dialogId, title);
+        activeJob = job;
+        progressText = "Boshlanmoqda...";
+        progressFraction = -1;
+        job.saveRecord("running", null);
 
-        AlertDialog.Builder builder = new AlertDialog.Builder(context);
-        builder.setTitle("Chat klonlanmoqda");
-        builder.setView(layout);
-        builder.setNegativeButton("To'xtatish", (d, w) -> job.cancelled.set(true));
-        final AlertDialog dialog = builder.create();
-        dialog.setCancelable(false);
-        dialog.setCanceledOnTouchOutside(false);
-
-        job.listener = (text, fraction) -> AndroidUtilities.runOnUIThread(() -> {
-            status.setText(text);
-            if (fraction < 0) {
-                bar.setIndeterminate(true);
-            } else {
-                bar.setIndeterminate(false);
-                bar.setProgress((int) (fraction * 1000));
-            }
-        });
+        job.listener = (text, fraction) -> {
+            progressText = text;
+            progressFraction = fraction;
+        };
         job.finish = result -> AndroidUtilities.runOnUIThread(() -> {
+            lastResultText = summaryOf(result);
             running = false;
-            try {
-                dialog.dismiss();
-            } catch (Throwable ignore) {
-            }
+            activeJob = null;
+            job.saveRecord(result.ok ? "done" : result.cancelled ? "stopped" : "error", result.error);
             showResult(result);
         });
 
-        fragment.showDialog(dialog);
+        // No window to keep open: the clone goes on in the background (a foreground service keeps it alive).
+        ParadoksCloneService.start(context);
+        toast(context, "Klon qilinmoqda. Fonda davom etadi, holatini Sozlamalar -> ParadoksGram -> Klonlangan chatlar da ko'rasiz.");
         Thread thread = new Thread(job, "ParadoksClone");
         thread.setPriority(Thread.NORM_PRIORITY - 1);
         thread.start();
@@ -263,9 +421,25 @@ public final class ParadoksClone {
         ProgressListener listener;
         FinishListener finish;
 
+        final long recordId = System.currentTimeMillis();
         long newChatId;
         int forwarded;
         int failed;
+        int total;
+
+        void saveRecord(String status, String note) {
+            Record r = new Record();
+            r.id = recordId;
+            r.chatId = newChatId;
+            r.source = sourceTitle;
+            r.title = newTitle;
+            r.status = status;
+            r.note = note == null ? "" : note;
+            r.forwarded = forwarded;
+            r.failed = failed;
+            r.total = total;
+            upsert(r);
+        }
 
         Job(int account, long dialogId, String sourceTitle) {
             this.account = account;
@@ -355,6 +529,7 @@ public final class ParadoksClone {
                 throw new IOException("Yangi guruh ma'lumoti olinmadi");
             }
             newChatId = newChat.id;
+            saveRecord("running", null);
             MessagesController.getInstance(account).processUpdates(updates, false);
             TLRPC.TL_inputPeerChannel target = new TLRPC.TL_inputPeerChannel();
             target.channel_id = newChat.id;
@@ -362,6 +537,7 @@ public final class ParadoksClone {
 
             // 3. forward in chunks of up to 100, never splitting an album
             int total = items.size();
+            this.total = total;
             int index = 0;
             while (index < total && !cancelled.get()) {
                 int end = Math.min(index + FORWARD_CHUNK, total);
@@ -390,6 +566,7 @@ public final class ParadoksClone {
                     }
                 }
                 index = end;
+                saveRecord("running", null);
                 progress("Forward qilinmoqda: " + (forwarded + failed) + " / " + total, (forwarded + failed) / (float) total);
                 Thread.sleep(CHUNK_PAUSE_MS);
             }
