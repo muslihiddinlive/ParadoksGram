@@ -3523,6 +3523,9 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
         } else {
             if (searchString != null || folderId != 0 || communityId != 0) {
                 actionBar.setBackButtonDrawable(backDrawable = new BackDrawable(false));
+            } else if (initialDialogsType == DIALOGS_TYPE_DEFAULT) { // ParadoksGram: hamburger button opens the side menu
+                actionBar.setBackButtonDrawable(new MenuDrawable());
+                actionBar.setBackButtonContentDescription("Menyu");
             }
             if (folderId != 0) {
                 actionBar.setTitle(getString(R.string.ArchivedChats));
@@ -3887,6 +3890,11 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
             public void onItemClick(int id) {
                 if ((id == SearchViewPager.forwardItemId || id == SearchViewPager.gotoItemId || id == SearchViewPager.deleteItemId || id == SearchViewPager.speedItemId) && searchViewPager != null) {
                     searchViewPager.onActionBarItemClick(id);
+                    return;
+                }
+                if (id == -1 && !onlySelect && initialDialogsType == DIALOGS_TYPE_DEFAULT && folderId == 0 && communityId == 0 && searchString == null
+                        && !actionBar.isActionModeShowed() && (rightSlidingDialogContainer == null || !rightSlidingDialogContainer.hasFragment())) { // ParadoksGram: side menu
+                    uz.paradoks.gram.ParadoksSideMenu.show(DialogsActivity.this);
                     return;
                 }
                 if (id == -1) {
@@ -10038,9 +10046,7 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
         } else {
             if (searchIsShowed) {
                 createActionMode(ACTION_MODE_SEARCH_DIALOGS_TAG);
-                if (actionBar.getBackButton() != null && actionBar.getBackButton().getDrawable() instanceof MenuDrawable) {
-                    actionBar.setBackButtonDrawable(new BackDrawable(false));
-                }
+                // ParadoksGram: keep the hamburger icon; the search action mode has its own back button
             } else {
                 createActionMode(null);
             }
