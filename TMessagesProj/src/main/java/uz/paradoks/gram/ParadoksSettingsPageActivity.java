@@ -278,6 +278,10 @@ public class ParadoksSettingsPageActivity extends BaseFragment {
             default:
                 header("Qo'shimcha");
                 check("ID ni ko'rsatish", ParadoksConfig::showId, ParadoksConfig::setShowId);
+                check("Tanishlarning hikoyalarini ko'rsatish", ParadoksConfig::showContactStories, v -> {
+                    ParadoksConfig.setShowContactStories(v);
+                    org.telegram.messenger.NotificationCenter.getInstance(org.telegram.messenger.UserConfig.selectedAccount).postNotificationName(org.telegram.messenger.NotificationCenter.storiesEnabledUpdate);
+                });
                 value("Ovoz effekti", () -> {
                     int mode = ParadoksConfig.getVoiceEffect();
                     return VOICE_EFFECT_NAMES[mode < 0 || mode >= VOICE_EFFECT_NAMES.length ? 0 : mode];

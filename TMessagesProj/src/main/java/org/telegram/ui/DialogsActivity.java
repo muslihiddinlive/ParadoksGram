@@ -12792,6 +12792,11 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
         hasOnlySlefStories = onlySelfStories;
 
         boolean oldStoriesCellVisibility = dialogStoriesCellVisible;
+        // ParadoksGram: hide contact stories bar unless the user enabled it in settings (default off).
+        if (!uz.paradoks.gram.ParadoksConfig.showContactStories()) {
+            newVisibility = false;
+            onlySelfStories = false;
+        }
         dialogStoriesCellVisible = onlySelfStories || newVisibility;
 
         if (newVisibility || dialogStoriesCellVisible) {

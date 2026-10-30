@@ -461,4 +461,12 @@ public final class ParadoksConfig {
 
     private ParadoksConfig() {
     }
+    // ParadoksGram: contact stories bar visibility (default off)
+    public static boolean showContactStories() {
+        return prefs().getBoolean("show_contact_stories", false);
+    }
+
+    public static void setShowContactStories(boolean value) {
+        prefs().edit().putBoolean("show_contact_stories", value).apply();
+    }
 }
