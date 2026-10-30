@@ -4,6 +4,7 @@ import static org.telegram.messenger.AndroidUtilities.dp;
 
 import android.content.Context;
 import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
@@ -16,10 +17,16 @@ import android.text.style.StrikethroughSpan;
 import android.text.style.StyleSpan;
 import android.text.style.UnderlineSpan;
 import android.util.LruCache;
+import android.text.InputType;
 import android.util.TypedValue;
+import android.view.GestureDetector;
 import android.view.Gravity;
+import android.view.MotionEvent;
+import android.view.ScaleGestureDetector;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.ViewTreeObserver;
+import android.widget.EditText;
 import android.widget.FrameLayout;
 import android.widget.HorizontalScrollView;
 import android.widget.ImageView;
@@ -36,16 +43,20 @@ import org.telegram.messenger.R;
 import org.telegram.ui.ActionBar.ActionBar;
 import org.telegram.ui.ActionBar.ActionBarMenu;
 import org.telegram.ui.ActionBar.ActionBarMenuItem;
+import org.telegram.ui.ActionBar.AlertDialog;
 import org.telegram.ui.ActionBar.BaseFragment;
 import org.telegram.ui.ActionBar.Theme;
 import org.telegram.ui.Components.LayoutHelper;
 
 import java.io.File;
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Locale;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipFile;
 
 /**
  * Shows a PDF (page images through Android's own PdfRenderer), a Word .docx (formatted text and tables)
@@ -63,12 +74,22 @@ public class ParadoksDocViewerActivity extends BaseFragment {
     private volatile boolean destroyed;
 
     // PDF
+    private static final float MAX_ZOOM = 3f;
     private PdfRenderer renderer;
     private ParcelFileDescriptor descriptor;
     private ExecutorService pdfExecutor;
-    private LruCache<Integer, Bitmap> pageCache;
+    private LruCache<String, Bitmap> pageCache;
     private int pageCount;
     private float pageRatio = 1.414f;
+    private float zoom = 1f;
+    private int baseWidth;
+    private ZoomScroll pdfScroll;
+    private RecyclerView pdfList;
+    private TextView pageLabel;
+
+    // Word pictures
+    private ExecutorService imageExecutor;
+    private LruCache<String, Bitmap> imageCache;
 
     public ParadoksDocViewerActivity(File file, String displayName, boolean protectedContent) {
         this.file = file;
@@ -121,6 +142,9 @@ public class ParadoksDocViewerActivity extends BaseFragment {
     public void onFragmentDestroy() {
         super.onFragmentDestroy();
         destroyed = true;
+        if (imageExecutor != null) {
+            imageExecutor.shutdownNow();
+        }
         if (pdfExecutor != null) {
             final PdfRenderer r = renderer;
             final ParcelFileDescriptor d = descriptor;
@@ -235,18 +259,177 @@ public class ParadoksDocViewerActivity extends BaseFragment {
         }
         actionBar.setSubtitle(pageCount + " bet  •  " + formatSize(file.length()));
         pdfExecutor = Executors.newSingleThreadExecutor();
-        pageCache = new LruCache<Integer, Bitmap>(40 * 1024 * 1024) {
+        pageCache = new LruCache<String, Bitmap>(64 * 1024 * 1024) {
             @Override
-            protected int sizeOf(Integer key, Bitmap value) {
+            protected int sizeOf(String key, Bitmap value) {
                 return value.getByteCount();
             }
         };
-        RecyclerView list = new RecyclerView(context);
-        list.setLayoutManager(new LinearLayoutManager(context));
-        list.setPadding(0, dp(4), 0, dp(4));
-        list.setClipToPadding(false);
-        list.setAdapter(new PdfAdapter());
-        setContent(list);
+        baseWidth = root.getWidth() > 0 ? root.getWidth() : AndroidUtilities.displaySize.x;
+        pdfList = new RecyclerView(context);
+        final LinearLayoutManager manager = new LinearLayoutManager(context);
+        pdfList.setLayoutManager(manager);
+        pdfList.setPadding(0, dp(4), 0, dp(4));
+        pdfList.setClipToPadding(false);
+        pdfList.setAdapter(new PdfAdapter());
+
+        pdfScroll = new ZoomScroll(context);
+        pdfScroll.setFillViewport(true);
+        pdfScroll.addView(pdfList, new FrameLayout.LayoutParams(baseWidth, ViewGroup.LayoutParams.MATCH_PARENT));
+
+        FrameLayout box = new FrameLayout(context);
+        box.addView(pdfScroll, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT));
+        pageLabel = new TextView(context);
+        pageLabel.setTextSize(13);
+        pageLabel.setTextColor(Color.WHITE);
+        pageLabel.setGravity(Gravity.CENTER);
+        pageLabel.setPadding(dp(12), dp(6), dp(12), dp(6));
+        GradientDrawable pill = new GradientDrawable();
+        pill.setCornerRadius(dp(16));
+        pill.setColor(0xB0000000);
+        pageLabel.setBackground(pill);
+        pageLabel.setText("1 / " + pageCount);
+        pageLabel.setOnClickListener(v -> askPage());
+        box.addView(pageLabel, LayoutHelper.createFrame(LayoutHelper.WRAP_CONTENT, LayoutHelper.WRAP_CONTENT, Gravity.BOTTOM | Gravity.END, 0, 0, 16, 16));
+        pdfList.addOnScrollListener(new RecyclerView.OnScrollListener() {
+            @Override
+            public void onScrolled(RecyclerView recyclerView, int dx, int dy) {
+                int first = manager.findFirstVisibleItemPosition();
+                if (first >= 0) {
+                    pageLabel.setText((first + 1) + " / " + pageCount);
+                }
+            }
+        });
+        setContent(box);
+    }
+
+    /** "Go to page" dialog, opened by tapping the page counter. */
+    private void askPage() {
+        Context context = getParentActivity();
+        if (context == null || pageCount <= 0) {
+            return;
+        }
+        final EditText input = new EditText(context);
+        input.setInputType(InputType.TYPE_CLASS_NUMBER);
+        input.setHint("1 - " + pageCount);
+        input.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteBlackText));
+        input.setPadding(dp(24), dp(12), dp(24), dp(12));
+        AlertDialog.Builder builder = new AlertDialog.Builder(context);
+        builder.setTitle("Betga o'tish");
+        builder.setView(input);
+        builder.setPositiveButton("O'tish", (d, w) -> {
+            try {
+                int page = Integer.parseInt(input.getText().toString().trim());
+                page = Math.max(1, Math.min(pageCount, page));
+                ((LinearLayoutManager) pdfList.getLayoutManager()).scrollToPositionWithOffset(page - 1, 0);
+            } catch (NumberFormatException ignore) {
+            }
+        });
+        builder.setNegativeButton("Bekor qilish", null);
+        showDialog(builder.create());
+    }
+
+    /**
+     * Applies a new zoom level: the list is made wider (so pages are redrawn sharper) and the scroll
+     * position is adjusted so the point under the fingers stays in place.
+     */
+    private void commitZoom(float requested, float focusX, float focusY) {
+        float newZoom = Math.max(1f, Math.min(MAX_ZOOM, requested));
+        if (pdfList == null || pdfScroll == null || Math.abs(newZoom - zoom) < 0.02f) {
+            return;
+        }
+        final float ratio = newZoom / zoom;
+        final int offsetY = pdfList.computeVerticalScrollOffset();
+        final int scrollX = pdfScroll.getScrollX();
+        zoom = newZoom;
+        pageCache.evictAll();
+        FrameLayout.LayoutParams lp = (FrameLayout.LayoutParams) pdfList.getLayoutParams();
+        lp.width = Math.round(baseWidth * zoom);
+        pdfList.setLayoutParams(lp);
+        pdfList.getAdapter().notifyDataSetChanged();
+        final int targetX = zoom <= 1.001f ? 0 : Math.max(0, Math.round((scrollX + focusX) * ratio - focusX));
+        final int deltaY = Math.round((offsetY + focusY) * ratio - focusY) - offsetY;
+        final ViewTreeObserver observer = pdfScroll.getViewTreeObserver();
+        observer.addOnGlobalLayoutListener(new ViewTreeObserver.OnGlobalLayoutListener() {
+            @Override
+            public void onGlobalLayout() {
+                ViewTreeObserver current = pdfScroll.getViewTreeObserver();
+                if (current.isAlive()) {
+                    current.removeOnGlobalLayoutListener(this);
+                }
+                pdfScroll.scrollTo(targetX, 0);
+                pdfList.scrollBy(0, deltaY);
+            }
+        });
+    }
+
+    /** Horizontal scroller that also understands pinch and double-tap zoom. */
+    private final class ZoomScroll extends HorizontalScrollView {
+        private final ScaleGestureDetector scaleDetector;
+        private final GestureDetector tapDetector;
+        private float liveScale = 1f;
+
+        ZoomScroll(Context context) {
+            super(context);
+            setHorizontalScrollBarEnabled(false);
+            scaleDetector = new ScaleGestureDetector(context, new ScaleGestureDetector.SimpleOnScaleGestureListener() {
+                @Override
+                public boolean onScaleBegin(ScaleGestureDetector detector) {
+                    liveScale = 1f;
+                    return true;
+                }
+
+                @Override
+                public boolean onScale(ScaleGestureDetector detector) {
+                    liveScale = Math.max(1f / zoom, Math.min(MAX_ZOOM / zoom, liveScale * detector.getScaleFactor()));
+                    pdfList.setPivotX(getScrollX() + detector.getFocusX());
+                    pdfList.setPivotY(detector.getFocusY());
+                    pdfList.setScaleX(liveScale);
+                    pdfList.setScaleY(liveScale);
+                    return true;
+                }
+
+                @Override
+                public void onScaleEnd(ScaleGestureDetector detector) {
+                    float finished = liveScale;
+                    liveScale = 1f;
+                    pdfList.setScaleX(1f);
+                    pdfList.setScaleY(1f);
+                    commitZoom(zoom * finished, detector.getFocusX(), detector.getFocusY());
+                }
+            });
+            tapDetector = new GestureDetector(context, new GestureDetector.SimpleOnGestureListener() {
+                @Override
+                public boolean onDoubleTap(MotionEvent e) {
+                    commitZoom(zoom > 1.3f ? 1f : 2.5f, e.getX(), e.getY());
+                    return true;
+                }
+            });
+        }
+
+        @Override
+        public boolean onInterceptTouchEvent(MotionEvent ev) {
+            scaleDetector.onTouchEvent(ev);
+            tapDetector.onTouchEvent(ev);
+            if (scaleDetector.isInProgress()) {
+                return true;
+            }
+            return super.onInterceptTouchEvent(ev);
+        }
+
+        @Override
+        public boolean onTouchEvent(MotionEvent ev) {
+            scaleDetector.onTouchEvent(ev);
+            tapDetector.onTouchEvent(ev);
+            if (scaleDetector.isInProgress()) {
+                return true;
+            }
+            return super.onTouchEvent(ev);
+        }
+    }
+
+    private int pdfWidth() {
+        return Math.max(1, Math.round(baseWidth * zoom));
     }
 
     private final class PdfAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
@@ -268,16 +451,17 @@ public class ParadoksDocViewerActivity extends BaseFragment {
         public void onBindViewHolder(RecyclerView.ViewHolder holder, int position) {
             final ImageView image = (ImageView) holder.itemView;
             image.setTag(position);
-            final int width = Math.max(1, parentWidth());
+            final int width = pdfWidth();
+            final int target = Math.min(1600, Math.round(width * 1.25f));
+            final String key = position + "@" + target;
             image.setMinimumHeight((int) (width * pageRatio));
-            Bitmap cached = pageCache.get(position);
+            Bitmap cached = pageCache.get(key);
             if (cached != null) {
                 image.setImageBitmap(cached);
                 image.setMinimumHeight(0);
                 return;
             }
             image.setImageDrawable(null);
-            final int target = Math.min(1400, (int) (width * 1.25f));
             try {
                 pdfExecutor.execute(() -> {
                     if (destroyed) {
@@ -296,11 +480,11 @@ public class ParadoksDocViewerActivity extends BaseFragment {
                     }
                     final Bitmap result = bitmap;
                     if (result != null) {
-                        pageCache.put(position, result);
+                        pageCache.put(key, result);
                     }
                     AndroidUtilities.runOnUIThread(() -> {
                         Object tag = image.getTag();
-                        if (!destroyed && result != null && tag instanceof Integer && (Integer) tag == position) {
+                        if (!destroyed && result != null && tag instanceof Integer && (Integer) tag == position && pdfWidth() == width) {
                             image.setImageBitmap(result);
                             image.setMinimumHeight(0);
                         }
@@ -313,10 +497,6 @@ public class ParadoksDocViewerActivity extends BaseFragment {
         @Override
         public int getItemCount() {
             return pageCount;
-        }
-
-        private int parentWidth() {
-            return root != null && root.getWidth() > 0 ? root.getWidth() : AndroidUtilities.displaySize.x;
         }
     }
 
@@ -367,7 +547,12 @@ public class ParadoksDocViewerActivity extends BaseFragment {
         public RecyclerView.ViewHolder onCreateViewHolder(ViewGroup parent, int viewType) {
             Context context = parent.getContext();
             View view;
-            if (viewType == ParadoksDocParsers.Block.TABLE) {
+            if (viewType == ParadoksDocParsers.Block.IMAGE) {
+                ImageView picture = new ImageView(context);
+                picture.setAdjustViewBounds(true);
+                picture.setScaleType(ImageView.ScaleType.FIT_START);
+                view = picture;
+            } else if (viewType == ParadoksDocParsers.Block.TABLE) {
                 LinearLayout table = new LinearLayout(context);
                 table.setOrientation(LinearLayout.VERTICAL);
                 HorizontalScrollView scroll = new HorizontalScrollView(context);
@@ -393,6 +578,10 @@ public class ParadoksDocViewerActivity extends BaseFragment {
         @Override
         public void onBindViewHolder(RecyclerView.ViewHolder holder, int position) {
             ParadoksDocParsers.Block block = doc.blocks.get(position);
+            if (block.type == ParadoksDocParsers.Block.IMAGE) {
+                loadDocImage((ImageView) holder.itemView, block.imagePath);
+                return;
+            }
             if (block.type == ParadoksDocParsers.Block.TABLE) {
                 HorizontalScrollView scroll = (HorizontalScrollView) holder.itemView;
                 LinearLayout table = (LinearLayout) scroll.getChildAt(0);
@@ -406,7 +595,12 @@ public class ParadoksDocViewerActivity extends BaseFragment {
                     LinearLayout line = new LinearLayout(scroll.getContext());
                     line.setOrientation(LinearLayout.HORIZONTAL);
                     for (int c = 0; c < cols; c++) {
-                        line.addView(makeCell(scroll.getContext(), c < row.size() ? row.get(c) : "", cellWidth, false, false));
+                        final String cellText = c < row.size() ? row.get(c) : "";
+                        TextView cell = makeCell(scroll.getContext(), cellText, cellWidth, false, false);
+                        if (!cellText.isEmpty()) {
+                            cell.setOnClickListener(v -> showCellText("Jadval katagi", cellText));
+                        }
+                        line.addView(cell);
                     }
                     table.addView(line, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
                 }
@@ -447,6 +641,96 @@ public class ParadoksDocViewerActivity extends BaseFragment {
         public int getItemCount() {
             return doc.blocks.size();
         }
+    }
+
+    // ------------------------------------------------------------------ pictures and full cell text
+
+    private void loadDocImage(final ImageView image, final String path) {
+        if (imageExecutor == null) {
+            imageExecutor = Executors.newFixedThreadPool(2);
+            imageCache = new LruCache<String, Bitmap>(24 * 1024 * 1024) {
+                @Override
+                protected int sizeOf(String key, Bitmap value) {
+                    return value.getByteCount();
+                }
+            };
+        }
+        image.setTag(path);
+        Bitmap cached = imageCache.get(path);
+        if (cached != null) {
+            image.setImageBitmap(cached);
+            image.setMinimumHeight(0);
+            return;
+        }
+        image.setImageDrawable(null);
+        image.setMinimumHeight(dp(120));
+        try {
+            imageExecutor.execute(() -> {
+                if (destroyed) {
+                    return;
+                }
+                final Bitmap bitmap = decodeDocImage(path);
+                if (bitmap != null) {
+                    imageCache.put(path, bitmap);
+                }
+                AndroidUtilities.runOnUIThread(() -> {
+                    if (destroyed || !path.equals(image.getTag())) {
+                        return;
+                    }
+                    image.setMinimumHeight(0);
+                    if (bitmap != null) {
+                        image.setImageBitmap(bitmap);
+                    }
+                });
+            });
+        } catch (RejectedExecutionException ignore) {
+        }
+    }
+
+    /** Reads a picture from inside the .docx archive, scaled down so a huge image cannot exhaust memory. */
+    private Bitmap decodeDocImage(String path) {
+        try (ZipFile zip = new ZipFile(file)) {
+            ZipEntry entry = zip.getEntry(path);
+            if (entry == null || entry.getSize() > 25L * 1024 * 1024) {
+                return null;
+            }
+            BitmapFactory.Options bounds = new BitmapFactory.Options();
+            bounds.inJustDecodeBounds = true;
+            try (InputStream in = zip.getInputStream(entry)) {
+                BitmapFactory.decodeStream(in, null, bounds);
+            }
+            if (bounds.outWidth <= 0 || bounds.outHeight <= 0) {
+                return null;
+            }
+            int sample = 1;
+            while (Math.max(bounds.outWidth, bounds.outHeight) / sample > 1600) {
+                sample *= 2;
+            }
+            BitmapFactory.Options options = new BitmapFactory.Options();
+            options.inSampleSize = sample;
+            try (InputStream in = zip.getInputStream(entry)) {
+                return BitmapFactory.decodeStream(in, null, options);
+            }
+        } catch (Throwable e) {
+            return null;
+        }
+    }
+
+    /** Long cell text is cut to a few lines in the grid; tapping the cell shows all of it and can copy it. */
+    private void showCellText(String title, String text) {
+        final Context context = getParentActivity();
+        if (context == null) {
+            return;
+        }
+        AlertDialog.Builder builder = new AlertDialog.Builder(context);
+        builder.setTitle(title);
+        builder.setMessage(text);
+        builder.setPositiveButton("Nusxa olish", (d, w) -> {
+            AndroidUtilities.addToClipboard(text);
+            Toast.makeText(context, "Nusxa olindi", Toast.LENGTH_SHORT).show();
+        });
+        builder.setNegativeButton("Yopish", null);
+        showDialog(builder.create());
     }
 
     // ------------------------------------------------------------------ cells (tables and spreadsheets)
@@ -658,9 +942,15 @@ public class ParadoksDocViewerActivity extends BaseFragment {
             number.setGravity(Gravity.CENTER);
             for (int c = 0; c < widths.length; c++) {
                 TextView cell = (TextView) row.getChildAt(c + 1);
-                String text = c < data.length && data[c] != null ? data[c] : "";
+                final String text = c < data.length && data[c] != null ? data[c] : "";
                 cell.setText(text);
                 cell.setGravity((looksNumeric(text) ? Gravity.END : Gravity.START) | Gravity.CENTER_VERTICAL);
+                if (text.isEmpty()) {
+                    cell.setOnClickListener(null);
+                } else {
+                    final String title = columnName(c) + position;
+                    cell.setOnClickListener(v -> showCellText(title, text));
+                }
             }
         }
 

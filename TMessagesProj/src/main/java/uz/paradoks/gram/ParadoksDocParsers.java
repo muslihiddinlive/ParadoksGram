@@ -41,6 +41,7 @@ public final class ParadoksDocParsers {
     static final long MAX_ENTRY_BYTES = 80L * 1024 * 1024;
     static final long MAX_FILE_BYTES = 100L * 1024 * 1024;
     private static final int MAX_BLOCKS = 30000;
+    private static final int MAX_IMAGES = 300;
 
     /** A problem with the document that can be shown to the user as is. */
     public static class ParseException extends IOException {
@@ -78,7 +79,10 @@ public final class ParadoksDocParsers {
     public static final class Block {
         public static final int PARAGRAPH = 0;
         public static final int TABLE = 1;
+        public static final int IMAGE = 2;
         public int type;
+        /** Path of the image inside the .docx archive (IMAGE blocks only). */
+        public String imagePath;
         /** 0 = normal text, 1..6 = heading level. */
         public int heading;
         /** List marker ("• ", "1. ") already including the indent. */
@@ -186,6 +190,39 @@ public final class ParadoksDocParsers {
             }
         }
         return null;
+    }
+
+    /** The r:embed attribute of a picture. */
+    private static String embedId(Attributes atts) {
+        for (int i = 0; i < atts.getLength(); i++) {
+            if (local(atts, i).equals("embed")) {
+                return atts.getValue(i);
+            }
+        }
+        return null;
+    }
+
+    /** Resolves a relationship target of word/document.xml to an archive path. */
+    static String resolveWordTarget(String target) {
+        if (target == null || target.contains("://")) {
+            return null; // linked (external) pictures are not loaded
+        }
+        if (target.startsWith("/")) {
+            return target.substring(1);
+        }
+        String path = "word/" + target;
+        while (path.contains("/../")) {
+            int i = path.indexOf("/../");
+            int prev = path.lastIndexOf('/', i - 1);
+            path = (prev >= 0 ? path.substring(0, prev) : "") + path.substring(i + 3);
+        }
+        return path;
+    }
+
+    public static boolean isDecodableImage(String path) {
+        String lower = path.toLowerCase(Locale.US);
+        return lower.endsWith(".png") || lower.endsWith(".jpg") || lower.endsWith(".jpeg") || lower.endsWith(".gif")
+                || lower.endsWith(".bmp") || lower.endsWith(".webp");
     }
 
     /** The r:id style relationship attribute (a namespaced attribute whose local name is "id"). */
@@ -335,6 +372,9 @@ public final class ParadoksDocParsers {
         private final HashMap<String, StyleInfo> styles;
         private final NumberingHandler numbering;
         private final HashMap<String, int[]> counters = new HashMap<>();
+        private final HashMap<String, String> relationships;
+        private final ArrayList<String> paragraphImages = new ArrayList<>();
+        private int imageCount;
 
         private int skipDepth;
         // paragraph state
@@ -356,9 +396,10 @@ public final class ParadoksDocParsers {
         private ArrayList<String> row;
         private StringBuilder cell;
 
-        DocHandler(HashMap<String, StyleInfo> styles, NumberingHandler numbering) {
+        DocHandler(HashMap<String, StyleInfo> styles, NumberingHandler numbering, HashMap<String, String> relationships) {
             this.styles = styles;
             this.numbering = numbering;
+            this.relationships = relationships;
         }
 
         private void addText(String s) {
@@ -395,6 +436,7 @@ public final class ParadoksDocParsers {
                     numId = null;
                     ilvl = 0;
                     runs.clear();
+                    paragraphImages.clear();
                     break;
                 case "pPr":
                     inPPr = true;
@@ -472,6 +514,17 @@ public final class ParadoksDocParsers {
                 case "noBreakHyphen":
                     if (inRun) {
                         addText("-");
+                    }
+                    break;
+                case "blip":
+                    if (inParagraph && tblDepth == 0) {
+                        String embed = embedId(atts);
+                        String target = embed != null ? relationships.get(embed) : null;
+                        String path = target != null ? resolveWordTarget(target) : null;
+                        if (path != null && isDecodableImage(path) && imageCount < MAX_IMAGES) {
+                            paragraphImages.add(path);
+                            imageCount++;
+                        }
                     }
                     break;
                 case "tbl":
@@ -677,6 +730,10 @@ public final class ParadoksDocParsers {
                 }
                 return;
             }
+            if (runs.isEmpty() && !paragraphImages.isEmpty()) {
+                addImages();
+                return;
+            }
             if (runs.isEmpty()) {
                 // keep one blank line between blocks, never several in a row
                 if (!doc.blocks.isEmpty()) {
@@ -694,6 +751,17 @@ public final class ParadoksDocParsers {
             block.prefix = marker;
             block.runs.addAll(runs);
             add(block);
+            addImages();
+        }
+
+        private void addImages() {
+            for (String path : paragraphImages) {
+                Block image = new Block();
+                image.type = Block.IMAGE;
+                image.imagePath = path;
+                add(image);
+            }
+            paragraphImages.clear();
         }
     }
 
@@ -720,7 +788,16 @@ public final class ParadoksDocParsers {
                 } catch (IOException ignore) {
                 }
             }
-            DocHandler handler = new DocHandler(styles.styles, numbering);
+            RelsHandler rels = new RelsHandler();
+            ZipEntry re = zip.getEntry("word/_rels/document.xml.rels");
+            if (re != null) {
+                try (InputStream in = open(zip, re)) {
+                    sax(in, rels);
+                } catch (IOException ignore) {
+                    // without relationships the text is still shown, only pictures are missing
+                }
+            }
+            DocHandler handler = new DocHandler(styles.styles, numbering, rels.targets);
             try (InputStream in = open(zip, main)) {
                 sax(in, handler);
             }
