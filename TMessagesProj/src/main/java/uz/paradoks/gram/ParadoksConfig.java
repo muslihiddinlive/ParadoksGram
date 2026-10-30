@@ -131,6 +131,24 @@ public final class ParadoksConfig {
         prefs().edit().putBoolean("show_ai_button", value).apply();
     }
 
+    /** PDF / Word / Excel files open inside the app instead of asking for an external app. */
+    public static boolean docViewerEnabled() {
+        return prefs().getBoolean("doc_viewer", true);
+    }
+
+    public static void setDocViewerEnabled(boolean value) {
+        prefs().edit().putBoolean("doc_viewer", value).apply();
+    }
+
+    /** A document opened in the viewer is also copied to Downloads/Telegram (once). */
+    public static boolean docAutoSave() {
+        return prefs().getBoolean("doc_auto_save", true);
+    }
+
+    public static void setDocAutoSave(boolean value) {
+        prefs().edit().putBoolean("doc_auto_save", value).apply();
+    }
+
     public static String aiBotUsername() {
         return prefs().getString("ai_bot_username", "ParadoksAiBot");
     }

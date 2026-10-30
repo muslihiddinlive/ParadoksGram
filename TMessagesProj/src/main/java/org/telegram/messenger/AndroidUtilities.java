@@ -4269,6 +4269,9 @@ public class AndroidUtilities {
 
     public static boolean openForView(File f, String fileName, String mimeType, final Activity activity, Theme.ResourcesProvider resourcesProvider, boolean restrict) {
         if (f != null && f.exists()) {
+            if (uz.paradoks.gram.ParadoksDocViewer.tryOpen(activity, f, fileName, restrict, false)) { // ParadoksGram: in-app PDF/Word/Excel viewer
+                return true;
+            }
             String realMimeType = null;
             Intent intent = new Intent(Intent.ACTION_VIEW);
             intent.setFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
@@ -4327,6 +4330,13 @@ public class AndroidUtilities {
             f = FileLoader.getInstance(message.currentAccount).getPathToMessage(message.messageOwner);
         }
         String mimeType = message.type == MessageObject.TYPE_FILE || message.type == MessageObject.TYPE_TEXT ? message.getMimeType() : null;
+        if (f != null && f.exists() && activity != null) { // ParadoksGram: in-app viewer; files of chats with restricted saving are never copied out
+            boolean noForwards = message.messageOwner != null && message.messageOwner.noforwards
+                    || MessagesController.getInstance(message.currentAccount).isPeerNoForwards(message.getDialogId());
+            if (uz.paradoks.gram.ParadoksDocViewer.tryOpen(activity, f, message.getFileName(), restrict, noForwards)) {
+                return true;
+            }
+        }
         return openForView(f, message.getFileName(), mimeType, activity, resourcesProvider, restrict);
     }
 

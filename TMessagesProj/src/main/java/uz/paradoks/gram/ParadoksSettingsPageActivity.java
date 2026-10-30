@@ -282,6 +282,12 @@ public class ParadoksSettingsPageActivity extends BaseFragment {
                     int mode = ParadoksConfig.getVoiceEffect();
                     return VOICE_EFFECT_NAMES[mode < 0 || mode >= VOICE_EFFECT_NAMES.length ? 0 : mode];
                 }, this::showVoiceEffectDialog);
+                header("Fayllar");
+                check("PDF, Word, Excel ni ilova ichida ochish", ParadoksConfig::docViewerEnabled, ParadoksConfig::setDocViewerEnabled);
+                check("Ochilganda Yuklashlar papkasiga saqlash", ParadoksConfig::docAutoSave, ParadoksConfig::setDocAutoSave);
+                info("PDF, Word (.docx) va Excel (.xlsx, .xls) fayllari tashqi ilovasiz, shu yerning o'zida ochiladi. "
+                        + "Ochilgan fayl Yuklashlar/Telegram papkasiga bir marta saqlanadi. Saqlash cheklangan chatlardagi fayllar ko'rsatiladi, lekin saqlanmaydi. "
+                        + "Eski .doc, .ppt va parol bilan himoyalangan fayllar avvalgidek tashqi ilovada ochiladi; ko'rgichdagi ⋮ menyudan ham tashqi ilovani tanlash mumkin.");
                 header("Paradoks AI");
                 check("Sarlavhada Paradoks AI tugmasi", ParadoksConfig::showAiButton, ParadoksConfig::setShowAiButton);
                 info("Chat ro'yxati sarlavhasida (ghost tugmasi yonida) Paradoks AI tugmasi chiqadi. Bosilganda @ParadoksAiBot bilan gaplashadigan AI oynasi ochiladi: "
