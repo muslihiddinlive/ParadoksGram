@@ -4448,7 +4448,7 @@ public class ChatActivity extends BaseFragment implements
             }
             // ParadoksGram: chat clone, only for public groups/channels and personal chats
             if (uz.paradoks.gram.ParadoksClone.canClone(currentChat, currentUser, currentEncryptedChat)) {
-                headerItem.lazilyAddSubItem(paradoks_clone, R.drawable.msg_copy, "Chatni klon qilish");
+                headerItem.lazilyAddSubItem(paradoks_clone, R.drawable.msg_clone, "Chatni klon qilish");
             }
             if (currentChat != null && !currentChat.creator && !ChatObject.hasAdminRights(currentChat)) {
                 headerItem.lazilyAddSubItem(report, R.drawable.msg_report, LocaleController.getString(R.string.ReportChat));
