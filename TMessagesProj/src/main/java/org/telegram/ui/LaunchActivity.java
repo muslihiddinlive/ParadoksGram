@@ -445,7 +445,6 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
         super.onCreate(savedInstanceState);
         AndroidUtilities.runOnUIThread(() -> uz.paradoks.gram.ParadoksCrash.showIfAny(LaunchActivity.this), 1500);
         uz.paradoks.gram.ParadoksConnWatch.start(); // ParadoksGram: offers an error report when stuck on "Connecting..."
-        AndroidUtilities.runOnUIThread(() -> uz.paradoks.gram.ParadoksUpdater.checkOnce(LaunchActivity.this), 5000); // ParadoksGram: in-app update check
         if (Build.VERSION.SDK_INT >= 24) {
             AndroidUtilities.isInMultiwindow = isInMultiWindowMode();
         }

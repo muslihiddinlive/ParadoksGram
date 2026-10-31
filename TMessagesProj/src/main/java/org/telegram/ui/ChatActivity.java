@@ -3981,8 +3981,7 @@ public class ChatActivity extends BaseFragment implements
                 } else if (id == paradoks_export) {
                     uz.paradoks.gram.ParadoksExport.start(ChatActivity.this, currentAccount, dialog_id);
                 } else if (id == paradoks_ghost) {
-                    boolean next = !uz.paradoks.gram.ParadoksConfig.ghostSplit();
-                    uz.paradoks.gram.ParadoksConfig.setGhostSplit(next);
+                    boolean next = uz.paradoks.gram.ParadoksGhost.toggleAll();
                     android.widget.Toast.makeText(getParentActivity(),
                             next ? "Ghost mode yoqildi" : "Ghost mode o'chirildi",
                             android.widget.Toast.LENGTH_SHORT).show();
@@ -4450,7 +4449,7 @@ public class ChatActivity extends BaseFragment implements
             }
             // ParadoksGram: ghost mode quick toggle from chat header
             headerItem.lazilyAddSubItem(paradoks_ghost, R.drawable.ghost,
-                    uz.paradoks.gram.ParadoksConfig.ghostSplit() ? "Ghost mode yoqilgan ✓" : "Ghost mode o'chirilgan");
+                    uz.paradoks.gram.ParadoksGhost.anyOn() ? "Ghost mode yoqilgan ✓" : "Ghost mode o'chirilgan");
             headerItem.lazilyAddSubItem(paradoks_lock, R.drawable.msg_secret, "Chat qulfi");
             headerItem.lazilyAddSubItem(paradoks_hide, R.drawable.msg_secret, "Yashirin chat");
             if (currentEncryptedChat == null) { // ParadoksGram: chat export (secret chats are not supported)
