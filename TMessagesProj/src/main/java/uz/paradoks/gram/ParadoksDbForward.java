@@ -125,6 +125,9 @@ final class ParadoksDbForward {
             return false;
         }
         long dialogId = object.getDialogId();
+        if (ParadoksClone.isCloneChat(dialogId)) {
+            return false; // chat clones are never touched
+        }
         if (dialogId == target || DialogObject.isEncryptedDialog(dialogId)) {
             return false; // loop protection + secret chats
         }

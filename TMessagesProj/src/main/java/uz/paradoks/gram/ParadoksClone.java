@@ -116,6 +116,21 @@ public final class ParadoksClone {
         return ApplicationLoader.applicationContext.getSharedPreferences("paradoks", Context.MODE_PRIVATE);
     }
 
+    private static java.util.HashSet<Long> cloneIds;
+
+    /** True for a group made by a clone: nothing else (media database, etc.) may ever post into it. */
+    public static synchronized boolean isCloneChat(long dialogId) {
+        if (cloneIds == null) {
+            cloneIds = new java.util.HashSet<>();
+            for (Record r : history()) {
+                if (r.chatId != 0) {
+                    cloneIds.add(-r.chatId);
+                }
+            }
+        }
+        return cloneIds.contains(dialogId);
+    }
+
     public static synchronized ArrayList<Record> history() {
         ArrayList<Record> list = new ArrayList<>();
         try {
@@ -144,6 +159,12 @@ public final class ParadoksClone {
     }
 
     private static synchronized void upsert(Record record) {
+        if (record.chatId != 0) {
+            if (cloneIds == null) {
+                isCloneChat(0);
+            }
+            cloneIds.add(-record.chatId);
+        }
         ArrayList<Record> list = history();
         boolean replaced = false;
         for (int i = 0; i < list.size(); i++) {
@@ -508,8 +529,13 @@ public final class ParadoksClone {
             TLRPC.TL_channels_createChannel create = new TLRPC.TL_channels_createChannel();
             create.megagroup = true;
             create.title = newTitle;
-            String about = "Klon: " + sourceTitle;
-            create.about = about.length() > 255 ? about.substring(0, 255) : about;
+            String date = new java.text.SimpleDateFormat("dd.MM.yyyy HH:mm", java.util.Locale.US).format(new java.util.Date());
+            String suffix = "\nKlon qilingan sana: " + date;
+            String base = "Klon: " + sourceTitle;
+            if (base.length() + suffix.length() > 255) {
+                base = base.substring(0, 255 - suffix.length());
+            }
+            create.about = base + suffix;
             TLObject created = call(create);
             if (created == null) {
                 return;
