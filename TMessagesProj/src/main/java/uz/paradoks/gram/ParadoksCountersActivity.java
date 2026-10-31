@@ -75,6 +75,7 @@ public class ParadoksCountersActivity extends BaseFragment {
         int type;
         String title, subtitle;
         int section;
+        int icon;
         TLRPC.Dialog dialog;
         // chart bar
         String barLabel;
@@ -159,7 +160,10 @@ public class ParadoksCountersActivity extends BaseFragment {
     }
 
     private Item row(String title, String subtitle, int section) {
-        Item i = new Item(); i.type = T_ROW; i.title = title; i.subtitle = subtitle; i.section = section; return i;
+        return row(title, subtitle, section, 0);
+    }
+    private Item row(String title, String subtitle, int section, int icon) {
+        Item i = new Item(); i.type = T_ROW; i.title = title; i.subtitle = subtitle; i.section = section; i.icon = icon; return i;
     }
 
     private Item dialogRow(TLRPC.Dialog d) {
@@ -179,14 +183,14 @@ public class ParadoksCountersActivity extends BaseFragment {
 
     private void buildOverview() {
         items.add(section("Chatlar"));
-        items.add(row("👤 Shaxsiy chatlar", String.valueOf(people.size()), S_PEOPLE));
-        items.add(row("🤖 Botlar", String.valueOf(bots.size()), S_BOTS));
-        items.add(row("👥 Guruhlar", String.valueOf(groups.size()), S_GROUPS));
-        items.add(row("📢 Kanallar", String.valueOf(channels.size()), S_CHANNELS));
+        items.add(row("Shaxsiy chatlar", String.valueOf(people.size()), S_PEOPLE, R.drawable.msg_folders_private));
+        items.add(row("Botlar", String.valueOf(bots.size()), S_BOTS, R.drawable.msg_folders_bots));
+        items.add(row("Guruhlar", String.valueOf(groups.size()), S_GROUPS, R.drawable.msg_folders_groups));
+        items.add(row("Kanallar", String.valueOf(channels.size()), S_CHANNELS, R.drawable.msg_folders_channels));
         items.add(section("Xabarlar"));
-        items.add(row("🔴 O'qilmagan chatlar", String.valueOf(unreadChats.size()), S_UNREAD_CHATS));
-        items.add(row("📊 O'qilmagan xabarlar", String.valueOf(totalUnreadMessages) + " ta", S_UNREAD_MSG));
-        items.add(row("🔕 Ovozi o'chirilgan", String.valueOf(mutedChats.size()), S_MUTED));
+        items.add(row("O'qilmagan chatlar", String.valueOf(unreadChats.size()), S_UNREAD_CHATS, R.drawable.msg_markread));
+        items.add(row("O'qilmagan xabarlar", String.valueOf(totalUnreadMessages) + " ta", S_UNREAD_MSG, R.drawable.msg_stats));
+        items.add(row("Ovozi o'chirilgan", String.valueOf(mutedChats.size()), S_MUTED, R.drawable.msg_folders_muted));
     }
 
     private void buildSection(int section) {
@@ -327,19 +331,31 @@ public class ParadoksCountersActivity extends BaseFragment {
                 v = new BarView(ctx);
                 v.setLayoutParams(new RecyclerView.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(44)));
             } else {
-                LinearLayout ll = new LinearLayout(ctx);
-                ll.setOrientation(LinearLayout.VERTICAL);
-                ll.setBackgroundColor(Theme.getColor(Theme.key_windowBackgroundWhite));
-                ll.setPadding(dp(16), dp(12), dp(16), dp(12));
+                LinearLayout row = new LinearLayout(ctx);
+                row.setOrientation(LinearLayout.HORIZONTAL);
+                row.setGravity(android.view.Gravity.CENTER_VERTICAL);
+                row.setBackgroundColor(Theme.getColor(Theme.key_windowBackgroundWhite));
+                row.setPadding(dp(16), dp(12), dp(16), dp(12));
+                android.widget.ImageView icon = new android.widget.ImageView(ctx);
+                icon.setTag("icon");
+                icon.setScaleType(android.widget.ImageView.ScaleType.CENTER_INSIDE);
+                icon.setColorFilter(Theme.getColor(Theme.key_windowBackgroundWhiteGrayText3), android.graphics.PorterDuff.Mode.SRC_IN);
+                row.addView(icon, new LinearLayout.LayoutParams(dp(28), dp(28)));
+                LinearLayout texts = new LinearLayout(ctx);
+                texts.setOrientation(LinearLayout.VERTICAL);
+                texts.setPadding(dp(12), 0, 0, 0);
+                LinearLayout.LayoutParams tp = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
+                texts.setLayoutParams(tp);
                 TextView t1 = new TextView(ctx); t1.setTag("t1");
                 t1.setTextSize(16);
                 t1.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteBlackText));
                 TextView t2 = new TextView(ctx); t2.setTag("t2");
                 t2.setTextSize(13);
                 t2.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteGrayText3));
-                ll.addView(t1); ll.addView(t2);
-                ll.setLayoutParams(new RecyclerView.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-                v = ll;
+                texts.addView(t1); texts.addView(t2);
+                row.addView(texts);
+                row.setLayoutParams(new RecyclerView.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+                v = row;
             }
             return new RecyclerView.ViewHolder(v) {};
         }
@@ -356,9 +372,8 @@ public class ParadoksCountersActivity extends BaseFragment {
             } else if (item.type == T_CHART_BAR) {
                 ((BarView) v).bind(item.barLabel, item.barValue, item.barMax);
             } else {
-                LinearLayout ll = (LinearLayout) v;
-                TextView t1 = ll.findViewWithTag("t1");
-                TextView t2 = ll.findViewWithTag("t2");
+                TextView t1 = v.findViewWithTag("t1");
+                TextView t2 = v.findViewWithTag("t2");
                 t1.setText(item.title);
                 if (item.subtitle != null && !item.subtitle.isEmpty()) {
                     t2.setText(item.subtitle);
@@ -367,8 +382,17 @@ public class ParadoksCountersActivity extends BaseFragment {
                     t2.setVisibility(View.GONE);
                 }
                 // Overview rows: subtitle is the count, shown as badge
+                android.widget.ImageView ico = v.findViewWithTag("icon");
+                if (ico != null) {
+                    if (item.icon != 0) {
+                        ico.setImageResource(item.icon);
+                        ico.setVisibility(View.VISIBLE);
+                    } else {
+                        ico.setImageDrawable(null);
+                        ico.setVisibility(View.GONE);
+                    }
+                }
                 if (item.dialog == null && item.subtitle != null) {
-                    t1.setText(item.title + "   ");
                     SpannableStringBuilder ssb = new SpannableStringBuilder(item.title + "   " + item.subtitle);
                     ssb.setSpan(new ForegroundColorSpan(Theme.getColor(Theme.key_chats_unreadCounter)),
                             item.title.length() + 3, ssb.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
