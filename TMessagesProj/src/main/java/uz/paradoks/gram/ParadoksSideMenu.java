@@ -24,6 +24,9 @@ import android.widget.TextView;
 
 import org.telegram.PhoneFormat.PhoneFormat;
 import org.telegram.messenger.AndroidUtilities;
+import org.telegram.messenger.ApplicationLoader;
+import org.telegram.messenger.MessagesStorage;
+import org.telegram.messenger.NotificationCenter;
 import org.telegram.messenger.LocaleController;
 import org.telegram.messenger.R;
 import org.telegram.messenger.UserConfig;
@@ -37,6 +40,10 @@ import org.telegram.ui.ChatActivity;
 import org.telegram.ui.Components.AvatarDrawable;
 import org.telegram.ui.Components.BackupImageView;
 import org.telegram.ui.ContactsActivity;
+import org.telegram.ui.InviteContactsActivity;
+import org.telegram.ui.LaunchActivity;
+import org.telegram.ui.LoginActivity;
+import org.telegram.ui.ThemeActivity;
 import org.telegram.ui.FiltersSetupActivity;
 import org.telegram.ui.GroupCreateActivity;
 import org.telegram.ui.ProfileActivity;
@@ -88,7 +95,12 @@ public class ParadoksSideMenu {
         scroll.addView(column, new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
         panel.addView(scroll, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
 
-        column.addView(buildHeader(context, account));
+        final LinearLayout accountsBox = new LinearLayout(context);
+        accountsBox.setOrientation(LinearLayout.VERTICAL);
+        accountsBox.setVisibility(View.GONE);
+        fillAccounts(accountsBox, context, account);
+        column.addView(buildHeader(context, account, accountsBox));
+        column.addView(accountsBox);
 
         final long selfId = UserConfig.getInstance(account).getClientUserId();
 
@@ -118,9 +130,13 @@ public class ParadoksSideMenu {
         });
         addRow(column, context, R.drawable.msg_calls, LocaleController.getString(R.string.Calls),
                 () -> fragment.presentFragment(new CallLogActivity()));
+        addRow(column, context, R.drawable.msg_user_search, "Do'stlarni taklif qilish",
+                () -> fragment.presentFragment(new InviteContactsActivity()));
         addRow(column, context, R.drawable.msg_settings_old, LocaleController.getString(R.string.Settings),
                 () -> fragment.presentFragment(new SettingsActivity()));
         addDivider(column, context);
+        addRow(column, context, R.drawable.msg_customize, "Dizayn",
+                () -> fragment.presentFragment(new ThemeActivity(ThemeActivity.THEME_TYPE_BASIC)));
         addRow(column, context, R.drawable.msg_forward, "Ommaviy yuborish",
                 () -> fragment.presentFragment(new ParadoksBroadcastActivity()));
         addRow(column, context, R.drawable.msg_settings, "ParadoksGram sozlamalari",
@@ -149,11 +165,14 @@ public class ParadoksSideMenu {
         panel.animate().translationX(0).setDuration(200).start();
     }
 
-    private View buildHeader(Context context, int account) {
-        LinearLayout header = new LinearLayout(context);
-        header.setOrientation(LinearLayout.VERTICAL);
+    private View buildHeader(final Context context, final int account, final LinearLayout accountsBox) {
+        FrameLayout header = new FrameLayout(context);
         header.setBackgroundColor(Theme.getColor(Theme.key_avatar_backgroundActionBarBlue));
-        header.setPadding(dp(16), AndroidUtilities.statusBarHeight + dp(16), dp(16), dp(14));
+
+        LinearLayout info = new LinearLayout(context);
+        info.setOrientation(LinearLayout.VERTICAL);
+        info.setPadding(dp(16), AndroidUtilities.statusBarHeight + dp(16), dp(64), dp(14));
+        header.addView(info, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
         TLRPC.User user = UserConfig.getInstance(account).getCurrentUser();
 
@@ -162,7 +181,7 @@ public class ParadoksSideMenu {
         if (user != null) {
             avatar.setForUserOrChat(user, new AvatarDrawable(user));
         }
-        header.addView(avatar, new LinearLayout.LayoutParams(dp(64), dp(64)));
+        info.addView(avatar, new LinearLayout.LayoutParams(dp(64), dp(64)));
 
         TextView name = new TextView(context);
         name.setTextColor(Color.WHITE);
@@ -173,7 +192,7 @@ public class ParadoksSideMenu {
         name.setText(user != null ? UserObject.getUserName(user) : "ParadoksGram");
         LinearLayout.LayoutParams nameParams = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         nameParams.topMargin = dp(12);
-        header.addView(name, nameParams);
+        info.addView(name, nameParams);
 
         if (user != null && user.phone != null && !user.phone.isEmpty()) {
             TextView phone = new TextView(context);
@@ -181,9 +200,162 @@ public class ParadoksSideMenu {
             phone.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
             phone.setSingleLine(true);
             phone.setText(PhoneFormat.getInstance().format("+" + user.phone));
-            header.addView(phone, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+            info.addView(phone, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
         }
+
+        // day / night
+        final ImageView night = new ImageView(context);
+        night.setScaleType(ImageView.ScaleType.CENTER);
+        night.setImageResource(Theme.isCurrentThemeDark() ? R.drawable.menu_day_mode_24 : R.drawable.menu_night_mode_24);
+        night.setColorFilter(Color.WHITE);
+        night.setOnClickListener(v -> toggleDayNight(night));
+        FrameLayout.LayoutParams nightParams = new FrameLayout.LayoutParams(dp(48), dp(48), Gravity.END | Gravity.TOP);
+        nightParams.topMargin = AndroidUtilities.statusBarHeight + dp(8);
+        header.addView(night, nightParams);
+
+        // saved messages shortcut
+        final ImageView saved = new ImageView(context);
+        saved.setScaleType(ImageView.ScaleType.CENTER);
+        saved.setImageResource(R.drawable.outline_saved_24);
+        saved.setColorFilter(Color.WHITE);
+        saved.setOnClickListener(v -> close(() -> {
+            Bundle args = new Bundle();
+            args.putLong("user_id", UserConfig.getInstance(account).getClientUserId());
+            fragment.presentFragment(new ChatActivity(args));
+        }));
+        FrameLayout.LayoutParams savedParams = new FrameLayout.LayoutParams(dp(48), dp(48), Gravity.END | Gravity.TOP);
+        savedParams.topMargin = AndroidUtilities.statusBarHeight + dp(56);
+        header.addView(saved, savedParams);
+
+        // expand / collapse the account list
+        final TextView arrow = new TextView(context);
+        arrow.setGravity(Gravity.CENTER);
+        arrow.setText("\u25BE");
+        arrow.setTextColor(Color.WHITE);
+        arrow.setTextSize(TypedValue.COMPLEX_UNIT_SP, 22);
+        arrow.setOnClickListener(v -> {
+            boolean show = accountsBox.getVisibility() != View.VISIBLE;
+            accountsBox.setVisibility(show ? View.VISIBLE : View.GONE);
+            arrow.setText(show ? "\u25B4" : "\u25BE");
+        });
+        FrameLayout.LayoutParams arrowParams = new FrameLayout.LayoutParams(dp(48), dp(48), Gravity.END | Gravity.BOTTOM);
+        header.addView(arrow, arrowParams);
         return header;
+    }
+
+    private void fillAccounts(LinearLayout box, Context context, int currentAccount) {
+        for (int a = 0; a < UserConfig.MAX_ACCOUNT_COUNT; a++) {
+            if (!UserConfig.getInstance(a).isClientActivated()) {
+                continue;
+            }
+            final int index = a;
+            TLRPC.User u = UserConfig.getInstance(a).getCurrentUser();
+            LinearLayout row = new LinearLayout(context);
+            row.setOrientation(LinearLayout.HORIZONTAL);
+            row.setGravity(Gravity.CENTER_VERTICAL);
+            row.setPadding(dp(14), 0, dp(16), 0);
+            row.setBackground(Theme.createSelectorDrawable(Theme.getColor(Theme.key_listSelector), 2));
+
+            BackupImageView image = new BackupImageView(context);
+            image.setRoundRadius(dp(18));
+            if (u != null) {
+                image.setForUserOrChat(u, new AvatarDrawable(u));
+            }
+            row.addView(image, new LinearLayout.LayoutParams(dp(36), dp(36)));
+
+            TextView text = new TextView(context);
+            text.setText((u != null ? UserObject.getUserName(u) : "?") + (a == currentAccount ? "  \u2713" : ""));
+            text.setTextSize(TypedValue.COMPLEX_UNIT_SP, 15);
+            text.setTypeface(Typeface.DEFAULT_BOLD);
+            text.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteBlackText));
+            text.setSingleLine(true);
+            text.setEllipsize(android.text.TextUtils.TruncateAt.END);
+            LinearLayout.LayoutParams tp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+            tp.leftMargin = dp(14);
+            row.addView(text, tp);
+
+            int unread = 0;
+            try {
+                unread = MessagesStorage.getInstance(a).getMainUnreadCount();
+            } catch (Throwable ignore) {
+            }
+            if (a != currentAccount && unread > 0) {
+                TextView badge = new TextView(context);
+                badge.setText(unread > 99999 ? "99999+" : String.valueOf(unread));
+                badge.setTextColor(Color.WHITE);
+                badge.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
+                badge.setTypeface(Typeface.DEFAULT_BOLD);
+                badge.setGravity(Gravity.CENTER);
+                badge.setPadding(dp(8), dp(2), dp(8), dp(2));
+                android.graphics.drawable.GradientDrawable pill = new android.graphics.drawable.GradientDrawable();
+                pill.setCornerRadius(dp(12));
+                pill.setColor(Theme.getColor(Theme.key_chats_unreadCounter));
+                badge.setBackground(pill);
+                row.addView(badge, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+            }
+            row.setOnClickListener(v -> {
+                if (index == currentAccount) {
+                    close(null);
+                    return;
+                }
+                close(() -> {
+                    if (fragment.getParentActivity() instanceof LaunchActivity) {
+                        ((LaunchActivity) fragment.getParentActivity()).switchToAccount(index, true);
+                    }
+                });
+            });
+            box.addView(row, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(52)));
+        }
+        if (UserConfig.getActivatedAccountsCount() < UserConfig.MAX_ACCOUNT_COUNT) {
+            addRow(box, context, R.drawable.msg_addcontact, "Hisob qo'shish", () -> {
+                for (int a = 0; a < UserConfig.MAX_ACCOUNT_COUNT; a++) {
+                    if (!UserConfig.getInstance(a).isClientActivated()) {
+                        fragment.presentFragment(new LoginActivity(a));
+                        break;
+                    }
+                }
+            });
+        }
+        addDivider(box, context);
+    }
+
+    private boolean switchingTheme;
+
+    /** Same choice the \u22ee menu makes: go to the last used light theme, or the last used dark one. */
+    private void toggleDayNight(View anchor) {
+        if (switchingTheme) {
+            return;
+        }
+        switchingTheme = true;
+        android.content.SharedPreferences prefs = ApplicationLoader.applicationContext.getSharedPreferences("themeconfig", Context.MODE_PRIVATE);
+        boolean dark = Theme.isCurrentThemeDark();
+        Theme.ThemeInfo info;
+        if (dark) {
+            String day = prefs.getString("lastDayTheme", "Blue");
+            info = Theme.getTheme(day);
+            if (info == null || info.isDark()) {
+                info = Theme.getTheme("Blue");
+            }
+        } else {
+            String night = prefs.getString("lastDarkTheme", "Dark Blue");
+            info = Theme.getTheme(night);
+            if (info == null || !info.isDark()) {
+                info = Theme.getTheme("Dark Blue");
+            }
+        }
+        if (info == null) {
+            switchingTheme = false;
+            return;
+        }
+        int[] pos = new int[2];
+        anchor.getLocationInWindow(pos);
+        pos[0] += anchor.getMeasuredWidth() / 2;
+        pos[1] += anchor.getMeasuredHeight() / 2;
+        final Theme.ThemeInfo target = info;
+        final boolean toDark = !dark;
+        close(() -> {
+            NotificationCenter.getGlobalInstance().postNotificationName(NotificationCenter.needSetDayNightTheme, target, false, pos, -1, toDark, null, null, null, true);
+        });
     }
 
     private void addRow(LinearLayout parent, Context context, int icon, String title, Runnable action) {
