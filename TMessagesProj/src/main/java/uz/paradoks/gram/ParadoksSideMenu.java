@@ -361,52 +361,7 @@ public class ParadoksSideMenu {
     }
 
     private void showCounters(int account) {
-        final Context context = fragment.getParentActivity();
-        if (context == null) {
-            return;
-        }
-        MessagesController controller = MessagesController.getInstance(account);
-        int people = 0, bots = 0, groups = 0, channels = 0, unreadChats = 0, unreadMessages = 0, muted = 0;
-        for (TLRPC.Dialog d : new java.util.ArrayList<>(controller.getAllDialogs())) {
-            long id = d.id;
-            if (DialogObject.isUserDialog(id)) {
-                TLRPC.User u = controller.getUser(id);
-                if (u != null && u.bot) {
-                    bots++;
-                } else {
-                    people++;
-                }
-            } else if (DialogObject.isChatDialog(id)) {
-                TLRPC.Chat chat = controller.getChat(-id);
-                if (chat == null) {
-                    continue;
-                }
-                if (ChatObject.isChannelAndNotMegaGroup(chat)) {
-                    channels++;
-                } else {
-                    groups++;
-                }
-            }
-            if (d.unread_count > 0) {
-                unreadChats++;
-                unreadMessages += d.unread_count;
-            }
-            if (controller.isDialogMuted(id, 0)) {
-                muted++;
-            }
-        }
-        String text = "Shaxsiy chatlar: " + people
-                + "\nGuruhlar: " + groups
-                + "\nKanallar: " + channels
-                + "\nBotlar: " + bots
-                + "\n\nO'qilmagan chatlar: " + unreadChats
-                + "\nO'qilmagan xabarlar: " + unreadMessages
-                + "\nOvozi o'chirilgan chatlar: " + muted;
-        AlertDialog.Builder builder = new AlertDialog.Builder(context);
-        builder.setTitle("Chat hisoblagichlari");
-        builder.setMessage(text);
-        builder.setPositiveButton("OK", null);
-        fragment.showDialog(builder.create());
+        close(() -> fragment.presentFragment(new ParadoksCountersActivity()));
     }
 
     private boolean switchingTheme;
