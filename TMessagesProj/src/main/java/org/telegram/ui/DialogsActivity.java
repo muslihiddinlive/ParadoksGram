@@ -12803,7 +12803,8 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
             newVisibility = false;
             onlySelfStories = false;
         }
-        dialogStoriesCellVisible = onlySelfStories || newVisibility;
+        final boolean finalNewVisibility = newVisibility;
+        dialogStoriesCellVisible = onlySelfStories || finalNewVisibility;
 
         if (newVisibility || dialogStoriesCellVisible) {
             dialogStoriesCell.updateItems(animated, dialogStoriesCellVisible != oldStoriesCellVisibility);
@@ -12874,7 +12875,7 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
                 @Override
                 public void onAnimationUpdate(@NonNull ValueAnimator animation) {
                     progressToShowStories = (float) animation.getAnimatedValue();
-                    if (!newVisibility) {
+                    if (!finalNewVisibility) {
                         progressToShowStories = 1f - progressToShowStories;
                     }
                     int newValue = (int) AndroidUtilities.lerp(fromScrollY, toScrollY, (float) animation.getAnimatedValue());
@@ -12890,11 +12891,11 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
                 @Override
                 public void onAnimationEnd(Animator animation) {
                     storiesVisibilityAnimator = null;
-                    hasStories = newVisibility;
+                    hasStories = finalNewVisibility;
                     if (!hasStories && !hasOnlySlefStories) {
                         dialogStoriesCell.setVisibility(View.GONE);
                     }
-                    if (!newVisibility) {
+                    if (!finalNewVisibility) {
                         setScrollY(0);
                         scrollAdditionalOffset = dp(DialogStoriesCell.HEIGHT_IN_DP);
                     } else {

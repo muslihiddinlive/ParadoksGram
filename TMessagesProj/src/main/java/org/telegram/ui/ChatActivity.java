@@ -1677,6 +1677,7 @@ public class ChatActivity extends BaseFragment implements
     private final static int paradoks_hide = 9203;
     private final static int paradoks_export = 9204;
     private final static int paradoks_clone = 9205;
+    private final static int paradoks_ghost = 9206;
     private final static int scheduled = 63;
     private final static int edit_quick_reply = 64;
 
@@ -3979,6 +3980,12 @@ public class ChatActivity extends BaseFragment implements
                     uz.paradoks.gram.ParadoksHidden.toggleChat(ChatActivity.this, currentAccount, dialog_id);
                 } else if (id == paradoks_export) {
                     uz.paradoks.gram.ParadoksExport.start(ChatActivity.this, currentAccount, dialog_id);
+                } else if (id == paradoks_ghost) {
+                    boolean next = !uz.paradoks.gram.ParadoksConfig.ghostSplit();
+                    uz.paradoks.gram.ParadoksConfig.setGhostSplit(next);
+                    android.widget.Toast.makeText(getParentActivity(),
+                            next ? "Ghost mode yoqildi" : "Ghost mode o'chirildi",
+                            android.widget.Toast.LENGTH_SHORT).show();
                 } else if (id == paradoks_clone) {
                     uz.paradoks.gram.ParadoksClone.start(ChatActivity.this, currentAccount, dialog_id);
                 } else if (id == translate) {
@@ -4441,6 +4448,9 @@ public class ChatActivity extends BaseFragment implements
             if (uz.paradoks.gram.ParadoksConfig.ghostReadSwitch()) { // ParadoksGram: manual read receipt
                 headerItem.lazilyAddSubItem(paradoks_mark_read, R.drawable.msg_markread, "O'qilgan deb belgilash");
             }
+            // ParadoksGram: ghost mode quick toggle from chat header
+            headerItem.lazilyAddSubItem(paradoks_ghost, R.drawable.ghost,
+                    uz.paradoks.gram.ParadoksConfig.ghostSplit() ? "Ghost mode yoqilgan ✓" : "Ghost mode o'chirilgan");
             headerItem.lazilyAddSubItem(paradoks_lock, R.drawable.msg_secret, "Chat qulfi");
             headerItem.lazilyAddSubItem(paradoks_hide, R.drawable.msg_secret, "Yashirin chat");
             if (currentEncryptedChat == null) { // ParadoksGram: chat export (secret chats are not supported)
