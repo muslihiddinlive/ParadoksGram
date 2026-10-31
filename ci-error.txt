@@ -1,0 +1,126 @@
+run: 41182691944  sha: 846b7c17f92de40e041e7eeb336624a424fbea03
+3071:* What went wrong:
+3072-Execution failed for task ':TMessagesProj:compileReleaseJavaWithJavac'.
+3073-> Compilation failed; see the compiler output below.
+3074-  /home/runner/work/ParadoksGram/ParadoksGram/TMessagesProj/src/main/java/uz/paradoks/gram/ParadoksCountersActivity.java:312: error: cannot find symbol
+3075-                  tv.setPadding(dp(16), dp(14), dp(16), dp(4));
+3076-                                ^
+3077-    symbol:   method dp(int)
+3078-    location: class ParadoksCountersActivity.Adapter
+3079-  /home/runner/work/ParadoksGram/ParadoksGram/TMessagesProj/src/main/java/uz/paradoks/gram/ParadoksCountersActivity.java:312: error: cannot find symbol
+3080-                  tv.setPadding(dp(16), dp(14), dp(16), dp(4));
+3081-                                        ^
+3082-    symbol:   method dp(int)
+3083-    location: class ParadoksCountersActivity.Adapter
+2974:/home/runner/work/ParadoksGram/ParadoksGram/TMessagesProj/src/main/java/uz/paradoks/gram/ParadoksCountersActivity.java:312: error: cannot find symbol
+2979:/home/runner/work/ParadoksGram/ParadoksGram/TMessagesProj/src/main/java/uz/paradoks/gram/ParadoksCountersActivity.java:312: error: cannot find symbol
+2984:/home/runner/work/ParadoksGram/ParadoksGram/TMessagesProj/src/main/java/uz/paradoks/gram/ParadoksCountersActivity.java:312: error: cannot find symbol
+2989:/home/runner/work/ParadoksGram/ParadoksGram/TMessagesProj/src/main/java/uz/paradoks/gram/ParadoksCountersActivity.java:312: error: cannot find symbol
+2994:/home/runner/work/ParadoksGram/ParadoksGram/TMessagesProj/src/main/java/uz/paradoks/gram/ParadoksCountersActivity.java:319: error: cannot find symbol
+2999:/home/runner/work/ParadoksGram/ParadoksGram/TMessagesProj/src/main/java/uz/paradoks/gram/ParadoksCountersActivity.java:319: error: cannot find symbol
+3004:/home/runner/work/ParadoksGram/ParadoksGram/TMessagesProj/src/main/java/uz/paradoks/gram/ParadoksCountersActivity.java:319: error: cannot find symbol
+3009:/home/runner/work/ParadoksGram/ParadoksGram/TMessagesProj/src/main/java/uz/paradoks/gram/ParadoksCountersActivity.java:319: error: cannot find symbol
+3014:/home/runner/work/ParadoksGram/ParadoksGram/TMessagesProj/src/main/java/uz/paradoks/gram/ParadoksCountersActivity.java:326: error: cannot find symbol
+3019:/home/runner/work/ParadoksGram/ParadoksGram/TMessagesProj/src/main/java/uz/paradoks/gram/ParadoksCountersActivity.java:332: error: cannot find symbol
+3024:/home/runner/work/ParadoksGram/ParadoksGram/TMessagesProj/src/main/java/uz/paradoks/gram/ParadoksCountersActivity.java:338: error: cannot find symbol
+3029:/home/runner/work/ParadoksGram/ParadoksGram/TMessagesProj/src/main/java/uz/paradoks/gram/ParadoksCountersActivity.java:338: error: cannot find symbol
+3034:/home/runner/work/ParadoksGram/ParadoksGram/TMessagesProj/src/main/java/uz/paradoks/gram/ParadoksCountersActivity.java:338: error: cannot find symbol
+3039:/home/runner/work/ParadoksGram/ParadoksGram/TMessagesProj/src/main/java/uz/paradoks/gram/ParadoksCountersActivity.java:338: error: cannot find symbol
+3044:/home/runner/work/ParadoksGram/ParadoksGram/TMessagesProj/src/main/java/uz/paradoks/gram/ParadoksCountersActivity.java:343: error: cannot find symbol
+3049:/home/runner/work/ParadoksGram/ParadoksGram/TMessagesProj/src/main/java/uz/paradoks/gram/ParadoksCountersActivity.java:343: error: cannot find symbol
+3054:/home/runner/work/ParadoksGram/ParadoksGram/TMessagesProj/src/main/java/uz/paradoks/gram/ParadoksCountersActivity.java:346: error: cannot find symbol
+3074:  /home/runner/work/ParadoksGram/ParadoksGram/TMessagesProj/src/main/java/uz/paradoks/gram/ParadoksCountersActivity.java:312: error: cannot find symbol
+3079:  /home/runner/work/ParadoksGram/ParadoksGram/TMessagesProj/src/main/java/uz/paradoks/gram/ParadoksCountersActivity.java:312: error: cannot find symbol
+3084:  /home/runner/work/ParadoksGram/ParadoksGram/TMessagesProj/src/main/java/uz/paradoks/gram/ParadoksCountersActivity.java:312: error: cannot find symbol
+3089:  /home/runner/work/ParadoksGram/ParadoksGram/TMessagesProj/src/main/java/uz/paradoks/gram/ParadoksCountersActivity.java:312: error: cannot find symbol
+3094:  /home/runner/work/ParadoksGram/ParadoksGram/TMessagesProj/src/main/java/uz/paradoks/gram/ParadoksCountersActivity.java:319: error: cannot find symbol
+3099:  /home/runner/work/ParadoksGram/ParadoksGram/TMessagesProj/src/main/java/uz/paradoks/gram/ParadoksCountersActivity.java:319: error: cannot find symbol
+3104:  /home/runner/work/ParadoksGram/ParadoksGram/TMessagesProj/src/main/java/uz/paradoks/gram/ParadoksCountersActivity.java:319: error: cannot find symbol
+3109:  /home/runner/work/ParadoksGram/ParadoksGram/TMessagesProj/src/main/java/uz/paradoks/gram/ParadoksCountersActivity.java:319: error: cannot find symbol
+3114:  /home/runner/work/ParadoksGram/ParadoksGram/TMessagesProj/src/main/java/uz/paradoks/gram/ParadoksCountersActivity.java:326: error: cannot find symbol
+3119:  /home/runner/work/ParadoksGram/ParadoksGram/TMessagesProj/src/main/java/uz/paradoks/gram/ParadoksCountersActivity.java:332: error: cannot find symbol
+3124:  /home/runner/work/ParadoksGram/ParadoksGram/TMessagesProj/src/main/java/uz/paradoks/gram/ParadoksCountersActivity.java:338: error: cannot find symbol
+3129:  /home/runner/work/ParadoksGram/ParadoksGram/TMessagesProj/src/main/java/uz/paradoks/gram/ParadoksCountersActivity.java:338: error: cannot find symbol
+3134:  /home/runner/work/ParadoksGram/ParadoksGram/TMessagesProj/src/main/java/uz/paradoks/gram/ParadoksCountersActivity.java:338: error: cannot find symbol
+3139:  /home/runner/work/ParadoksGram/ParadoksGram/TMessagesProj/src/main/java/uz/paradoks/gram/ParadoksCountersActivity.java:338: error: cannot find symbol
+3144:  /home/runner/work/ParadoksGram/ParadoksGram/TMessagesProj/src/main/java/uz/paradoks/gram/ParadoksCountersActivity.java:343: error: cannot find symbol
+3149:  /home/runner/work/ParadoksGram/ParadoksGram/TMessagesProj/src/main/java/uz/paradoks/gram/ParadoksCountersActivity.java:343: error: cannot find symbol
+3154:  /home/runner/work/ParadoksGram/ParadoksGram/TMessagesProj/src/main/java/uz/paradoks/gram/ParadoksCountersActivity.java:346: error: cannot find symbol
+3172:/home/runner/work/ParadoksGram/ParadoksGram/TMessagesProj/src/main/java/uz/paradoks/gram/ParadoksCountersActivity.java:312: error: cannot find symbol
+3177:/home/runner/work/ParadoksGram/ParadoksGram/TMessagesProj/src/main/java/uz/paradoks/gram/ParadoksCountersActivity.java:312: error: cannot find symbol
+3182:/home/runner/work/ParadoksGram/ParadoksGram/TMessagesProj/src/main/java/uz/paradoks/gram/ParadoksCountersActivity.java:312: error: cannot find symbol
+3187:/home/runner/work/ParadoksGram/ParadoksGram/TMessagesProj/src/main/java/uz/paradoks/gram/ParadoksCountersActivity.java:312: error: cannot find symbol
+3192:/home/runner/work/ParadoksGram/ParadoksGram/TMessagesProj/src/main/java/uz/paradoks/gram/ParadoksCountersActivity.java:319: error: cannot find symbol
+3197:/home/runner/work/ParadoksGram/ParadoksGram/TMessagesProj/src/main/java/uz/paradoks/gram/ParadoksCountersActivity.java:319: error: cannot find symbol
+3202:/home/runner/work/ParadoksGram/ParadoksGram/TMessagesProj/src/main/java/uz/paradoks/gram/ParadoksCountersActivity.java:319: error: cannot find symbol
+3207:/home/runner/work/ParadoksGram/ParadoksGram/TMessagesProj/src/main/java/uz/paradoks/gram/ParadoksCountersActivity.java:319: error: cannot find symbol
+3212:/home/runner/work/ParadoksGram/ParadoksGram/TMessagesProj/src/main/java/uz/paradoks/gram/ParadoksCountersActivity.java:326: error: cannot find symbol
+3217:/home/runner/work/ParadoksGram/ParadoksGram/TMessagesProj/src/main/java/uz/paradoks/gram/ParadoksCountersActivity.java:332: error: cannot find symbol
+3222:/home/runner/work/ParadoksGram/ParadoksGram/TMessagesProj/src/main/java/uz/paradoks/gram/ParadoksCountersActivity.java:338: error: cannot find symbol
+3227:/home/runner/work/ParadoksGram/ParadoksGram/TMessagesProj/src/main/java/uz/paradoks/gram/ParadoksCountersActivity.java:338: error: cannot find symbol
+3232:/home/runner/work/ParadoksGram/ParadoksGram/TMessagesProj/src/main/java/uz/paradoks/gram/ParadoksCountersActivity.java:338: error: cannot find symbol
+3237:/home/runner/work/ParadoksGram/ParadoksGram/TMessagesProj/src/main/java/uz/paradoks/gram/ParadoksCountersActivity.java:338: error: cannot find symbol
+3242:/home/runner/work/ParadoksGram/ParadoksGram/TMessagesProj/src/main/java/uz/paradoks/gram/ParadoksCountersActivity.java:343: error: cannot find symbol
+3247:/home/runner/work/ParadoksGram/ParadoksGram/TMessagesProj/src/main/java/uz/paradoks/gram/ParadoksCountersActivity.java:343: error: cannot find symbol
+3252:/home/runner/work/ParadoksGram/ParadoksGram/TMessagesProj/src/main/java/uz/paradoks/gram/ParadoksCountersActivity.java:346: error: cannot find symbol
+=== tail of cleaned log ===
+/home/runner/work/ParadoksGram/ParadoksGram/TMessagesProj/src/main/java/uz/paradoks/gram/ParadoksCountersActivity.java:326: error: cannot find symbol
+                t2.setPadding(0, dp(4), 0, 0);
+                                 ^
+  symbol:   method dp(int)
+  location: class ParadoksCountersActivity.Adapter
+/home/runner/work/ParadoksGram/ParadoksGram/TMessagesProj/src/main/java/uz/paradoks/gram/ParadoksCountersActivity.java:332: error: cannot find symbol
+                v.setLayoutParams(new RecyclerView.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(44)));
+                                                                                                     ^
+  symbol:   method dp(int)
+  location: class ParadoksCountersActivity.Adapter
+/home/runner/work/ParadoksGram/ParadoksGram/TMessagesProj/src/main/java/uz/paradoks/gram/ParadoksCountersActivity.java:338: error: cannot find symbol
+                row.setPadding(dp(16), dp(12), dp(16), dp(12));
+                               ^
+  symbol:   method dp(int)
+  location: class ParadoksCountersActivity.Adapter
+/home/runner/work/ParadoksGram/ParadoksGram/TMessagesProj/src/main/java/uz/paradoks/gram/ParadoksCountersActivity.java:338: error: cannot find symbol
+                row.setPadding(dp(16), dp(12), dp(16), dp(12));
+                                       ^
+  symbol:   method dp(int)
+  location: class ParadoksCountersActivity.Adapter
+/home/runner/work/ParadoksGram/ParadoksGram/TMessagesProj/src/main/java/uz/paradoks/gram/ParadoksCountersActivity.java:338: error: cannot find symbol
+                row.setPadding(dp(16), dp(12), dp(16), dp(12));
+                                               ^
+  symbol:   method dp(int)
+  location: class ParadoksCountersActivity.Adapter
+/home/runner/work/ParadoksGram/ParadoksGram/TMessagesProj/src/main/java/uz/paradoks/gram/ParadoksCountersActivity.java:338: error: cannot find symbol
+                row.setPadding(dp(16), dp(12), dp(16), dp(12));
+                                                       ^
+  symbol:   method dp(int)
+  location: class ParadoksCountersActivity.Adapter
+/home/runner/work/ParadoksGram/ParadoksGram/TMessagesProj/src/main/java/uz/paradoks/gram/ParadoksCountersActivity.java:343: error: cannot find symbol
+                row.addView(icon, new LinearLayout.LayoutParams(dp(28), dp(28)));
+                                                                ^
+  symbol:   method dp(int)
+  location: class ParadoksCountersActivity.Adapter
+/home/runner/work/ParadoksGram/ParadoksGram/TMessagesProj/src/main/java/uz/paradoks/gram/ParadoksCountersActivity.java:343: error: cannot find symbol
+                row.addView(icon, new LinearLayout.LayoutParams(dp(28), dp(28)));
+                                                                        ^
+  symbol:   method dp(int)
+  location: class ParadoksCountersActivity.Adapter
+/home/runner/work/ParadoksGram/ParadoksGram/TMessagesProj/src/main/java/uz/paradoks/gram/ParadoksCountersActivity.java:346: error: cannot find symbol
+                texts.setPadding(dp(12), 0, 0, 0);
+                                 ^
+  symbol:   method dp(int)
+  location: class ParadoksCountersActivity.Adapter
+Note: Some input files use or override a deprecated API.
+Note: Recompile with -Xlint:deprecation for details.
+Note: Some input files use unchecked or unsafe operations.
+Note: Recompile with -Xlint:unchecked for details.
+17 errors
+
+
+Deprecated Gradle features were used in this build, making it incompatible with Gradle 9.0.
+
+You can use '--warning-mode all' to show the individual deprecation warnings and determine if they come from your own scripts or plugins.
+
+For more on this, please refer to https://docs.gradle.org/8.13/userguide/command_line_interface.html#sec:command_line_warnings in the Gradle documentation.
+
+BUILD FAILED in 5m 16s
+326 actionable tasks: 326 executed
