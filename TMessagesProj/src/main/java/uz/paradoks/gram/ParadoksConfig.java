@@ -442,6 +442,15 @@ public final class ParadoksConfig {
         prefs().edit().remove("lock_salt").remove("lock_hash").remove("lock_chats").apply();
     }
 
+    /** Unlock hidden/locked chats with a fingerprint or face as well (default on, when the phone supports it). */
+    public static boolean lockBiometric() {
+        return prefs().getBoolean("lock_biometric", true);
+    }
+
+    public static void setLockBiometric(boolean value) {
+        prefs().edit().putBoolean("lock_biometric", value).apply();
+    }
+
     public static java.util.Set<String> lockedChats() {
         return new java.util.HashSet<>(prefs().getStringSet("lock_chats", new java.util.HashSet<String>()));
     }

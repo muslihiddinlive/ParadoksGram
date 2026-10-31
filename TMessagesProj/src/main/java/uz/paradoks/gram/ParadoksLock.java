@@ -1,11 +1,8 @@
 package uz.paradoks.gram;
 
 import android.content.Context;
-import android.text.InputType;
-import android.widget.EditText;
 import android.widget.Toast;
 
-import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.LocaleController;
 import org.telegram.messenger.R;
 import org.telegram.ui.ActionBar.AlertDialog;
@@ -76,53 +73,6 @@ public final class ParadoksLock {
         ParadoksConfig.setLockPin(salt, hash(salt, pin));
     }
 
-    private interface PinCallback {
-        void onPin(String pin);
-    }
-
-    private static void askPin(BaseFragment fragment, String title, String message, boolean cancelable, PinCallback ok, Runnable cancel) {
-        Context context = fragment.getParentActivity();
-        if (context == null) {
-            if (cancel != null) {
-                cancel.run();
-            }
-            return;
-        }
-        final EditText input = new EditText(context);
-        input.setInputType(InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_VARIATION_PASSWORD);
-        input.setHint("PIN (4+ raqam)");
-        input.setSingleLine(true);
-        input.setPadding(AndroidUtilities.dp(24), AndroidUtilities.dp(12), AndroidUtilities.dp(24), AndroidUtilities.dp(12));
-
-        AlertDialog.Builder builder = new AlertDialog.Builder(context);
-        builder.setTitle(title);
-        builder.setMessage(message);
-        builder.setView(input);
-        final boolean[] done = new boolean[1];
-        builder.setPositiveButton("OK", (d, w) -> {
-            done[0] = true;
-            ok.onPin(input.getText().toString().trim());
-        });
-        builder.setNegativeButton(LocaleController.getString(R.string.Cancel), (d, w) -> {
-            done[0] = true;
-            if (cancel != null) {
-                cancel.run();
-            }
-        });
-        AlertDialog dialog = builder.create();
-        if (!cancelable) {
-            dialog.setCanCancel(false);
-            dialog.setCanceledOnTouchOutside(false);
-        } else {
-            dialog.setOnCancelListener(d -> {
-                if (!done[0] && cancel != null) {
-                    cancel.run();
-                }
-            });
-        }
-        fragment.showDialog(dialog);
-    }
-
     private static void toast(BaseFragment fragment, String text) {
         if (fragment.getParentActivity() != null) {
             Toast.makeText(fragment.getParentActivity(), text, Toast.LENGTH_SHORT).show();
@@ -145,20 +95,17 @@ public final class ParadoksLock {
     }
 
     private static void promptUnlock(BaseFragment fragment, int account, long dialogId, String error) {
-        askPin(fragment, "Chat qulflangan", error.isEmpty() ? "PIN kodni kiriting" : error, false, pin -> {
-            if (check(pin)) {
-                prompting = false;
-                UNLOCKED.add(key(account, dialogId));
-                if (fragment.getFragmentView() != null) {
-                    fragment.getFragmentView().setVisibility(android.view.View.VISIBLE);
-                }
-            } else {
-                promptUnlock(fragment, account, dialogId, "PIN noto'g'ri, qayta urinib ko'ring");
-            }
-        }, () -> {
-            prompting = false;
-            fragment.finishFragment();
-        });
+        ParadoksPinScreen.unlock(fragment.getParentActivity(), "Chat qulflangan", "PIN kodni kiriting yoki barmoq izidan foydalaning", true,
+                ParadoksLock::check, pin -> {
+                    prompting = false;
+                    UNLOCKED.add(key(account, dialogId));
+                    if (fragment.getFragmentView() != null) {
+                        fragment.getFragmentView().setVisibility(android.view.View.VISIBLE);
+                    }
+                }, () -> {
+                    prompting = false;
+                    fragment.finishFragment();
+                });
     }
 
     /** Called from ChatActivity.onFragmentDestroy. */
@@ -175,15 +122,11 @@ public final class ParadoksLock {
         Set<String> chats = ParadoksConfig.lockedChats();
         String k = key(account, dialogId);
         if (chats.contains(k)) {
-            askPin(fragment, "Qulfni olib tashlash", "PIN kodni kiriting", true, pin -> {
-                if (check(pin)) {
-                    chats.remove(k);
-                    ParadoksConfig.setLockedChats(chats);
-                    UNLOCKED.remove(k);
-                    toast(fragment, "Chat qulfi olib tashlandi");
-                } else {
-                    toast(fragment, "PIN noto'g'ri");
-                }
+            ParadoksPinScreen.unlock(fragment.getParentActivity(), "Qulfni olib tashlash", "PIN kodni kiriting", true, ParadoksLock::check, pin -> {
+                chats.remove(k);
+                ParadoksConfig.setLockedChats(chats);
+                UNLOCKED.remove(k);
+                toast(fragment, "Chat qulfi olib tashlandi");
             }, null);
         } else {
             chats.add(k);
@@ -194,12 +137,7 @@ public final class ParadoksLock {
     }
 
     private static void setNewPin(BaseFragment fragment, Runnable onDone) {
-        askPin(fragment, "Yangi PIN", "Chat qulfi uchun PIN o'rnating (kamida 4 raqam)", true, pin -> {
-            if (pin.length() < 4) {
-                toast(fragment, "PIN kamida 4 raqam bo'lsin");
-                setNewPin(fragment, onDone);
-                return;
-            }
+        ParadoksPinScreen.create(fragment.getParentActivity(), "Yangi PIN", "Chat qulfi uchun PIN o'rnating (kamida 4 raqam)", pin -> {
             savePin(pin);
             toast(fragment, "PIN o'rnatildi");
             if (onDone != null) {
@@ -214,13 +152,8 @@ public final class ParadoksLock {
             setNewPin(fragment, onSuccess);
             return;
         }
-        askPin(fragment, title, "PIN kodni kiriting", true, pin -> {
-            if (check(pin)) {
-                onSuccess.run();
-            } else {
-                toast(fragment, "PIN noto'g'ri");
-            }
-        }, null);
+        ParadoksPinScreen.unlock(fragment.getParentActivity(), title, "PIN kodni kiriting yoki barmoq izidan foydalaning", true,
+                ParadoksLock::check, pin -> onSuccess.run(), null);
     }
 
     /** Settings page: set, change or remove the PIN. */
@@ -233,14 +166,25 @@ public final class ParadoksLock {
         if (context == null) {
             return;
         }
+        final boolean canBiometric = ParadoksPinScreen.biometricAvailable(context);
+        java.util.ArrayList<CharSequence> items = new java.util.ArrayList<>();
+        items.add("PIN ni o'zgartirish");
+        items.add("PIN ni o'chirish (hamma qulflar olinadi)");
+        if (canBiometric) {
+            items.add("Barmoq izi / yuz bilan ochish: " + (ParadoksConfig.lockBiometric() ? "yoqilgan" : "o'chirilgan"));
+        }
         AlertDialog.Builder builder = new AlertDialog.Builder(context);
         builder.setTitle("Chat qulfi PIN");
-        builder.setItems(new CharSequence[]{"PIN ni o'zgartirish", "PIN ni o'chirish (hamma qulflar olinadi)"}, (d, which) -> {
-            askPin(fragment, "Joriy PIN", "Davom etish uchun joriy PIN ni kiriting", true, pin -> {
-                if (!check(pin)) {
-                    toast(fragment, "PIN noto'g'ri");
-                    return;
+        builder.setItems(items.toArray(new CharSequence[0]), (d, which) -> {
+            if (which == 2) {
+                ParadoksConfig.setLockBiometric(!ParadoksConfig.lockBiometric());
+                toast(fragment, ParadoksConfig.lockBiometric() ? "Barmoq izi / yuz bilan ochish yoqildi" : "Barmoq izi / yuz bilan ochish o'chirildi");
+                if (onChanged != null) {
+                    onChanged.run();
                 }
+                return;
+            }
+            ParadoksPinScreen.unlock(fragment.getParentActivity(), "Joriy PIN", "Davom etish uchun joriy PIN ni kiriting", true, ParadoksLock::check, pin -> {
                 if (which == 0) {
                     setNewPin(fragment, onChanged);
                 } else {
