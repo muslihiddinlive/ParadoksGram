@@ -41,6 +41,11 @@ public final class ParadoksUpdater {
 
     private static final String RELEASE_API = "https://api.github.com/repos/muslihiddinlive/ParadoksGram/releases?per_page=5";
     private static final String DOWNLOAD_PREFIX = "https://github.com/muslihiddinlive/ParadoksGram/releases/download/";
+    /**
+     * Official site (gateway) base URL, e.g. "https://paradoksgram.uz". When set, updates come from the
+     * site's /app/latest and /app/apk instead of GitHub, so users never see the release repository.
+     */
+    private static final String SITE_URL = "";
     private static final long CHECK_INTERVAL_MS = 30L * 60 * 1000;
 
     private static volatile int state = IDLE;
@@ -128,46 +133,65 @@ public final class ParadoksUpdater {
         Utilities.globalQueue.postRunnable(() -> {
             String failure = null;
             try {
-                HttpURLConnection connection = (HttpURLConnection) new URL(RELEASE_API).openConnection();
-                connection.setConnectTimeout(15000);
-                connection.setReadTimeout(20000);
-                connection.setRequestProperty("Accept", "application/vnd.github+json");
-                connection.setRequestProperty("User-Agent", "ParadoksGram-Updater");
-                if (connection.getResponseCode() != 200) {
-                    throw new Exception("GitHub javob bermadi (" + connection.getResponseCode() + ")");
-                }
-                JSONArray releases = new JSONArray(readAll(connection.getInputStream()));
-                JSONObject release = null; // newest published release (CI marks them as pre-releases, so /latest would not see them)
-                for (int i = 0; i < releases.length() && release == null; i++) {
-                    JSONObject candidate = releases.getJSONObject(i);
-                    if (!candidate.optBoolean("draft", false)) {
-                        release = candidate;
-                    }
-                }
-                if (release == null) {
-                    throw new Exception("reliz topilmadi");
-                }
-                String tag = release.optString("tag_name", "");
-                int build = Integer.parseInt(tag.substring(tag.lastIndexOf('-') + 1));
+                int build;
                 String url = null;
                 long size = 0;
-                JSONArray assets = release.optJSONArray("assets");
-                if (assets != null) {
-                    for (int i = 0; i < assets.length(); i++) {
-                        JSONObject asset = assets.getJSONObject(i);
-                        String candidate = asset.optString("browser_download_url", "");
-                        if (asset.optString("name", "").endsWith(".apk") && candidate.startsWith(DOWNLOAD_PREFIX)) {
-                            url = candidate;
-                            size = asset.optLong("size", 0);
-                            break;
+                String body = "";
+                if (!SITE_URL.isEmpty()) {
+                    // the official site's gateway (hides the release repository from users)
+                    HttpURLConnection connection = (HttpURLConnection) new URL(SITE_URL + "/app/latest").openConnection();
+                    connection.setConnectTimeout(15000);
+                    connection.setReadTimeout(20000);
+                    connection.setRequestProperty("User-Agent", "ParadoksGram-Updater");
+                    if (connection.getResponseCode() != 200) {
+                        throw new Exception("Server javob bermadi (" + connection.getResponseCode() + ")");
+                    }
+                    JSONObject info = new JSONObject(readAll(connection.getInputStream()));
+                    build = info.getInt("build");
+                    size = info.optLong("size", 0);
+                    body = info.optString("notes", "");
+                    url = SITE_URL + "/app/apk";
+                } else {
+                    HttpURLConnection connection = (HttpURLConnection) new URL(RELEASE_API).openConnection();
+                    connection.setConnectTimeout(15000);
+                    connection.setReadTimeout(20000);
+                    connection.setRequestProperty("Accept", "application/vnd.github+json");
+                    connection.setRequestProperty("User-Agent", "ParadoksGram-Updater");
+                    if (connection.getResponseCode() != 200) {
+                        throw new Exception("GitHub javob bermadi (" + connection.getResponseCode() + ")");
+                    }
+                    JSONArray releases = new JSONArray(readAll(connection.getInputStream()));
+                    JSONObject release = null; // newest published release (CI marks them as pre-releases, so /latest would not see them)
+                    for (int i = 0; i < releases.length() && release == null; i++) {
+                        JSONObject candidate = releases.getJSONObject(i);
+                        if (!candidate.optBoolean("draft", false)) {
+                            release = candidate;
                         }
                     }
+                    if (release == null) {
+                        throw new Exception("reliz topilmadi");
+                    }
+                    String tag = release.optString("tag_name", "");
+                    build = Integer.parseInt(tag.substring(tag.lastIndexOf('-') + 1));
+                    JSONArray assets = release.optJSONArray("assets");
+                    if (assets != null) {
+                        for (int i = 0; i < assets.length(); i++) {
+                            JSONObject asset = assets.getJSONObject(i);
+                            String candidate = asset.optString("browser_download_url", "");
+                            if (asset.optString("name", "").endsWith(".apk") && candidate.startsWith(DOWNLOAD_PREFIX)) {
+                                url = candidate;
+                                size = asset.optLong("size", 0);
+                                break;
+                            }
+                        }
+                    }
+                    body = release.optString("body", "");
                 }
                 lastCheck = System.currentTimeMillis();
                 if (build > ParadoksBuild.NUMBER && url != null) {
                     if (build != latestBuild || state == IDLE || state == FAILED) {
                         latestBuild = build;
-                        notes = release.optString("body", "");
+                        notes = body;
                         apkUrl = url;
                         apkSize = size;
                         apkFile = new File(updatesDir(), "ParadoksGram-" + build + ".apk");
@@ -289,7 +313,7 @@ public final class ParadoksUpdater {
                 }
                 probe.disconnect();
                 String host = new URL(finalUrl).getHost();
-                if (!finalUrl.startsWith("https://") || !(host.equals("github.com") || host.endsWith(".githubusercontent.com"))) {
+                if (!finalUrl.startsWith("https://") || !(host.equals("github.com") || host.endsWith(".githubusercontent.com") || (!SITE_URL.isEmpty() && SITE_URL.endsWith("//" + host)))) {
                     throw new Exception("kutilmagan yuklash manzili");
                 }
                 if (expected > 0 && total > 0 && total != expected) {
