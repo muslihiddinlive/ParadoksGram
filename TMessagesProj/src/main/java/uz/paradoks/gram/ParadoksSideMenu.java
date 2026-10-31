@@ -25,6 +25,11 @@ import android.widget.TextView;
 import org.telegram.PhoneFormat.PhoneFormat;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ApplicationLoader;
+import org.telegram.messenger.BuildVars;
+import org.telegram.messenger.ChatObject;
+import org.telegram.messenger.ContactsController;
+import org.telegram.messenger.DialogObject;
+import org.telegram.messenger.MessagesController;
 import org.telegram.messenger.MessagesStorage;
 import org.telegram.messenger.NotificationCenter;
 import org.telegram.messenger.LocaleController;
@@ -32,6 +37,8 @@ import org.telegram.messenger.R;
 import org.telegram.messenger.UserConfig;
 import org.telegram.messenger.UserObject;
 import org.telegram.tgnet.TLRPC;
+import org.telegram.tgnet.ConnectionsManager;
+import org.telegram.ui.ActionBar.AlertDialog;
 import org.telegram.ui.ActionBar.BaseFragment;
 import org.telegram.ui.ActionBar.Theme;
 import org.telegram.ui.CallLogActivity;
@@ -110,6 +117,11 @@ public class ParadoksSideMenu {
             args.putBoolean("my_profile", true);
             fragment.presentFragment(new ProfileActivity(args, null));
         });
+        addRow(column, context, R.drawable.msg_payment_address, "Wallet",
+                () -> MessagesController.getInstance(account).openByUserName("wallet", fragment, 1));
+        if (UserConfig.getActivatedAccountsCount() < UserConfig.MAX_ACCOUNT_COUNT) {
+            addRow(column, context, R.drawable.msg_addcontact, "Hisob qo'shish", this::addAccount);
+        }
         addDivider(column, context);
         addRow(column, context, R.drawable.msg_groups, LocaleController.getString(R.string.NewGroup),
                 () -> fragment.presentFragment(new GroupCreateActivity(new Bundle())));
@@ -120,7 +132,7 @@ public class ParadoksSideMenu {
         });
         addDivider(column, context);
         addRow(column, context, R.drawable.msg_contacts, LocaleController.getString(R.string.Contacts),
-                () -> fragment.presentFragment(new ContactsActivity(null)));
+                onlineContactsText(account), () -> fragment.presentFragment(new ContactsActivity(null)));
         addRow(column, context, R.drawable.msg_folders, LocaleController.getString(R.string.Filters),
                 () -> fragment.presentFragment(new FiltersSetupActivity()));
         addRow(column, context, R.drawable.outline_saved_24, LocaleController.getString(R.string.SavedMessages), () -> {
@@ -137,10 +149,21 @@ public class ParadoksSideMenu {
         addDivider(column, context);
         addRow(column, context, R.drawable.msg_customize, "Dizayn",
                 () -> fragment.presentFragment(new ThemeActivity(ThemeActivity.THEME_TYPE_BASIC)));
+        addRow(column, context, R.drawable.msg_theme, "Mavzularni yuklab olish",
+                () -> MessagesController.getInstance(account).openByUserName("themes", fragment, 1));
+        addRow(column, context, R.drawable.msg_stats, "Chat hisoblagichlari", () -> showCounters(account));
         addRow(column, context, R.drawable.msg_forward, "Ommaviy yuborish",
                 () -> fragment.presentFragment(new ParadoksBroadcastActivity()));
         addRow(column, context, R.drawable.msg_settings, "ParadoksGram sozlamalari",
                 () -> fragment.presentFragment(new ParadoksSettingsActivity()));
+
+        TextView footer = new TextView(context);
+        footer.setText("ParadoksGram " + BuildVars.BUILD_VERSION_STRING);
+        footer.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
+        footer.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteGrayText));
+        footer.setGravity(Gravity.CENTER);
+        footer.setPadding(dp(16), dp(14), dp(16), dp(24));
+        column.addView(footer, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
         dialog.setContentView(root, new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
         Window window = dialog.getWindow();
@@ -307,16 +330,83 @@ public class ParadoksSideMenu {
             box.addView(row, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(52)));
         }
         if (UserConfig.getActivatedAccountsCount() < UserConfig.MAX_ACCOUNT_COUNT) {
-            addRow(box, context, R.drawable.msg_addcontact, "Hisob qo'shish", () -> {
-                for (int a = 0; a < UserConfig.MAX_ACCOUNT_COUNT; a++) {
-                    if (!UserConfig.getInstance(a).isClientActivated()) {
-                        fragment.presentFragment(new LoginActivity(a));
-                        break;
-                    }
-                }
-            });
+            addRow(box, context, R.drawable.msg_addcontact, "Hisob qo'shish", this::addAccount);
         }
         addDivider(box, context);
+    }
+
+    private void addAccount() {
+        for (int a = 0; a < UserConfig.MAX_ACCOUNT_COUNT; a++) {
+            if (!UserConfig.getInstance(a).isClientActivated()) {
+                fragment.presentFragment(new LoginActivity(a));
+                return;
+            }
+        }
+    }
+
+    private String onlineContactsText(int account) {
+        try {
+            int now = ConnectionsManager.getInstance(account).getCurrentTime();
+            int online = 0;
+            for (TLRPC.TL_contact c : ContactsController.getInstance(account).contacts) {
+                TLRPC.User u = MessagesController.getInstance(account).getUser(c.user_id);
+                if (u != null && !u.self && !u.bot && u.status != null && u.status.expires > now) {
+                    online++;
+                }
+            }
+            return online > 0 ? online + " ta onlayn" : null;
+        } catch (Throwable e) {
+            return null;
+        }
+    }
+
+    private void showCounters(int account) {
+        final Context context = fragment.getParentActivity();
+        if (context == null) {
+            return;
+        }
+        MessagesController controller = MessagesController.getInstance(account);
+        int people = 0, bots = 0, groups = 0, channels = 0, unreadChats = 0, unreadMessages = 0, muted = 0;
+        for (TLRPC.Dialog d : new java.util.ArrayList<>(controller.getAllDialogs())) {
+            long id = d.id;
+            if (DialogObject.isUserDialog(id)) {
+                TLRPC.User u = controller.getUser(id);
+                if (u != null && u.bot) {
+                    bots++;
+                } else {
+                    people++;
+                }
+            } else if (DialogObject.isChatDialog(id)) {
+                TLRPC.Chat chat = controller.getChat(-id);
+                if (chat == null) {
+                    continue;
+                }
+                if (ChatObject.isChannelAndNotMegaGroup(chat)) {
+                    channels++;
+                } else {
+                    groups++;
+                }
+            }
+            if (d.unread_count > 0) {
+                unreadChats++;
+                unreadMessages += d.unread_count;
+            }
+            if (controller.isDialogMuted(id, 0)) {
+                muted++;
+            }
+        }
+        String text = "Shaxsiy chatlar: " + people
+                + "\nGuruhlar: " + groups
+                + "\nKanallar: " + channels
+                + "\nBotlar: " + bots
+                + "\n\nO'qilmagan chatlar: " + unreadChats
+                + "\nO'qilmagan xabarlar: " + unreadMessages
+                + "\nOvozi o'chirilgan chatlar: " + muted;
+        AlertDialog.Builder builder = new AlertDialog.Builder(context);
+        builder.setTitle("Chat hisoblagichlari");
+        builder.setMessage(text);
+        builder.setPositiveButton("OK", null);
+        fragment.showDialog(builder.create());
     }
 
     private boolean switchingTheme;
@@ -359,6 +449,10 @@ public class ParadoksSideMenu {
     }
 
     private void addRow(LinearLayout parent, Context context, int icon, String title, Runnable action) {
+        addRow(parent, context, icon, title, null, action);
+    }
+
+    private void addRow(LinearLayout parent, Context context, int icon, String title, String value, Runnable action) {
         LinearLayout row = new LinearLayout(context);
         row.setOrientation(LinearLayout.HORIZONTAL);
         row.setGravity(Gravity.CENTER_VERTICAL);
@@ -380,6 +474,15 @@ public class ParadoksSideMenu {
         LinearLayout.LayoutParams tp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
         tp.leftMargin = dp(28);
         row.addView(text, tp);
+
+        if (value != null && !value.isEmpty()) {
+            TextView right = new TextView(context);
+            right.setText(value);
+            right.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
+            right.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteGrayText));
+            right.setSingleLine(true);
+            row.addView(right, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        }
 
         row.setOnClickListener(v -> close(action));
         parent.addView(row, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(48)));
