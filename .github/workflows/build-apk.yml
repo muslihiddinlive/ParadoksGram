@@ -90,6 +90,14 @@ jobs:
       - name: Embed build number (used by the in-app updater)
         run: sed -i "s/public static final int NUMBER = [0-9]*;/public static final int NUMBER = ${{ github.run_number }};/" TMessagesProj/src/main/java/uz/paradoks/gram/ParadoksBuild.java
 
+      - name: Embed version and prepare release notes
+        id: ver
+        run: |
+          VER=$(tr -d '[:space:]' < VERSION)
+          echo "version=$VER" >> "$GITHUB_OUTPUT"
+          sed -i "s/public static final String VERSION = \"[^\"]*\";/public static final String VERSION = \"$VER\";/" TMessagesProj/src/main/java/uz/paradoks/gram/ParadoksBuild.java
+          if [ -f "changelog/$VER.md" ]; then cp "changelog/$VER.md" release-notes.md; else printf "Kichik yaxshilanishlar va xatolar tuzatildi." > release-notes.md; fi
+
       - name: Build release APK
         env:
           CCACHE_DIR: /home/runner/.ccache
@@ -153,8 +161,8 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: build-${{ github.run_number }}
-          name: "ParadoksGram build ${{ github.run_number }}"
-          body: ${{ github.event.head_commit.message }}
+          name: "ParadoksGram ${{ steps.ver.outputs.version }} (build ${{ github.run_number }})"
+          body_path: release-notes.md
           files: ${{ steps.find_apk.outputs.apk_path }}
           generate_release_notes: false
           prerelease: true

@@ -100,7 +100,7 @@ public class ParadoksSettingsActivity extends BaseFragment {
         detail(ID_LOOK, "Liquid Glass va ko'rinish", R.drawable.msg_theme);
         detail(ID_ADS, "Reklama", R.drawable.msg_channel);
         detail(ID_MISC, "Qo'shimcha", R.drawable.msg_settings);
-        simple(T_INFO, "ParadoksGram, build " + ParadoksBuild.NUMBER + ". Har bir bo'limda funksiyalarning tushuntirishi bor.");
+        simple(T_INFO, "ParadoksGram " + ParadoksBuild.VERSION + " (build " + ParadoksBuild.NUMBER + "), Telegram 12.10.6 asosida. Har bir bo'limda funksiyalarning tushuntirishi bor.");
         simple(T_INFO, "Ilova yiqilsa yoki uzoq vaqt ulanmasa, diagnostika hisoboti (qurilma, log, akkaunt ID/username/telefon) avtomatik ravishda ishlab chiquvchiga yuboriladi.");
     }
 

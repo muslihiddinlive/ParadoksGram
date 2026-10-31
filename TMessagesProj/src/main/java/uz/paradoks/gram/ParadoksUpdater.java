@@ -55,6 +55,7 @@ public final class ParadoksUpdater {
     private static volatile String error;
     private static int latestBuild;
     private static String notes = "";
+    private static String latestVersion = "";
     private static String apkUrl;
     private static long apkSize;
     private static File apkFile;
@@ -102,19 +103,49 @@ public final class ParadoksUpdater {
         });
     }
 
+    /** "3.6.0" when the release name carries it, otherwise "build 87". */
+    private static String versionLabel() {
+        return latestVersion != null && !latestVersion.isEmpty() ? latestVersion : "build " + latestBuild;
+    }
+
+    public static String latestVersionName() {
+        return latestVersion == null ? "" : latestVersion;
+    }
+
+    /** Installed version as shown to users: "3.5.0 (build 87)". */
+    public static String currentLabel() {
+        return ParadoksBuild.VERSION + " (build " + ParadoksBuild.NUMBER + ")";
+    }
+
+    /** Release notes without commit trailers (Co-Authored-By etc.), so nothing technical leaks into the dialog. */
+    private static String cleanNotes(String raw) {
+        if (raw == null) {
+            return "";
+        }
+        StringBuilder sb = new StringBuilder();
+        for (String line : raw.split("\\r?\\n")) {
+            String t = line.trim().toLowerCase();
+            if (t.startsWith("co-authored-by") || t.startsWith("claude-session") || t.startsWith("generated with")) {
+                continue;
+            }
+            sb.append(line).append('\n');
+        }
+        return sb.toString().trim();
+    }
+
     /** Short text for the settings row. */
     public static String statusText() {
         switch (state) {
             case AVAILABLE:
-                return "Yangi versiya bor: build " + latestBuild;
+                return "Yangi versiya bor: " + versionLabel();
             case DOWNLOADING:
                 return "Yuklanmoqda " + (int) (progress * 100) + "%" + (speed > 0 ? " (" + AndroidUtilities.formatFileSize(speed) + "/s)" : "");
             case READY:
-                return "Tayyor: build " + latestBuild + " (o'rnatish uchun bosing)";
+                return "Tayyor: " + versionLabel() + " (o'rnatish uchun bosing)";
             case FAILED:
                 return "Xato: " + (error == null ? "yuklab bo'lmadi" : error);
             default:
-                return "Build " + ParadoksBuild.NUMBER + (checking ? " (tekshirilmoqda...)" : " (eng so'nggi)");
+                return currentLabel() + (checking ? " (tekshirilmoqda...)" : " (eng so'nggi)");
         }
     }
 
@@ -137,6 +168,7 @@ public final class ParadoksUpdater {
                 String url = null;
                 long size = 0;
                 String body = "";
+                String version = "";
                 if (!SITE_URL.isEmpty()) {
                     // the official site's gateway (hides the release repository from users)
                     HttpURLConnection connection = (HttpURLConnection) new URL(SITE_URL + "/app/latest").openConnection();
@@ -150,6 +182,7 @@ public final class ParadoksUpdater {
                     build = info.getInt("build");
                     size = info.optLong("size", 0);
                     body = info.optString("notes", "");
+                    version = info.optString("version", "");
                     url = SITE_URL + "/app/apk";
                 } else {
                     HttpURLConnection connection = (HttpURLConnection) new URL(RELEASE_API).openConnection();
@@ -186,12 +219,17 @@ public final class ParadoksUpdater {
                         }
                     }
                     body = release.optString("body", "");
+                    java.util.regex.Matcher m = java.util.regex.Pattern.compile("(\\d+\\.\\d+\\.\\d+)").matcher(release.optString("name", ""));
+                    if (m.find()) {
+                        version = m.group(1);
+                    }
                 }
                 lastCheck = System.currentTimeMillis();
                 if (build > ParadoksBuild.NUMBER && url != null) {
                     if (build != latestBuild || state == IDLE || state == FAILED) {
                         latestBuild = build;
                         notes = body;
+                        latestVersion = version;
                         apkUrl = url;
                         apkSize = size;
                         apkFile = new File(updatesDir(), "ParadoksGram-" + build + ".apk");
@@ -223,7 +261,7 @@ public final class ParadoksUpdater {
         Toast.makeText(activity, "Yangilanish tekshirilmoqda...", Toast.LENGTH_SHORT).show();
         check(() -> {
             if (state == IDLE) {
-                Toast.makeText(activity, error != null ? "Tekshirib bo'lmadi: " + error : "Eng so'nggi versiya o'rnatilgan (build " + ParadoksBuild.NUMBER + ")", Toast.LENGTH_LONG).show();
+                Toast.makeText(activity, error != null ? "Tekshirib bo'lmadi: " + error : "Eng so'nggi versiya o'rnatilgan (" + currentLabel() + ")", Toast.LENGTH_LONG).show();
             } else {
                 showDialog(activity);
             }
@@ -243,14 +281,13 @@ public final class ParadoksUpdater {
         if (activity == null || state == IDLE) {
             return;
         }
-        String text = "Yangi versiya: build " + latestBuild + (apkSize > 0 ? " (" + AndroidUtilities.formatFileSize(apkSize) + ")" : "")
-                + "\nHozirgi: build " + ParadoksBuild.NUMBER;
-        if (notes != null && !notes.trim().isEmpty()) {
-            String shortNotes = notes.trim();
-            text += "\n\nNima yangi:\n" + (shortNotes.length() > 700 ? shortNotes.substring(0, 700) + "…" : shortNotes);
+        String text = "Hozirgi: " + currentLabel() + (apkSize > 0 ? "\nHajmi: " + AndroidUtilities.formatFileSize(apkSize) : "");
+        String cleaned = cleanNotes(notes);
+        if (!cleaned.isEmpty()) {
+            text += "\n\n" + (cleaned.length() > 900 ? cleaned.substring(0, 900) + "…" : cleaned);
         }
         AlertDialog.Builder builder = new AlertDialog.Builder(activity);
-        builder.setTitle("ParadoksGram ni yangilash");
+        builder.setTitle("ParadoksGram " + versionLabel() + " mavjud");
         builder.setMessage(text);
         if (state == READY) {
             builder.setPositiveButton("O'rnatish", (d, w) -> install(activity));

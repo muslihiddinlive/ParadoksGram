@@ -107,7 +107,7 @@ public class ParadoksUpdateLayout extends IUpdateLayout {
                 titleView.setText("Yuklab bo'lmadi. Qayta urinish");
                 break;
             default:
-                titleView.setText("ParadoksGram ni yangilash");
+                titleView.setText(ParadoksUpdater.latestVersionName().isEmpty() ? "ParadoksGram ni yangilash" : "ParadoksGram " + ParadoksUpdater.latestVersionName() + " ni yangilash");
                 size = ParadoksUpdater.apkSize() > 0 ? AndroidUtilities.formatFileSize(ParadoksUpdater.apkSize()) : "";
                 break;
         }

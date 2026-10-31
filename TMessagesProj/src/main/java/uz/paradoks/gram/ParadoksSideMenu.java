@@ -25,7 +25,6 @@ import android.widget.TextView;
 import org.telegram.PhoneFormat.PhoneFormat;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ApplicationLoader;
-import org.telegram.messenger.BuildVars;
 import org.telegram.messenger.ChatObject;
 import org.telegram.messenger.ContactsController;
 import org.telegram.messenger.DialogObject;
@@ -158,7 +157,7 @@ public class ParadoksSideMenu {
                 () -> fragment.presentFragment(new ParadoksSettingsActivity()));
 
         TextView footer = new TextView(context);
-        footer.setText("ParadoksGram " + BuildVars.BUILD_VERSION_STRING);
+        footer.setText("ParadoksGram " + ParadoksBuild.VERSION + " (build " + ParadoksBuild.NUMBER + ")");
         footer.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
         footer.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteGrayText));
         footer.setGravity(Gravity.CENTER);

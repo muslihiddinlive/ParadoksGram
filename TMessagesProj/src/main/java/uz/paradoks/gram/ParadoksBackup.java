@@ -144,6 +144,7 @@ public final class ParadoksBackup {
         root.put("kind", FORMAT);
         root.put("version", VERSION);
         root.put("build", ParadoksBuild.NUMBER);
+        root.put("version", ParadoksBuild.VERSION);
         root.put("exported_at", new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssZ", Locale.US).format(new Date()));
         root.put("prefs", prefsObj);
         return root;
