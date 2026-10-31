@@ -8,6 +8,9 @@ Versiya formati Telegram kabi: `MAJOR.MINOR.PATCH`, qavs ichida build raqami (ma
 
 Versiya raqami `VERSION` faylida turadi. Har versiya uchun foydalanuvchiga ko'rinadigan matn `changelog/<versiya>.md` fayliga yoziladi: CI shuni reliz matniga qo'yadi, ilova yangilanish oynasida shuni ko'rsatadi. Commit xabari reliz matniga tushmaydi.
 
+## 3.7.0 (31-oktabr)
+Jild yorlig'i menyusida: sukut qilish (vaqt bilan), faqat o'qilmaganlarni ko'rsatish, odatiy yorliq qilish
+
 ## 3.6.0 (31-oktabr)
 Plus uslubidagi PIN ekrani, barmoq izi va yuz bilan ochish
 

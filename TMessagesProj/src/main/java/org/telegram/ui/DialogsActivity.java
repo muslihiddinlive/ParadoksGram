@@ -537,6 +537,7 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
     private View blurredView;
 
     private ItemOptions filterOptions;
+    private boolean paradoksDefaultTabApplied; // ParadoksGram: the default folder is opened once per start
 
     private SelectAnimatedEmojiDialog.SelectAnimatedEmojiDialogWindow selectAnimatedEmojiDialog;
 
@@ -3784,6 +3785,16 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
                         }
                     }
 
+                    // ParadoksGram: folder id of this tab (0 = All chats), its "Unread" switch and default-tab state
+                    final ArrayList<MessagesController.DialogFilter> paradoksFilters = getMessagesController().getDialogFilters();
+                    final int paradoksTabIndex = tabView.getId();
+                    final int paradoksFolderId = paradoksTabIndex >= 0 && paradoksTabIndex < paradoksFilters.size() ? paradoksFilters.get(paradoksTabIndex).id : 0;
+                    final boolean paradoksUnreadOnly = uz.paradoks.gram.ParadoksFolders.isUnreadOnly(currentAccount, paradoksFolderId);
+                    final int paradoksStoredIndex = uz.paradoks.gram.ParadoksFolders.defaultTabIndex(currentAccount, paradoksFilters);
+                    final boolean paradoksHasDefault = paradoksStoredIndex >= 0;
+                    final int paradoksDefaultIndex = paradoksHasDefault ? paradoksStoredIndex : 0;
+                    final boolean paradoksIsDefaultTab = paradoksTabIndex == paradoksDefaultIndex;
+
                     filterOptions = ItemOptions.makeOptions(DialogsActivity.this, tabView)
                             .setScrimViewBackground(new Drawable() {
                                 private Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -3834,8 +3845,29 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
                                 }
                                 BulletinFactory.createMuteBulletin(DialogsActivity.this, finalMuteAll, count, null).show();
                             })
+                            .addIf(dialogFilter != null && !dialogs.isEmpty(), R.drawable.msg_mute_period, "Sukut qilish...", () -> { // ParadoksGram: mute every chat of this folder for a chosen time
+                                AlertsCreator.createMuteForPickerDialog(getParentActivity(), getResourceProvider(), (notify, inSecond, repeat) -> {
+                                    if (inSecond <= 0) {
+                                        return;
+                                    }
+                                    for (int i = 0; i < dialogs.size(); ++i) {
+                                        TLRPC.Dialog dialog = dialogs.get(i);
+                                        if (dialog != null) {
+                                            getNotificationsController().muteUntil(dialog.id, 0, inSecond);
+                                        }
+                                    }
+                                    BulletinFactory.createMuteBulletin(DialogsActivity.this, NotificationsController.SETTING_MUTE_CUSTOM, inSecond, getResourceProvider()).show();
+                                });
+                            })
                             .addIf(hasUnread, R.drawable.msg_markread, LocaleController.getString(R.string.MarkAllAsRead), () -> {
                                 markDialogsAsRead(dialogs);
+                            })
+                            .addChecked(paradoksUnreadOnly, R.drawable.msg_markunread, "O'qilmagan", () -> { // ParadoksGram: show only unread chats of this folder
+                                uz.paradoks.gram.ParadoksFolders.toggleUnreadOnly(currentAccount, paradoksFolderId);
+                            })
+                            .addIf(!paradoksIsDefaultTab || paradoksHasDefault, paradoksIsDefaultTab ? R.drawable.msg_unpin : R.drawable.msg_pin, paradoksIsDefaultTab ? "Odatiy yorliqni bekor qilish" : "Odatiy yorliq sifatida o'rnatish", () -> { // ParadoksGram: the app opens on this folder
+                                uz.paradoks.gram.ParadoksFolders.setDefaultFolderId(currentAccount, paradoksIsDefaultTab ? -1 : paradoksFolderId);
+                                BulletinFactory.of(DialogsActivity.this).createSimpleBulletin(R.raw.chats_infotip, paradoksIsDefaultTab ? "Odatiy yorliq bekor qilindi" : "Ilova endi shu yorliqdan ochiladi").show();
                             })
                             .addIf(hasShare, R.drawable.msg_share, FilterCreateActivity.withNew(filter != null && filter.isMyChatlist() ? -1 : 0, LocaleController.getString(R.string.LinkActionShare), true), () -> {
                                 if (shareEmpty[0]) {
@@ -6935,6 +6967,15 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
                 filterTabsView.finishAddingTabs(animatedUpdateItems);
                 if (updateCurrentTab) {
                     switchToCurrentSelectedMode(false);
+                }
+                if (!paradoksDefaultTabApplied && initialDialogsType == DIALOGS_TYPE_DEFAULT && !isArchive()) { // ParadoksGram: open on the folder chosen with "Set as default tab" (once per start)
+                    paradoksDefaultTabApplied = true;
+                    final int defaultIndex = uz.paradoks.gram.ParadoksFolders.defaultTabIndex(currentAccount, filters);
+                    if (defaultIndex > 0 && viewPages[0].selectedType != defaultIndex && !filterTabsView.isLocked(defaultIndex)) {
+                        viewPages[0].selectedType = defaultIndex;
+                        filterTabsView.selectTabWithId(defaultIndex, 1f);
+                        switchToCurrentSelectedMode(false);
+                    }
                 }
                 if (filterTabsView.isLocked(filterTabsView.getCurrentTabId())) {
                     filterTabsView.selectFirstTab();
@@ -11689,6 +11730,11 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
 
     public boolean isArchive() {
         return folderId == 1;
+    }
+
+    /** ParadoksGram: true for the normal chat list (not a forward/share/attach picker). */
+    public boolean isMainDialogsList() {
+        return initialDialogsType == DIALOGS_TYPE_DEFAULT;
     }
 
     public boolean isCommunity() {

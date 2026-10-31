@@ -1211,6 +1211,9 @@ public class DialogsAdapter extends RecyclerListView.SelectionAdapter implements
         ArrayList<TLRPC.Dialog> dialogs = liveDialogs;
         if (dialogsType == 0 || dialogsType == 7 || dialogsType == 8) { // ParadoksGram: positions are in the filtered (visible) list
             dialogs = uz.paradoks.gram.ParadoksHidden.filter(currentAccount, liveDialogs);
+            if (parentFragment.isMainDialogsList()) { // ParadoksGram: folder "Unread" switch
+                dialogs = uz.paradoks.gram.ParadoksFolders.filterUnread(currentAccount, dialogsType, folderId, dialogs);
+            }
         }
         int fromIndex = fixPosition(fromPosition);
         int toIndex = fixPosition(toPosition);
@@ -1633,6 +1636,9 @@ public class DialogsAdapter extends RecyclerListView.SelectionAdapter implements
             }
             if (dialogsType == 0 || dialogsType == 7 || dialogsType == 8) { // ParadoksGram: hidden chats
                 array = uz.paradoks.gram.ParadoksHidden.filter(currentAccount, array);
+                if (parentFragment.isMainDialogsList()) { // ParadoksGram: folder "Unread" switch
+                    array = uz.paradoks.gram.ParadoksFolders.filterUnread(currentAccount, dialogsType, folderId, array);
+                }
             } else if (dialogsType == DialogsActivity.DIALOGS_TYPE_FORWARD) { // ParadoksGram: not offered when forwarding
                 array = uz.paradoks.gram.ParadoksHidden.filterPicker(currentAccount, array);
             }
