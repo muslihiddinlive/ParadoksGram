@@ -93,6 +93,7 @@ public class ParadoksCloneService extends Service {
                 return;
             }
             float fraction = ParadoksClone.progressFraction();
+            builder.setContentTitle(fraction >= 0 ? "Chat klonlanmoqda: " + (int) (fraction * 100) + "%" : "Chat klonlanmoqda");
             builder.setContentText(ParadoksClone.progressText());
             builder.setProgress(1000, fraction < 0 ? 0 : (int) (fraction * 1000), fraction < 0);
             try {

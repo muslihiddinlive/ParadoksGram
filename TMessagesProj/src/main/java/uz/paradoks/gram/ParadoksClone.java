@@ -47,7 +47,7 @@ public final class ParadoksClone {
 
     private static final int PAGE_LIMIT = 100;
     private static final int FORWARD_CHUNK = 100;
-    private static final long CHUNK_PAUSE_MS = 1500;
+    private static final long CHUNK_PAUSE_MS = 500;
 
     private static volatile boolean running;
     private static volatile Job activeJob;
@@ -98,7 +98,7 @@ public final class ParadoksClone {
         public int total;
 
         public String statusText() {
-            String counts = (forwarded + failed) + " / " + total;
+            String counts = (forwarded + failed) + " / " + total + (total > 0 ? " (" + ((forwarded + failed) * 100 / total) + "%)" : "");
             switch (status) {
                 case "running":
                     return "davom etmoqda: " + counts;
@@ -567,7 +567,7 @@ public final class ParadoksClone {
                 }
                 index = end;
                 saveRecord("running", null);
-                progress("Forward qilinmoqda: " + (forwarded + failed) + " / " + total, (forwarded + failed) / (float) total);
+                progress("Forward qilinmoqda: " + (forwarded + failed) + " / " + total + " (" + ((forwarded + failed) * 100 / total) + "%)", (forwarded + failed) / (float) total);
                 Thread.sleep(CHUNK_PAUSE_MS);
             }
         }
