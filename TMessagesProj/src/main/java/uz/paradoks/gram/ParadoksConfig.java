@@ -478,4 +478,29 @@ public final class ParadoksConfig {
     public static void setShowContactStories(boolean value) {
         prefs().edit().putBoolean("show_contact_stories", value).apply();
     }
+
+    // ---- folder tabs (see ParadoksFolders) ----
+    /** Folders (tabs) that show only unread chats. Entries look like "account:filterId" (filterId 0 = All chats). */
+    public static java.util.Set<String> unreadOnlyFolders() {
+        return new java.util.HashSet<>(prefs().getStringSet("folders_unread_only", new java.util.HashSet<String>()));
+    }
+
+    public static void setUnreadOnlyFolders(java.util.Set<String> set) {
+        prefs().edit().putStringSet("folders_unread_only", new java.util.HashSet<>(set)).apply();
+    }
+
+    /** Server id of the folder the app opens on (0 = All chats), or -1 when none was chosen. Per account. */
+    public static int defaultFolder(int account) {
+        return prefs().getInt("folder_default_" + account, -1);
+    }
+
+    public static void setDefaultFolder(int account, int filterId) {
+        SharedPreferences.Editor editor = prefs().edit();
+        if (filterId < 0) {
+            editor.remove("folder_default_" + account);
+        } else {
+            editor.putInt("folder_default_" + account, filterId);
+        }
+        editor.apply();
+    }
 }

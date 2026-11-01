@@ -537,6 +537,7 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
     private View blurredView;
 
     private ItemOptions filterOptions;
+    private boolean paradoksDefaultTabApplied; // ParadoksGram: the default folder is opened once per start
 
     private SelectAnimatedEmojiDialog.SelectAnimatedEmojiDialogWindow selectAnimatedEmojiDialog;
 
@@ -573,6 +574,8 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
     private ActionBarMenuItem deleteItem;
     @Nullable
     private ActionBarMenuItem pinItem;
+    @Nullable
+    private ActionBarMenuItem readQuickItem; // ParadoksGram: mark as read / unread button right in the selection bar
     @Nullable
     private ActionBarMenuItem muteItem;
     @Nullable
@@ -3784,6 +3787,16 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
                         }
                     }
 
+                    // ParadoksGram: folder id of this tab (0 = All chats), its "Unread" switch and default-tab state
+                    final ArrayList<MessagesController.DialogFilter> paradoksFilters = getMessagesController().getDialogFilters();
+                    final int paradoksTabIndex = tabView.getId();
+                    final int paradoksFolderId = paradoksTabIndex >= 0 && paradoksTabIndex < paradoksFilters.size() ? paradoksFilters.get(paradoksTabIndex).id : 0;
+                    final boolean paradoksUnreadOnly = uz.paradoks.gram.ParadoksFolders.isUnreadOnly(currentAccount, paradoksFolderId);
+                    final int paradoksStoredIndex = uz.paradoks.gram.ParadoksFolders.defaultTabIndex(currentAccount, paradoksFilters);
+                    final boolean paradoksHasDefault = paradoksStoredIndex >= 0;
+                    final int paradoksDefaultIndex = paradoksHasDefault ? paradoksStoredIndex : 0;
+                    final boolean paradoksIsDefaultTab = paradoksTabIndex == paradoksDefaultIndex;
+
                     filterOptions = ItemOptions.makeOptions(DialogsActivity.this, tabView)
                             .setScrimViewBackground(new Drawable() {
                                 private Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -3834,8 +3847,29 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
                                 }
                                 BulletinFactory.createMuteBulletin(DialogsActivity.this, finalMuteAll, count, null).show();
                             })
+                            .addIf(dialogFilter != null && !dialogs.isEmpty(), R.drawable.msg_mute_period, "Sukut qilish...", () -> { // ParadoksGram: mute every chat of this folder for a chosen time
+                                AlertsCreator.createMuteForPickerDialog(getParentActivity(), getResourceProvider(), (notify, inSecond, repeat) -> {
+                                    if (inSecond <= 0) {
+                                        return;
+                                    }
+                                    for (int i = 0; i < dialogs.size(); ++i) {
+                                        TLRPC.Dialog dialog = dialogs.get(i);
+                                        if (dialog != null) {
+                                            getNotificationsController().muteUntil(dialog.id, 0, inSecond);
+                                        }
+                                    }
+                                    BulletinFactory.createMuteBulletin(DialogsActivity.this, NotificationsController.SETTING_MUTE_CUSTOM, inSecond, getResourceProvider()).show();
+                                });
+                            })
                             .addIf(hasUnread, R.drawable.msg_markread, LocaleController.getString(R.string.MarkAllAsRead), () -> {
                                 markDialogsAsRead(dialogs);
+                            })
+                            .addChecked(paradoksUnreadOnly, R.drawable.msg_markunread, "O'qilmagan", () -> { // ParadoksGram: show only unread chats of this folder
+                                uz.paradoks.gram.ParadoksFolders.toggleUnreadOnly(currentAccount, paradoksFolderId);
+                            })
+                            .addIf(!paradoksIsDefaultTab || paradoksHasDefault, paradoksIsDefaultTab ? R.drawable.msg_unpin : R.drawable.msg_pin, paradoksIsDefaultTab ? "Odatiy yorliqni bekor qilish" : "Odatiy yorliq sifatida o'rnatish", () -> { // ParadoksGram: the app opens on this folder
+                                uz.paradoks.gram.ParadoksFolders.setDefaultFolderId(currentAccount, paradoksIsDefaultTab ? -1 : paradoksFolderId);
+                                BulletinFactory.of(DialogsActivity.this).createSimpleBulletin(R.raw.chats_infotip, paradoksIsDefaultTab ? "Odatiy yorliq bekor qilindi" : "Ilova endi shu yorliqdan ochiladi").show();
                             })
                             .addIf(hasShare, R.drawable.msg_share, FilterCreateActivity.withNew(filter != null && filter.isMyChatlist() ? -1 : 0, LocaleController.getString(R.string.LinkActionShare), true), () -> {
                                 if (shareEmpty[0]) {
@@ -6767,6 +6801,7 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
         muteItem = actionMode.addItemWithWidth(mute, R.drawable.msg_mute, dp(48));
         archive2Item = actionMode.addItemWithWidth(archive2, R.drawable.msg_archive, dp(48));
         deleteItem = actionMode.addItemWithWidth(delete, R.drawable.msg_delete, dp(48), LocaleController.getString(R.string.Delete));
+        readQuickItem = actionMode.addItemWithWidth(read, R.drawable.msg_markunread, dp(48)); // ParadoksGram: same action as the "Mark as read/unread" overflow item
 
         ActionBarMenuItem otherItem = actionMode.addItemWithWidth(0, R.drawable.ic_ab_other, dp(48), LocaleController.getString(R.string.AccDescrMoreOptions));
         actionMode.addView(new View(getContext()), LayoutHelper.createLinear(5, LayoutHelper.MATCH_PARENT));
@@ -6787,6 +6822,7 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
         actionModeViews.add(archive2Item);
         actionModeViews.add(muteItem);
         actionModeViews.add(deleteItem);
+        actionModeViews.add(readQuickItem);
         actionModeViews.add(otherItem);
 
         updateCounters(false);
@@ -6935,6 +6971,15 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
                 filterTabsView.finishAddingTabs(animatedUpdateItems);
                 if (updateCurrentTab) {
                     switchToCurrentSelectedMode(false);
+                }
+                if (!paradoksDefaultTabApplied && initialDialogsType == DIALOGS_TYPE_DEFAULT && !isArchive()) { // ParadoksGram: open on the folder chosen with "Set as default tab" (once per start)
+                    paradoksDefaultTabApplied = true;
+                    final int defaultIndex = uz.paradoks.gram.ParadoksFolders.defaultTabIndex(currentAccount, filters);
+                    if (defaultIndex > 0 && viewPages[0].selectedType != defaultIndex && !filterTabsView.isLocked(defaultIndex)) {
+                        viewPages[0].selectedType = defaultIndex;
+                        filterTabsView.selectTabWithId(defaultIndex, 1f);
+                        switchToCurrentSelectedMode(false);
+                    }
                 }
                 if (filterTabsView.isLocked(filterTabsView.getCurrentTabId())) {
                     filterTabsView.selectFirstTab();
@@ -9946,13 +9991,9 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
                 pinItem.setVisibility(View.GONE);
                 pin2Item.setVisibility(View.GONE);
             } else {
-                if (filterTabsView != null && filterTabsView.getVisibility() == View.VISIBLE) {
-                    pin2Item.setVisibility(View.VISIBLE);
-                    pinItem.setVisibility(View.GONE);
-                } else {
-                    pinItem.setVisibility(View.VISIBLE);
-                    pin2Item.setVisibility(View.GONE);
-                }
+                // ParadoksGram: the pin button stays in the selection bar even when folder tabs are shown (Plus style), the overflow copy is never needed
+                pinItem.setVisibility(View.VISIBLE);
+                pin2Item.setVisibility(View.GONE);
             }
         }
         if (blockItem != null) {
@@ -10003,6 +10044,20 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
                     readItem.setVisibility(View.VISIBLE);
                 } else {
                     readItem.setVisibility(View.GONE);
+                }
+            }
+            if (readQuickItem != null) { // ParadoksGram: the bar button follows the overflow item (icon, description, visibility)
+                if (readItem.getVisibility() != View.VISIBLE) {
+                    readQuickItem.setVisibility(View.GONE);
+                } else {
+                    readQuickItem.setVisibility(View.VISIBLE);
+                    if (canReadCount != 0) {
+                        readQuickItem.setIcon(R.drawable.msg_markread);
+                        readQuickItem.setContentDescription(LocaleController.getString(R.string.MarkAsRead));
+                    } else {
+                        readQuickItem.setIcon(R.drawable.msg_markunread);
+                        readQuickItem.setContentDescription(LocaleController.getString(R.string.MarkAsUnread));
+                    }
                 }
             }
         }
@@ -11689,6 +11744,11 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
 
     public boolean isArchive() {
         return folderId == 1;
+    }
+
+    /** ParadoksGram: true for the normal chat list (not a forward/share/attach picker). */
+    public boolean isMainDialogsList() {
+        return initialDialogsType == DIALOGS_TYPE_DEFAULT;
     }
 
     public boolean isCommunity() {
