@@ -150,7 +150,12 @@ jobs:
           APK_PATH=$(find TMessagesProj_App/build/outputs/apk -name "*.apk" | head -n 1)
           echo "apk_path=$APK_PATH" >> "$GITHUB_OUTPUT"
 
-      # No upload-artifact step on purpose: GitHub always wraps artifacts in a .zip. The plain .apk is the Release asset below.
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: paradoksgram-apk
+          path: ${{ steps.find_apk.outputs.apk_path }}
+          retention-days: 14
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
