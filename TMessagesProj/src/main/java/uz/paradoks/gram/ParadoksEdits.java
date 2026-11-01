@@ -154,6 +154,27 @@ public final class ParadoksEdits {
         }
     }
 
+    /** How many earlier versions of this message the app has saved (= edits it has seen). */
+    public static int countHistory(int account, TLRPC.Message message) {
+        if (message == null || message.id <= 0) {
+            return 0;
+        }
+        long dialogId = MessageObject.getDialogId(message);
+        Cursor cursor = null;
+        try {
+            cursor = ParadoksDb.get().getReadableDatabase().rawQuery(
+                    "SELECT COUNT(*) FROM edits WHERE acc = ? AND dlg = ? AND mid = ?",
+                    new String[]{String.valueOf(account), String.valueOf(dialogId), String.valueOf(message.id)});
+            return cursor.moveToFirst() ? cursor.getInt(0) : 0;
+        } catch (Throwable t) {
+            return 0;
+        } finally {
+            if (cursor != null) {
+                cursor.close();
+            }
+        }
+    }
+
     public static void showHistory(BaseFragment fragment, int account, TLRPC.Message message) {
         if (message == null) {
             return;

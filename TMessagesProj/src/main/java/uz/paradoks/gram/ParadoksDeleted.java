@@ -111,6 +111,28 @@ public final class ParadoksDeleted {
         }
     }
 
+    /** Unix time when the app noticed the deletion, or 0 if unknown. */
+    public static long deletedAt(int account, MessageObject object) {
+        if (object == null || object.messageOwner == null || object.getId() <= 0) {
+            return 0;
+        }
+        TLRPC.Peer peer = object.messageOwner.peer_id;
+        long dialogKey = (peer != null && peer.channel_id != 0) ? -peer.channel_id : 0;
+        Cursor cursor = null;
+        try {
+            cursor = ParadoksDb.get().getReadableDatabase().rawQuery(
+                    "SELECT ts FROM deleted WHERE acc = ? AND dlg = ? AND mid = ?",
+                    new String[]{String.valueOf(account), String.valueOf(dialogKey), String.valueOf(object.getId())});
+            return cursor.moveToFirst() ? cursor.getLong(0) : 0;
+        } catch (Throwable t) {
+            return 0;
+        } finally {
+            if (cursor != null) {
+                cursor.close();
+            }
+        }
+    }
+
     private ParadoksDeleted() {
     }
 }

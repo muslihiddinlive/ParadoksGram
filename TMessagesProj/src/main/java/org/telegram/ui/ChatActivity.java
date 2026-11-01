@@ -792,6 +792,8 @@ public class ChatActivity extends BaseFragment implements
     public MessageSuggestionParams messageSuggestionParams;
     private CharSequence formwardingNameText;
     private MessageObject forwardingMessage;
+    private boolean paradoksHideAuthorForward; // ParadoksGram: "Muallifsiz yo'naltirish" tanlandi
+    private boolean paradoksPendingHideAuthor; // ParadoksGram: qabul qiluvchi chatda muallif ismi yashirin holda ochilsin
     private MessageObject.GroupedMessages forwardingMessageGroup;
     private MessageObject.GroupedMessages replyingQuoteGroup;
     public MessageObject replyingTopMessage;
@@ -15175,6 +15177,12 @@ public class ChatActivity extends BaseFragment implements
                     messagePreviewParams.attach(forwardingPreviewView);
                 }
                 messagePreviewParams.updateForward(messageObjectsToForward, dialog_id);
+                if (paradoksPendingHideAuthor) { // ParadoksGram: Muallifsiz yo'naltirish — muallif ismini yashirish default yoqiladi
+                    paradoksPendingHideAuthor = false;
+                    if (messagePreviewParams.hasSenders) {
+                        messagePreviewParams.hideForwardSendersName = true;
+                    }
+                }
                 if (messagePreviewParams.isEmpty() && editingMessageObject == null) {
                     messagePreviewParams = null;
                 }
@@ -30870,6 +30878,7 @@ public class ChatActivity extends BaseFragment implements
         selectedObject = null;
         selectedObjectGroup = null;
         forwardingMessage = null;
+        paradoksHideAuthorForward = false; // ParadoksGram
         forwardingMessageGroup = null;
         selectedObjectToEditCaption = null;
         for (int a = 1; a >= 0; a--) {
@@ -33410,7 +33419,9 @@ public class ChatActivity extends BaseFragment implements
                 createDeleteMessagesAlert(selectedObject, selectedObjectGroup, true);
                 break;
             }
+            case 9104: // ParadoksGram: Muallifsiz yo'naltirish (oddiy uzatish, muallif ismi yashirin holda)
             case OPTION_FORWARD: {
+                paradoksHideAuthorForward = option == 9104;
                 if (getMessagesController().isFrozen()) {
                     AccountFrozenAlert.show(currentAccount);
                     selectedObject = null;
@@ -33441,6 +33452,78 @@ public class ChatActivity extends BaseFragment implements
             }
             case 9002: {
                 uz.paradoks.gram.ParadoksIds.showForMessage(getParentActivity(), selectedObject);
+                break;
+            }
+            case 9101: { // ParadoksGram: Shaxsiga uzatish (xabar muallifining shaxsiy chatiga)
+                final long authorId = DialogObject.getPeerDialogId(selectedObject.getFromPeer());
+                if (authorId > 0) {
+                    final ArrayList<MessageObject> toForward = new ArrayList<>();
+                    if (selectedObjectGroup != null) {
+                        toForward.addAll(selectedObjectGroup.messages);
+                    } else {
+                        toForward.add(selectedObject);
+                    }
+                    paradoksOpenAuthorChat(authorId, toForward, null);
+                }
+                break;
+            }
+            case 9102: { // ParadoksGram: Shaxsiyda javob berish (muallifning shaxsiy chatida shu xabarga javob)
+                final long authorId = DialogObject.getPeerDialogId(selectedObject.getFromPeer());
+                if (authorId > 0) {
+                    MessageObject replyTo = selectedObject;
+                    if (replyTo.getGroupId() != 0) {
+                        final MessageObject.GroupedMessages group = getGroup(replyTo.getGroupId());
+                        if (group != null && group.captionMessage != null) {
+                            replyTo = group.captionMessage;
+                        }
+                    }
+                    paradoksOpenAuthorChat(authorId, null, replyTo);
+                }
+                break;
+            }
+            case 9103: { // ParadoksGram: Parchani nusxalash (matnning ixtiyoriy qismini belgilab nusxalash)
+                CharSequence fragmentText = getMessageCaption(selectedObject, selectedObjectGroup);
+                if (fragmentText == null) {
+                    fragmentText = getMessageContent(selectedObject, 0, false);
+                }
+                paradoksShowCopyFragment(fragmentText);
+                break;
+            }
+            case 9105: { // ParadoksGram: Saqlangan xabarlarga uzatish
+                final ArrayList<MessageObject> toSave = new ArrayList<>();
+                if (selectedObjectGroup != null) {
+                    toSave.addAll(selectedObjectGroup.messages);
+                } else {
+                    toSave.add(selectedObject);
+                }
+                final long selfId = getUserConfig().getClientUserId();
+                getSendMessagesHelper().sendMessage(toSave, selfId, false, false, true, 0, 0);
+                createUndoView();
+                if (undoView != null) {
+                    undoView.showWithAction(selfId, UndoView.ACTION_FWD_MESSAGES, toSave.size());
+                }
+                break;
+            }
+            case 9108: { // ParadoksGram: Xabarlar statistikasi (yuboruvchining shu chatdagi xabarlari)
+                final long statsUserId = DialogObject.getPeerDialogId(selectedObject.getFromPeer());
+                if (statsUserId > 0) {
+                    final TLRPC.User statsUser = getMessagesController().getUser(statsUserId);
+                    uz.paradoks.gram.ParadoksMessageStats.showSenderStats(this, currentAccount, getDialogId(), statsUserId, statsUser != null ? UserObject.getUserName(statsUser) : null);
+                }
+                break;
+            }
+            case 9109: { // ParadoksGram: N ta reaksiya
+                uz.paradoks.gram.ParadoksMessageStats.showReactions(this, currentAccount, selectedObject);
+                break;
+            }
+            case 9107: { // ParadoksGram: Xabar xususiyatlari
+                presentFragment(new uz.paradoks.gram.ParadoksInspectorActivity(selectedObject, selectedObjectGroup));
+                break;
+            }
+            case 9106: { // ParadoksGram: Xabarni belgilash (tanlash rejimi)
+                addToSelectedMessages(selectedObject, false);
+                updateActionModeTitle();
+                updateVisibleRows();
                 break;
             }
             case OPTION_COPY: {
@@ -34444,6 +34527,8 @@ public class ChatActivity extends BaseFragment implements
         if ((messagePreviewParams == null && (!fragment.isQuote || replyingMessageObject == null) || fragment.isQuote && replyingMessageObject == null) && forwardingMessage == null && selectedMessagesIds[0].size() == 0 && selectedMessagesIds[1].size() == 0) {
             return false;
         }
+        final boolean paradoksHideAuthor = paradoksHideAuthorForward && forwardingMessage != null; // ParadoksGram
+        paradoksHideAuthorForward = false;
         ArrayList<MessageObject> fmessages = new ArrayList<>();
         if (forwardingMessage != null) {
             if (forwardingMessageGroup != null) {
@@ -34513,7 +34598,7 @@ public class ChatActivity extends BaseFragment implements
                         params.suggestionParams = messageSuggestionParams;
                         getSendMessagesHelper().sendMessage(params);
                     }
-                    getSendMessagesHelper().sendMessage(fmessages, did, false, false, notify, scheduleDate, scheduleRepeatPeriod, null, -1, price == null ? 0 : price, getSendMonoForumPeerId(), getSendMessageSuggestionParams());
+                    getSendMessagesHelper().sendMessage(fmessages, did, paradoksHideAuthor, false, notify, scheduleDate, scheduleRepeatPeriod, null, -1, price == null ? 0 : price, getSendMonoForumPeerId(), getSendMessageSuggestionParams());
                 }
                 fragment.finishFragment();
                 createUndoView();
@@ -34600,6 +34685,7 @@ public class ChatActivity extends BaseFragment implements
                         };
                         chatActivity.showFieldPanelForReplyQuote(replyingMessageObject, replyingQuote);
                     } else {
+                        chatActivity.paradoksPendingHideAuthor = paradoksHideAuthor;
                         chatActivity.showFieldPanelForForward(true, fmessages);
                     }
                     if (chatActivity.getDialogId() == getDialogId() && !AndroidUtilities.isTablet()) {
@@ -34628,6 +34714,7 @@ public class ChatActivity extends BaseFragment implements
                 if (fragment.isQuote && replyingMessageObject != null) {
                     showFieldPanelForReplyQuote(replyingMessageObject, replyingQuote);
                 } else {
+                    paradoksPendingHideAuthor = paradoksHideAuthor;
                     showFieldPanelForForward(true, fmessages);
                 }
                 if (AndroidUtilities.isTablet()) {
@@ -46392,11 +46479,134 @@ public class ChatActivity extends BaseFragment implements
             }
         }
 
+        addParadoksPlusItems(icons, items, options, message); // ParadoksGram: Plus Messenger'dagi menyu bandlari
+
         if (showWelcomeMessageRevertOption(primaryMessage)) {
             items.add(getString(R.string.WelcomeMessageRevert));
             options.add(OPTION_WELCOME_REVERT);
             icons.add(R.drawable.outline_revert_24);
         }
+    }
+
+    // ParadoksGram: Plus Messenger'dagi xabar menyusi bandlari (mavjud bandlarning joylashuviga qarab qo'yiladi)
+    private void paradoksInsertMenuItem(ArrayList<Integer> icons, ArrayList<CharSequence> items, ArrayList<Integer> options, int index, String title, int option, int icon) {
+        if (index < 0 || index > items.size() || index > options.size() || index > icons.size()) {
+            index = Math.min(items.size(), Math.min(options.size(), icons.size()));
+        }
+        items.add(index, title);
+        options.add(index, option);
+        icons.add(index, icon);
+    }
+
+    private void addParadoksPlusItems(ArrayList<Integer> icons, ArrayList<CharSequence> items, ArrayList<Integer> options, MessageObject message) {
+        if (message == null || message.getId() <= 0 || message.isSponsored() || message.isEphemeral() || chatMode == MODE_SCHEDULED || chatMode == MODE_WELCOME_MESSAGES) {
+            return;
+        }
+        if (items.size() != options.size() || items.size() != icons.size()) {
+            return;
+        }
+        final boolean canForward = options.contains(OPTION_FORWARD);
+        final long author = DialogObject.getPeerDialogId(message.getFromPeer());
+        final boolean authorIsOtherUser = currentChat != null && !ChatObject.isChannelAndNotMegaGroup(currentChat) && author > 0 && author != getUserConfig().getClientUserId();
+        final boolean noforwards = message.messageOwner != null && message.messageOwner.noforwards;
+
+        int at = options.indexOf(OPTION_REPLY);
+        if (at >= 0) {
+            int pos = at + 1;
+            if (authorIsOtherUser && canForward) {
+                paradoksInsertMenuItem(icons, items, options, pos++, "Shaxsiga uzatish", 9101, R.drawable.msg_forward);
+            }
+            if (authorIsOtherUser && !noforwards) {
+                paradoksInsertMenuItem(icons, items, options, pos++, "Shaxsiyda javob berish", 9102, R.drawable.menu_reply);
+            }
+        }
+        at = options.indexOf(OPTION_COPY);
+        if (at >= 0) {
+            paradoksInsertMenuItem(icons, items, options, at + 1, "Parchani nusxalash", 9103, R.drawable.msg_copy);
+        }
+        if (authorIsOtherUser || (currentChat != null && !ChatObject.isChannelAndNotMegaGroup(currentChat) && author == getUserConfig().getClientUserId())) {
+            at = options.indexOf(OPTION_COPY_LINK);
+            if (at < 0) {
+                at = options.indexOf(OPTION_COPY);
+            }
+            if (at >= 0) {
+                paradoksInsertMenuItem(icons, items, options, at + 1, "Xabarlar statistikasi", 9108, R.drawable.msg_stats);
+            }
+        }
+        at = options.indexOf(OPTION_FORWARD);
+        if (at >= 0) {
+            paradoksInsertMenuItem(icons, items, options, at + 1, "Muallifsiz yo'naltirish", 9104, R.drawable.msg_forward);
+        }
+        // "N ta reaksiya": rasmiy qator ko'rinmaydigan joylarda (kanal, shaxsiy chat, ro'yxat yopiq) shu band chiqadi
+        final TLRPC.TL_messageReactions msgReactions = message.messageOwner != null ? message.messageOwner.reactions : null;
+        if (msgReactions != null && msgReactions.results != null && !msgReactions.results.isEmpty()) {
+            final boolean officialRowShown = currentUser == null && msgReactions.can_see_list && (!ChatObject.isChannel(currentChat) || currentChat.megagroup);
+            if (!officialRowShown) {
+                paradoksInsertMenuItem(icons, items, options, 0, paradoksReactionsTitle(msgReactions), 9109, R.drawable.msg_reactions);
+            }
+        }
+        if (canForward && getDialogId() != getUserConfig().getClientUserId()) {
+            paradoksInsertMenuItem(icons, items, options, items.size(), "Saqlangan xabarlarga uzatish", 9105, R.drawable.msg_saved);
+        }
+        paradoksInsertMenuItem(icons, items, options, items.size(), "Xabar xususiyatlari", 9107, R.drawable.msg_info);
+        final int msgType = getMessageType(message);
+        if (msgType >= 2 && msgType != 20 && !message.isAnyGift()) {
+            paradoksInsertMenuItem(icons, items, options, items.size(), "Xabarni belgilash", 9106, R.drawable.msg_select);
+        }
+    }
+
+    private static String paradoksReactionsTitle(TLRPC.TL_messageReactions reactions) {
+        int total = 0;
+        for (TLRPC.ReactionCount rc : reactions.results) {
+            total += rc.count;
+        }
+        return total + " ta reaksiya";
+    }
+
+    // ParadoksGram: muallifning shaxsiy chatini ochib, uzatish yoki javob qoralamasini qo'yadi
+    private void paradoksOpenAuthorChat(long userId, ArrayList<MessageObject> forwardMessages, MessageObject replyTo) {
+        final Bundle args = new Bundle();
+        args.putLong("user_id", userId);
+        if (!getMessagesController().checkCanOpenChat(args, this)) {
+            return;
+        }
+        final ChatActivity chatActivity = new ChatActivity(args);
+        if (!presentFragment(chatActivity)) {
+            return;
+        }
+        if (forwardMessages != null) {
+            chatActivity.showFieldPanelForForward(true, forwardMessages);
+        } else if (replyTo != null) {
+            chatActivity.replyingQuoteGroup = getGroup(replyTo.getGroupId());
+            chatActivity.showFieldPanelForReplyQuote(replyTo, null);
+        }
+    }
+
+    // ParadoksGram: xabar matnini belgilab nusxalash oynasi
+    private void paradoksShowCopyFragment(CharSequence text) {
+        if (getParentActivity() == null || TextUtils.isEmpty(text)) {
+            return;
+        }
+        final android.widget.ScrollView scrollView = new android.widget.ScrollView(getParentActivity());
+        final TextView textView = new TextView(getParentActivity());
+        textView.setText(text);
+        textView.setTextSize(16);
+        textView.setTextColor(getThemedColor(Theme.key_dialogTextBlack));
+        textView.setTextIsSelectable(true);
+        textView.setPadding(dp(24), dp(8), dp(24), dp(8));
+        scrollView.addView(textView);
+        final AlertDialog.Builder builder = new AlertDialog.Builder(getParentActivity(), themeDelegate);
+        builder.setTitle("Parchani nusxalash");
+        builder.setView(scrollView);
+        builder.setPositiveButton("Hammasini nusxalash", (dialog, which) -> {
+            AndroidUtilities.addToClipboard(text);
+            createUndoView();
+            if (undoView != null) {
+                undoView.showWithAction(0, UndoView.ACTION_MESSAGE_COPIED, null);
+            }
+        });
+        builder.setNegativeButton("Yopish", null);
+        showDialog(builder.create());
     }
 
     private boolean showWelcomeMessageRevertOption(MessageObject messageObject) {
