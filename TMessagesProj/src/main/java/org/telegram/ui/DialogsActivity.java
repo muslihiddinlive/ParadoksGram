@@ -3543,8 +3543,9 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
             } else {
                 statusDrawable = new AnimatedEmojiDrawable.SwapAnimatedEmojiDrawable(null, dp(26));
                 statusDrawable.center = true;
-                // ParadoksGram: show text title instead of the Telegram logo image
-                actionBar.setTitle(getString(R.string.AppName), statusDrawable);
+                // ParadoksGram: show text title instead of the Telegram logo image; the name is fixed (the language pack would turn AppName into "Telegram") and shrinks when the buttons leave little room
+                actionBar.setTitle(getString(R.string.ParadoksAppName), statusDrawable);
+                actionBar.setParadoksFitTitle(true);
                 updateStatus(UserConfig.getInstance(currentAccount).getCurrentUser(), false);
             }
             if (folderId == 0) {

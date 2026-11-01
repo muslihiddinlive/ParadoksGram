@@ -194,6 +194,26 @@ public class ActionBar extends FrameLayout implements FactorAnimator.Target, The
     }
 
     private boolean glassMode;
+    private boolean paradoksFitTitle; // ParadoksGram: shrink a long single-line title instead of cutting it with "..."
+
+    public void setParadoksFitTitle(boolean value) {
+        paradoksFitTitle = value;
+    }
+
+    private void paradoksFitTitleSize(SimpleTextView view, int availableWidth) {
+        final CharSequence text = view.getText();
+        if (text == null || text.length() == 0) {
+            return;
+        }
+        final android.text.TextPaint paint = view.getTextPaint();
+        final int minSize = dp(14);
+        final int limit = availableWidth - view.getRightDrawableWidth() - dp(4);
+        int size = (int) paint.getTextSize();
+        while (size > minSize && paint.measureText(text, 0, text.length()) > limit) {
+            size -= Math.max(1, dp(1));
+            view.setTextSizePx(Math.max(size, minSize));
+        }
+    }
     private boolean glassOnlyBack;
     private boolean glassModeIsForum;
 
@@ -1463,6 +1483,9 @@ public class ActionBar extends FrameLayout implements FactorAnimator.Target, The
                     }
                 }
 
+                if (paradoksFitTitle && titleTextView[i] != null && titleTextView[i].getVisibility() != GONE && (subtitleTextView == null || subtitleTextView.getVisibility() == GONE)) {
+                    paradoksFitTitleSize(titleTextView[i], availableWidth);
+                }
                 if (titleTextView[i] != null && titleTextView[i].getVisibility() != GONE) {
                     titleTextView[i].measure(MeasureSpec.makeMeasureSpec(availableWidth, MeasureSpec.AT_MOST), MeasureSpec.makeMeasureSpec(dp(24) + titleTextView[i].getPaddingTop() + titleTextView[i].getPaddingBottom(), MeasureSpec.AT_MOST));
                     if (centerScale) {
