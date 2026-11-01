@@ -157,7 +157,7 @@ public class ParadoksSideMenu {
                 () -> fragment.presentFragment(new ParadoksSettingsActivity()));
 
         TextView footer = new TextView(context);
-        footer.setText("ParadoksGram " + ParadoksBuild.VERSION + " (build " + ParadoksBuild.NUMBER + ")");
+        footer.setText("ParadoksGram " + ParadoksBuild.VERSION);
         footer.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
         footer.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteGrayText));
         footer.setGravity(Gravity.CENTER);

@@ -617,7 +617,7 @@ public class ParadoksSettingsPageActivity extends BaseFragment {
         int build = root.optInt("build", 0);
         new AlertDialog.Builder(getParentActivity())
                 .setTitle("Sozlamalarni tiklash")
-                .setMessage("Sana: " + exportedAt + "\nBuild: " + build + "\n\nJoriy sozlamalar o'chirib, fayldagilar qo'llanadi. Davom etasizmi?")
+                .setMessage("Sana: " + exportedAt + "\n\nJoriy sozlamalar o'chirib, fayldagilar qo'llanadi. Davom etasizmi?")
                 .setPositiveButton("Tiklash", (d, w) -> applyRestore(root))
                 .setNegativeButton(org.telegram.messenger.LocaleController.getString(R.string.Cancel), null)
                 .show();

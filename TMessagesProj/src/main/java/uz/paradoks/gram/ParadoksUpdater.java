@@ -103,18 +103,18 @@ public final class ParadoksUpdater {
         });
     }
 
-    /** "3.6.0" when the release name carries it, otherwise "build 87". */
+    /** "3.6.0" when the release name carries it, otherwise a plain "yangi versiya". */
     private static String versionLabel() {
-        return latestVersion != null && !latestVersion.isEmpty() ? latestVersion : "build " + latestBuild;
+        return latestVersion != null && !latestVersion.isEmpty() ? latestVersion : "yangi versiya";
     }
 
     public static String latestVersionName() {
         return latestVersion == null ? "" : latestVersion;
     }
 
-    /** Installed version as shown to users: "3.5.0 (build 87)". */
+    /** Installed version as shown to users: "3.5.0". */
     public static String currentLabel() {
-        return ParadoksBuild.VERSION + " (build " + ParadoksBuild.NUMBER + ")";
+        return ParadoksBuild.VERSION;
     }
 
     /** Release notes without commit trailers (Co-Authored-By etc.), so nothing technical leaks into the dialog. */
