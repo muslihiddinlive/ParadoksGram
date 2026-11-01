@@ -8,6 +8,9 @@ Versiya formati Telegram kabi: `MAJOR.MINOR.PATCH`, qavs ichida build raqami (ma
 
 Versiya raqami `VERSION` faylida turadi. Har versiya uchun foydalanuvchiga ko'rinadigan matn `changelog/<versiya>.md` fayliga yoziladi: CI shuni reliz matniga qo'yadi, ilova yangilanish oynasida shuni ko'rsatadi. Commit xabari reliz matniga tushmaydi.
 
+## 3.9.1 (1-noyabr)
+Yon menyudagi "Chat hisoblagichlari" tugmasi ishlamasligi tuzatildi
+
 ## 3.9.0 (1-noyabr)
 Xabar menyusida: shaxsiy havola, taqvimga qo'shish, ulashish, har doim ko'rinadigan tarjima
 

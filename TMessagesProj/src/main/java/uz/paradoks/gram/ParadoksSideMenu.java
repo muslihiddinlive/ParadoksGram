@@ -360,7 +360,8 @@ public class ParadoksSideMenu {
     }
 
     private void showCounters(int account) {
-        close(() -> fragment.presentFragment(new ParadoksCountersActivity()));
+        // addRow already closes the panel before running this, a second close() would be ignored and the screen never opened
+        fragment.presentFragment(new ParadoksCountersActivity());
     }
 
     private boolean switchingTheme;
