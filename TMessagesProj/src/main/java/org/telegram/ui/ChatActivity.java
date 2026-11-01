@@ -32011,12 +32011,7 @@ public class ChatActivity extends BaseFragment implements
                                 finalMessageText.toString(),
                                 (String lang) -> {
                                     fromLang[0] = lang;
-                                    if (fromLang[0] != null && (!fromLang[0].equals(toLang) || !fromLang[0].equals(toLangDefault) || fromLang[0].equals(TranslateController.UNKNOWN_LANGUAGE)) && (
-                                        translateEnabled && !RestrictedLanguagesSelectActivity.getRestrictedLanguages().contains(fromLang[0]) ||
-                                        (currentChat != null && (currentChat.has_link || ChatObject.isPublic(currentChat)) || selectedObject.messageOwner.fwd_from != null) && ("uk".equals(fromLang[0]) || "ru".equals(fromLang[0]))
-                                    )) {
-                                        cell.setVisibility(View.VISIBLE);
-                                    }
+                                    cell.setVisibility(View.VISIBLE); // ParadoksGram: "Tarjima qilish" is always offered (Plus style), even for the user's own language
                                     waitForLangDetection.set(false);
                                     if (onLangDetectionDone.get() != null) {
                                         onLangDetectionDone.get().run();
@@ -32066,7 +32061,7 @@ public class ChatActivity extends BaseFragment implements
                                     onLangDetectionDone.getAndSet(null).run();
                                 }
                             }, 250);
-                        } else if (translateEnabled) {
+                        } else { // ParadoksGram: "Tarjima qilish" is always offered (Plus style)
                             cell.setOnClickListener(e -> {
                                 if (selectedObject == null || i >= options.size() || getParentActivity() == null) {
                                     return;
@@ -32093,8 +32088,6 @@ public class ChatActivity extends BaseFragment implements
                                     updateTopPanel(true);
                                 }
                             });
-                        } else {
-                            cell.setVisibility(View.GONE);
                         }
                     }
                 }
@@ -33514,6 +33507,50 @@ public class ChatActivity extends BaseFragment implements
             }
             case 9109: { // ParadoksGram: N ta reaksiya
                 uz.paradoks.gram.ParadoksMessageStats.showReactions(this, currentAccount, selectedObject);
+                break;
+            }
+            case 9110: { // ParadoksGram: Shaxsiy havola
+                final String privateLink = paradoksPrivateLink(selectedObject);
+                if (privateLink != null) {
+                    AndroidUtilities.addToClipboard(privateLink);
+                    if (BulletinFactory.canShowBulletin(this)) {
+                        BulletinFactory.of(this).createCopyLinkBulletin(privateLink.startsWith("https://t.me/c/")).show();
+                    }
+                }
+                break;
+            }
+            case 9111: { // ParadoksGram: Taqvimga qo'shish (telefon taqvimida yangi voqea, matn bilan)
+                final CharSequence calendarText = paradoksMessageText();
+                if (!TextUtils.isEmpty(calendarText) && getParentActivity() != null) {
+                    final String full = calendarText.toString().trim();
+                    String title = full.split("\n", 2)[0];
+                    if (title.length() > 80) {
+                        title = title.substring(0, 80);
+                    }
+                    final Intent calendarIntent = new Intent(Intent.ACTION_INSERT)
+                            .setData(android.provider.CalendarContract.Events.CONTENT_URI)
+                            .putExtra(android.provider.CalendarContract.Events.TITLE, title)
+                            .putExtra(android.provider.CalendarContract.Events.DESCRIPTION, full);
+                    try {
+                        getParentActivity().startActivity(calendarIntent);
+                    } catch (Exception e) {
+                        android.widget.Toast.makeText(getParentActivity(), "Taqvim ilovasi topilmadi", android.widget.Toast.LENGTH_SHORT).show();
+                    }
+                }
+                break;
+            }
+            case 9112: { // ParadoksGram: Ulashish (matnni boshqa ilovalarga yuborish)
+                final CharSequence shareText = paradoksMessageText();
+                if (!TextUtils.isEmpty(shareText) && getParentActivity() != null) {
+                    try {
+                        final Intent shareIntent = new Intent(Intent.ACTION_SEND);
+                        shareIntent.setType("text/plain");
+                        shareIntent.putExtra(Intent.EXTRA_TEXT, shareText.toString());
+                        getParentActivity().startActivityForResult(Intent.createChooser(shareIntent, LocaleController.getString(R.string.ShareFile)), 500);
+                    } catch (Exception e) {
+                        FileLog.e(e);
+                    }
+                }
                 break;
             }
             case 9107: { // ParadoksGram: Xabar xususiyatlari
@@ -46523,6 +46560,17 @@ public class ChatActivity extends BaseFragment implements
         at = options.indexOf(OPTION_COPY);
         if (at >= 0) {
             paradoksInsertMenuItem(icons, items, options, at + 1, "Parchani nusxalash", 9103, R.drawable.msg_copy);
+            int pos = at + 2;
+            if (currentEncryptedChat == null) {
+                paradoksInsertMenuItem(icons, items, options, pos++, "Shaxsiy havola", 9110, R.drawable.msg_link);
+            }
+            if (!noforwards) {
+                paradoksInsertMenuItem(icons, items, options, pos++, "Taqvimga qo'shish", 9111, R.drawable.msg_calendar);
+            }
+        }
+        if (options.contains(OPTION_COPY) && !options.contains(OPTION_SHARE) && !noforwards) { // text messages: system share sheet, right before "Uzatish"
+            at = options.indexOf(OPTION_FORWARD);
+            paradoksInsertMenuItem(icons, items, options, at >= 0 ? at : items.size(), "Ulashish", 9112, R.drawable.msg_share);
         }
         if (authorIsOtherUser || (currentChat != null && !ChatObject.isChannelAndNotMegaGroup(currentChat) && author == getUserConfig().getClientUserId())) {
             at = options.indexOf(OPTION_COPY_LINK);
@@ -46553,6 +46601,34 @@ public class ChatActivity extends BaseFragment implements
         if (msgType >= 2 && msgType != 20 && !message.isAnyGift()) {
             paradoksInsertMenuItem(icons, items, options, items.size(), "Xabarni belgilash", 9106, R.drawable.msg_select);
         }
+    }
+
+    // ParadoksGram: caption or text of the selected message (same source as "Parchani nusxalash")
+    private CharSequence paradoksMessageText() {
+        CharSequence text = getMessageCaption(selectedObject, selectedObjectGroup);
+        if (text == null) {
+            text = getMessageContent(selectedObject, 0, false);
+        }
+        return text;
+    }
+
+    // ParadoksGram: link that works for chat members: t.me/c/... for channels and supergroups, tg://openmessage for the rest
+    private String paradoksPrivateLink(MessageObject message) {
+        if (message == null || message.getId() <= 0) {
+            return null;
+        }
+        final int id = message.getId();
+        if (currentChat != null) {
+            if (ChatObject.isChannel(currentChat)) {
+                final long topic = isTopic ? getTopicId() : 0;
+                return "https://t.me/c/" + currentChat.id + (topic > 1 ? "/" + topic : "") + "/" + id;
+            }
+            return "tg://openmessage?chat_id=" + currentChat.id + "&message_id=" + id;
+        }
+        if (currentUser != null) {
+            return "tg://openmessage?user_id=" + currentUser.id + "&message_id=" + id;
+        }
+        return null;
     }
 
     private static String paradoksReactionsTitle(TLRPC.TL_messageReactions reactions) {
