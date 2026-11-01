@@ -39,7 +39,7 @@ public final class ParadoksUpdater {
     public static final int READY = 3;
     public static final int FAILED = 4;
 
-    private static final String RELEASE_API = "https://api.github.com/repos/muslihiddinlive/ParadoksGram/releases?per_page=5";
+    private static final String RELEASE_API = "https://api.github.com/repos/muslihiddinlive/ParadoksGram/releases?per_page=100";
     private static final String DOWNLOAD_PREFIX = "https://github.com/muslihiddinlive/ParadoksGram/releases/download/";
     /**
      * Official site (gateway) base URL, e.g. "https://paradoksgram.uz". When set, updates come from the
@@ -194,18 +194,40 @@ public final class ParadoksUpdater {
                         throw new Exception("GitHub javob bermadi (" + connection.getResponseCode() + ")");
                     }
                     JSONArray releases = new JSONArray(readAll(connection.getInputStream()));
-                    JSONObject release = null; // newest published release (CI marks them as pre-releases, so /latest would not see them)
-                    for (int i = 0; i < releases.length() && release == null; i++) {
+                    // The release with the highest build number that carries an APK. GitHub does not list releases in build order
+                    // (the order follows the tagged commit), so "the first one" can be an old build. CI marks releases as
+                    // pre-releases, so /latest would not see them either.
+                    JSONObject release = null;
+                    int bestBuild = -1;
+                    for (int i = 0; i < releases.length(); i++) {
                         JSONObject candidate = releases.getJSONObject(i);
-                        if (!candidate.optBoolean("draft", false)) {
+                        if (candidate.optBoolean("draft", false)) {
+                            continue;
+                        }
+                        String candidateTag = candidate.optString("tag_name", "");
+                        int candidateBuild;
+                        try {
+                            candidateBuild = Integer.parseInt(candidateTag.substring(candidateTag.lastIndexOf('-') + 1));
+                        } catch (NumberFormatException e) {
+                            continue;
+                        }
+                        JSONArray candidateAssets = candidate.optJSONArray("assets");
+                        boolean hasApk = false;
+                        for (int j = 0; candidateAssets != null && j < candidateAssets.length(); j++) {
+                            if (candidateAssets.getJSONObject(j).optString("name", "").endsWith(".apk")) {
+                                hasApk = true;
+                                break;
+                            }
+                        }
+                        if (hasApk && candidateBuild > bestBuild) {
+                            bestBuild = candidateBuild;
                             release = candidate;
                         }
                     }
                     if (release == null) {
                         throw new Exception("reliz topilmadi");
                     }
-                    String tag = release.optString("tag_name", "");
-                    build = Integer.parseInt(tag.substring(tag.lastIndexOf('-') + 1));
+                    build = bestBuild;
                     JSONArray assets = release.optJSONArray("assets");
                     if (assets != null) {
                         for (int i = 0; i < assets.length(); i++) {
