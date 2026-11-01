@@ -23,7 +23,7 @@ import java.util.Locale;
 import java.util.Set;
 
 /**
- * In-app viewer for PDF, Word (.docx) and Excel (.xlsx, .xls) files, so no external app is needed.
+ * In-app viewer for PDF, Word (.docx, .doc, .rtf, .odt), Excel (.xlsx, .xls, .ods), PowerPoint (.pptx, .odp), CSV and text/code files, so no external app is needed.
  * It is called from Telegram's "open file" code; when it declines (setting off, other file type,
  * restricted open, too large), the normal "open with another app" flow runs as before.
  *
@@ -39,7 +39,14 @@ public final class ParadoksDocViewer {
 
     public static boolean isSupported(String fileName) {
         String ext = extension(fileName);
-        return ext.equals("pdf") || ext.equals("docx") || ext.equals("xlsx") || ext.equals("xls");
+        switch (ext) {
+            case "pdf": case "docx": case "doc": case "rtf": case "odt":
+            case "xlsx": case "xls": case "ods":
+            case "pptx": case "odp":
+                return true;
+            default:
+                return ParadoksTextFormats.isText(ext);
+        }
     }
 
     static String extension(String fileName) {

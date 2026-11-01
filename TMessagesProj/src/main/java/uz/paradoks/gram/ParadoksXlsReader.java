@@ -24,7 +24,7 @@ final class ParadoksXlsReader {
         return new Biff(workbook).parse();
     }
 
-    private static byte[] readAll(File file) throws IOException {
+    static byte[] readAll(File file) throws IOException {
         if (file.length() > ParadoksDocParsers.MAX_FILE_BYTES) {
             throw new ParadoksDocParsers.ParseException("Fayl juda katta");
         }
@@ -59,7 +59,11 @@ final class ParadoksXlsReader {
 
     // ------------------------------------------------------------------ OLE2 container
 
-    private static byte[] workbookStream(byte[] d) throws IOException {
+    static byte[] workbookStream(byte[] d) throws IOException {
+        return stream(d, new String[]{"Workbook", "Book"});
+    }
+
+    static byte[] stream(byte[] d, String[] names) throws IOException {
         final byte[] signature = {(byte) 0xD0, (byte) 0xCF, 0x11, (byte) 0xE0, (byte) 0xA1, (byte) 0xB1, 0x1A, (byte) 0xE1};
         if (d.length < 512) {
             throw new ParadoksDocParsers.ParseException("Bu Excel (.xls) fayli emas yoki buzilgan");
@@ -134,11 +138,11 @@ final class ParadoksXlsReader {
             long size = i32(directory, e + 120) & 0xFFFFFFFFL;
             if (type == 5) {
                 rootStart = start;
-            } else if (type == 2 && (name.equals("Workbook") || name.equals("Book"))) {
+            } else if (type == 2 && java.util.Arrays.asList(names).contains(name)) {
                 if (!preferred) {
                     streamStart = start;
                     streamSize = size;
-                    preferred = name.equals("Workbook");
+                    preferred = name.equals(names[0]);
                 }
             }
         }

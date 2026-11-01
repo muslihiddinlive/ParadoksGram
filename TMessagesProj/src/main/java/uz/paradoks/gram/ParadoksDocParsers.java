@@ -98,7 +98,7 @@ public final class ParadoksDocParsers {
 
     // ------------------------------------------------------------------ SAX plumbing
 
-    private static class Base extends DefaultHandler {
+    static class Base extends DefaultHandler {
         boolean stopped;
 
         void stop() throws SAXException {
@@ -142,7 +142,7 @@ public final class ParadoksDocParsers {
         }
     }
 
-    private static InputStream open(ZipFile zip, ZipEntry entry) throws IOException {
+    static InputStream open(ZipFile zip, ZipEntry entry) throws IOException {
         return new Limited(zip.getInputStream(entry), MAX_ENTRY_BYTES);
     }
 
@@ -153,7 +153,7 @@ public final class ParadoksDocParsers {
         }
     }
 
-    private static void sax(InputStream in, Base handler) throws IOException {
+    static void sax(InputStream in, Base handler) throws IOException {
         try {
             SAXParserFactory factory = SAXParserFactory.newInstance();
             factory.setNamespaceAware(true);
@@ -1124,7 +1124,7 @@ public final class ParadoksDocParsers {
         }
     }
 
-    private static String resolveTarget(String target) {
+    static String resolveTarget(String target) {
         if (target == null) {
             return null;
         }

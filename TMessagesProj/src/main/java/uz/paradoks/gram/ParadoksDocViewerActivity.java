@@ -6,11 +6,16 @@ import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Color;
+import android.graphics.ColorMatrix;
+import android.graphics.ColorMatrixColorFilter;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
 import android.graphics.pdf.PdfRenderer;
 import android.os.ParcelFileDescriptor;
+import android.text.SpannableString;
 import android.text.SpannableStringBuilder;
+import android.text.style.BackgroundColorSpan;
+import android.text.style.ForegroundColorSpan;
 import android.text.Spanned;
 import android.text.style.AbsoluteSizeSpan;
 import android.text.style.StrikethroughSpan;
@@ -87,6 +92,24 @@ public class ParadoksDocViewerActivity extends BaseFragment {
     private RecyclerView pdfList;
     private TextView pageLabel;
 
+    // search / text viewer / options
+    private ParadoksDocParsers.Doc currentDoc;
+    private RecyclerView docList;
+    private float textScale = 1f;
+    private boolean pdfDark;
+    private String query = "";
+    private final ArrayList<Integer> hits = new ArrayList<>();
+    private int hitIndex;
+    private LinearLayout searchBar;
+    private TextView searchCount;
+    private ParadoksTextFormats.Text textData;
+    private final ArrayList<String> chunks = new ArrayList<>();
+    private final ArrayList<Integer> chunkStarts = new ArrayList<>();
+    private RecyclerView textList;
+    private boolean monoText;
+    private boolean highlightCode;
+    private String infoExtra = "";
+
     // Word pictures
     private ExecutorService imageExecutor;
     private LruCache<String, Bitmap> imageCache;
@@ -119,11 +142,46 @@ public class ParadoksDocViewerActivity extends BaseFragment {
                     if (getParentActivity() != null) {
                         ParadoksDocViewer.saveToDownloads(getParentActivity(), file, displayName, false);
                     }
+                } else if (id == 3 || id == 4) {
+                    changeTextSize(id == 3 ? 1.15f : 1f / 1.15f);
+                } else if (id == 5) {
+                    copyAll();
+                } else if (id == 6) {
+                    showInfo();
+                } else if (id == 7) {
+                    pdfDark = !pdfDark;
+                    if (pdfList != null && pdfList.getAdapter() != null) {
+                        pdfList.setBackgroundColor(pdfDark ? Color.BLACK : Theme.getColor(Theme.key_windowBackgroundGray));
+                        pdfList.getAdapter().notifyDataSetChanged();
+                    }
                 }
             }
         });
         ActionBarMenu menu = actionBar.createMenu();
+        if (isSearchable()) {
+            ActionBarMenuItem searchItem = menu.addItem(20, R.drawable.outline_header_search).setIsSearchField(true);
+            searchItem.setSearchFieldHint("Qidirish");
+            searchItem.setActionBarMenuItemSearchListener(new ActionBarMenuItem.ActionBarMenuItemSearchListener() {
+                @Override
+                public void onSearchCollapse() {
+                    runSearch("");
+                }
+
+                @Override
+                public void onTextChanged(EditText editText) {
+                    runSearch(editText.getText().toString());
+                }
+            });
+        }
         ActionBarMenuItem more = menu.addItem(10, R.drawable.ic_ab_other);
+        if (ext.equals("pdf")) {
+            more.addSubItem(7, R.drawable.msg_theme, "Tungi rejim (ranglarni almashtirish)");
+        } else if (!isSheetFormat()) {
+            more.addSubItem(3, R.drawable.msg_zoomin, "Matnni kattalashtirish");
+            more.addSubItem(4, R.drawable.msg_zoomout, "Matnni kichiklashtirish");
+            more.addSubItem(5, R.drawable.msg_copy, "Hammasini nusxalash");
+        }
+        more.addSubItem(6, R.drawable.msg_info, "Fayl haqida");
         more.addSubItem(1, R.drawable.msg_openin, "Boshqa ilova bilan ochish");
         if (!protectedContent) {
             more.addSubItem(2, R.drawable.msg_download, "Yuklashlarga saqlash");
@@ -177,19 +235,53 @@ public class ParadoksDocViewerActivity extends BaseFragment {
                         AndroidUtilities.runOnUIThread(() -> showPdf(context));
                         break;
                     }
-                    case "docx": {
-                        final ParadoksDocParsers.Doc doc = ParadoksDocParsers.readDocx(file);
+                    case "docx":
+                    case "pptx":
+                    case "odt":
+                    case "odp":
+                    case "rtf":
+                    case "doc": {
+                        final ParadoksDocParsers.Doc doc;
+                        switch (ext) {
+                            case "pptx": doc = ParadoksOfficeExtra.readPptx(file); break;
+                            case "odt": doc = ParadoksOfficeExtra.readOdt(file); break;
+                            case "odp": doc = ParadoksOfficeExtra.readOdp(file); break;
+                            case "rtf": doc = ParadoksOfficeExtra.readRtf(file); break;
+                            case "doc": doc = ParadoksOfficeExtra.readDoc(file); break;
+                            default: doc = ParadoksDocParsers.readDocx(file);
+                        }
                         AndroidUtilities.runOnUIThread(() -> showDoc(context, doc));
                         break;
                     }
                     case "xlsx":
-                    case "xls": {
-                        final ArrayList<ParadoksDocParsers.Sheet> sheets = ext.equals("xls") ? ParadoksXlsReader.read(file) : ParadoksDocParsers.readXlsx(file);
+                    case "xls":
+                    case "ods": {
+                        final ArrayList<ParadoksDocParsers.Sheet> sheets = ext.equals("xls") ? ParadoksXlsReader.read(file)
+                                : ext.equals("ods") ? ParadoksOfficeExtra.readOds(file) : ParadoksDocParsers.readXlsx(file);
                         AndroidUtilities.runOnUIThread(() -> showSheets(context, sheets));
                         break;
                     }
-                    default:
-                        fail("Bu fayl turi ichki ko'rgichda ochilmaydi");
+                    default: {
+                        if (!ParadoksTextFormats.isText(ext)) {
+                            fail("Bu fayl turi ichki ko'rgichda ochilmaydi");
+                            break;
+                        }
+                        final ParadoksTextFormats.Text data = ParadoksTextFormats.readText(file);
+                        if (ParadoksTextFormats.isTable(ext)) {
+                            final ArrayList<ParadoksDocParsers.Sheet> one = new ArrayList<>();
+                            one.add(ParadoksTextFormats.readCsv(data.text, ext));
+                            infoExtra = "Qatorlar: " + one.get(0).rows.size() + "\nUstunlar: " + one.get(0).cols + "\nKodlash: " + data.charset;
+                            AndroidUtilities.runOnUIThread(() -> showSheets(context, one));
+                        } else {
+                            if (ext.equals("json")) {
+                                String pretty = ParadoksTextFormats.prettyJson(data.text);
+                                if (pretty != null) {
+                                    data.text = pretty;
+                                }
+                            }
+                            AndroidUtilities.runOnUIThread(() -> showText(context, data));
+                        }
+                    }
                 }
             } catch (ParadoksDocParsers.ParseException e) {
                 fail(e.getMessage());
@@ -222,6 +314,12 @@ public class ParadoksDocViewerActivity extends BaseFragment {
     private void setContent(View content) {
         root.removeAllViews();
         root.addView(content, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT));
+        if (searchBar != null) {
+            if (searchBar.getParent() != null) {
+                ((ViewGroup) searchBar.getParent()).removeView(searchBar);
+            }
+            root.addView(searchBar);
+        }
     }
 
     private static String formatSize(long bytes) {
@@ -450,6 +548,9 @@ public class ParadoksDocViewerActivity extends BaseFragment {
         @Override
         public void onBindViewHolder(RecyclerView.ViewHolder holder, int position) {
             final ImageView image = (ImageView) holder.itemView;
+            image.setColorFilter(pdfDark ? new ColorMatrixColorFilter(new ColorMatrix(new float[]{
+                    -1, 0, 0, 0, 255, 0, -1, 0, 0, 255, 0, 0, -1, 0, 255, 0, 0, 0, 1, 0})) : null);
+            image.setBackgroundColor(pdfDark ? Color.BLACK : Color.WHITE);
             image.setTag(position);
             final int width = pdfWidth();
             final int target = Math.min(1600, Math.round(width * 1.25f));
@@ -502,6 +603,360 @@ public class ParadoksDocViewerActivity extends BaseFragment {
 
     // ------------------------------------------------------------------ DOCX
 
+
+    // ------------------------------------------------------------------ search, text viewer, options
+
+    private boolean isSheetFormat() {
+        return ext.equals("xlsx") || ext.equals("xls") || ext.equals("ods") || ParadoksTextFormats.isTable(ext);
+    }
+
+    private boolean isSearchable() {
+        return !ext.equals("pdf") && !isSheetFormat();
+    }
+
+    private static String blockText(ParadoksDocParsers.Block b) {
+        StringBuilder sb = new StringBuilder();
+        if (b.type == ParadoksDocParsers.Block.TABLE) {
+            for (ArrayList<String> row : b.table) {
+                for (String c : row) {
+                    sb.append(c).append(' ');
+                }
+            }
+        } else if (b.type == ParadoksDocParsers.Block.PARAGRAPH) {
+            sb.append(b.prefix);
+            for (ParadoksDocParsers.Run r : b.runs) {
+                sb.append(r.text);
+            }
+        }
+        return sb.toString();
+    }
+
+    private static int countWords(String s) {
+        int n = 0;
+        boolean in = false;
+        for (int i = 0; i < s.length(); i++) {
+            if (Character.isWhitespace(s.charAt(i))) {
+                in = false;
+            } else if (!in) {
+                in = true;
+                n++;
+            }
+        }
+        return n;
+    }
+
+    private int hitBlock() {
+        return !hits.isEmpty() && currentDoc != null ? hits.get(hitIndex) : -1;
+    }
+
+    /** Paints every match of the query; the current one is brighter. */
+    private static void highlight(SpannableStringBuilder sb, String q, boolean current) {
+        if (q == null || q.isEmpty()) {
+            return;
+        }
+        int[] found = ParadoksTextFormats.findAll(sb.toString(), q, 200);
+        for (int p : found) {
+            sb.setSpan(new BackgroundColorSpan(current ? 0xFFFF9800 : 0xFFFFEB3B), p, Math.min(sb.length(), p + q.length()), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+            sb.setSpan(new ForegroundColorSpan(Color.BLACK), p, Math.min(sb.length(), p + q.length()), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        }
+    }
+
+    private void ensureSearchBar(Context context) {
+        if (searchBar != null) {
+            return;
+        }
+        searchBar = new LinearLayout(context);
+        searchBar.setOrientation(LinearLayout.HORIZONTAL);
+        searchBar.setGravity(Gravity.CENTER_VERTICAL);
+        GradientDrawable bg = new GradientDrawable();
+        bg.setColor(Theme.getColor(Theme.key_windowBackgroundWhite));
+        bg.setStroke(dp(1), Theme.getColor(Theme.key_divider));
+        bg.setCornerRadius(dp(22));
+        searchBar.setBackground(bg);
+        searchBar.setElevation(dp(6));
+        searchBar.setPadding(dp(14), 0, dp(6), 0);
+        searchCount = new TextView(context);
+        searchCount.setTextSize(14);
+        searchCount.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteBlackText));
+        searchBar.addView(searchCount, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        TextView up = arrow(context, "▲", -1);
+        TextView down = arrow(context, "▼", 1);
+        searchBar.addView(up, new LinearLayout.LayoutParams(dp(44), dp(44)));
+        searchBar.addView(down, new LinearLayout.LayoutParams(dp(44), dp(44)));
+        searchBar.setVisibility(View.GONE);
+        FrameLayout.LayoutParams lp = LayoutHelper.createFrame(LayoutHelper.WRAP_CONTENT, 44, Gravity.BOTTOM | Gravity.RIGHT, 0, 0, 16, 24);
+        searchBar.setLayoutParams(lp);
+        root.addView(searchBar);
+    }
+
+    private TextView arrow(Context context, String glyph, int step) {
+        TextView tv = new TextView(context);
+        tv.setText(glyph);
+        tv.setTextSize(16);
+        tv.setGravity(Gravity.CENTER);
+        tv.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteBlueText));
+        tv.setOnClickListener(v -> {
+            if (!hits.isEmpty()) {
+                hitIndex = (hitIndex + step + hits.size()) % hits.size();
+                goToHit();
+            }
+        });
+        return tv;
+    }
+
+    private void runSearch(String q) {
+        query = q == null ? "" : q.trim();
+        hits.clear();
+        hitIndex = 0;
+        if (root == null) {
+            return;
+        }
+        ensureSearchBar(root.getContext());
+        if (query.length() < 1) {
+            searchBar.setVisibility(View.GONE);
+            refreshLists();
+            return;
+        }
+        if (currentDoc != null) {
+            for (int i = 0; i < currentDoc.blocks.size() && hits.size() < 5000; i++) {
+                int[] f = ParadoksTextFormats.findAll(blockText(currentDoc.blocks.get(i)), query, 50);
+                for (int k = 0; k < f.length; k++) {
+                    hits.add(i);
+                }
+            }
+        } else if (textData != null) {
+            int[] f = ParadoksTextFormats.findAll(textData.text, query, 5000);
+            for (int pos : f) {
+                int lo = 0;
+                int hi = chunkStarts.size() - 1;
+                while (lo < hi) {
+                    int mid = (lo + hi + 1) >>> 1;
+                    if (chunkStarts.get(mid) <= pos) {
+                        lo = mid;
+                    } else {
+                        hi = mid - 1;
+                    }
+                }
+                hits.add(lo);
+            }
+        }
+        searchBar.setVisibility(View.VISIBLE);
+        refreshLists();
+        goToHit();
+    }
+
+    private void refreshLists() {
+        if (docList != null && docList.getAdapter() != null) {
+            docList.getAdapter().notifyDataSetChanged();
+        }
+        if (textList != null && textList.getAdapter() != null) {
+            textList.getAdapter().notifyDataSetChanged();
+        }
+    }
+
+    private void goToHit() {
+        if (searchCount == null) {
+            return;
+        }
+        if (hits.isEmpty()) {
+            searchCount.setText("Topilmadi");
+            return;
+        }
+        searchCount.setText((hitIndex + 1) + " / " + hits.size());
+        RecyclerView target = currentDoc != null ? docList : textList;
+        if (target != null && target.getLayoutManager() instanceof LinearLayoutManager) {
+            ((LinearLayoutManager) target.getLayoutManager()).scrollToPositionWithOffset(hits.get(hitIndex), dp(80));
+            if (currentDoc != null && target.getAdapter() != null) {
+                target.getAdapter().notifyDataSetChanged();
+            }
+        }
+    }
+
+    private void changeTextSize(float factor) {
+        textScale = Math.max(0.7f, Math.min(2.2f, textScale * factor));
+        refreshLists();
+    }
+
+    private void copyAll() {
+        String text = null;
+        if (currentDoc != null) {
+            StringBuilder sb = new StringBuilder();
+            for (ParadoksDocParsers.Block b : currentDoc.blocks) {
+                String t = blockText(b);
+                if (!t.isEmpty()) {
+                    sb.append(t).append('\n');
+                }
+            }
+            text = sb.toString();
+        } else if (textData != null) {
+            text = textData.text;
+        }
+        if (text != null && !text.isEmpty() && AndroidUtilities.addToClipboard(text)) {
+            Toast.makeText(getParentActivity(), "Nusxalandi", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void showInfo() {
+        if (getParentActivity() == null) {
+            return;
+        }
+        StringBuilder sb = new StringBuilder();
+        sb.append("Nomi: ").append(displayName).append("\nTuri: ").append(ext.toUpperCase(Locale.US));
+        sb.append("\nHajmi: ").append(formatSize(file.length()));
+        if (ext.equals("pdf")) {
+            sb.append("\nSahifalar: ").append(pageCount);
+        }
+        if (textData != null) {
+            sb.append("\nTurkum: ").append(ParadoksTextFormats.category(ext));
+            sb.append("\nQatorlar: ").append(textData.lines).append("\nSo'zlar: ").append(textData.words);
+            sb.append("\nO'qish vaqti: ~").append(ParadoksTextFormats.readingMinutes(textData.words)).append(" daqiqa");
+            sb.append("\nKodlash: ").append(textData.charset);
+        } else if (!infoExtra.isEmpty()) {
+            sb.append('\n').append(infoExtra);
+        }
+        AlertDialog.Builder builder = new AlertDialog.Builder(getParentActivity());
+        builder.setTitle("Fayl haqida");
+        builder.setMessage(sb.toString());
+        builder.setPositiveButton("OK", null);
+        showDialog(builder.create());
+    }
+
+    private static final java.util.HashSet<String> KEYWORDS = new java.util.HashSet<>(java.util.Arrays.asList(
+            "if", "else", "for", "while", "do", "return", "class", "interface", "enum", "struct", "function", "def", "fun", "val", "var", "let", "const",
+            "import", "from", "package", "public", "private", "protected", "static", "final", "void", "int", "long", "float", "double", "boolean", "bool",
+            "string", "new", "null", "nil", "None", "true", "false", "True", "False", "try", "catch", "except", "finally", "throw", "throws", "switch",
+            "case", "break", "continue", "in", "is", "not", "and", "or", "async", "await", "extends", "implements", "override", "this", "self", "super",
+            "select", "insert", "update", "delete", "where", "create", "table", "echo", "fi", "then", "elif", "use", "mod", "pub", "impl", "type", "namespace"));
+
+    private void showText(Context context, ParadoksTextFormats.Text data) {
+        if (destroyed || root == null) {
+            return;
+        }
+        if (data.text.trim().isEmpty()) {
+            fail("Fayl bo'sh");
+            return;
+        }
+        textData = data;
+        monoText = !(ext.equals("txt") || ext.equals("md") || ext.equals("markdown") || ext.equals("rst") || ext.equals("tex"));
+        highlightCode = ParadoksTextFormats.category(ext).equals("Kod") || ext.equals("json") || ext.equals("xml") || ext.equals("html") || ext.equals("htm");
+        // split into chunks of 25 lines, so a huge file is never one giant view
+        String text = data.text;
+        int start = 0;
+        int lines = 0;
+        for (int i = 0; i <= text.length(); i++) {
+            if (i == text.length() || text.charAt(i) == '\n') {
+                lines++;
+                if (lines == 25 || i == text.length()) {
+                    chunkStarts.add(start);
+                    chunks.add(text.substring(start, Math.min(text.length(), i)));
+                    start = i + 1;
+                    lines = 0;
+                }
+            }
+        }
+        actionBar.setSubtitle(ParadoksTextFormats.category(ext) + " · " + formatSize(file.length()) + " · " + data.lines + " qator · " + data.words + " so'z");
+        textList = new RecyclerView(context);
+        textList.setLayoutManager(new LinearLayoutManager(context));
+        textList.setPadding(dp(14), dp(8), dp(14), dp(24));
+        textList.setClipToPadding(false);
+        textList.setAdapter(new TextAdapter());
+        if (data.truncated) {
+            LinearLayout box = new LinearLayout(context);
+            box.setOrientation(LinearLayout.VERTICAL);
+            TextView note = new TextView(context);
+            note.setText("Fayl katta, dastlabki 5 MB ko'rsatildi");
+            note.setTextSize(13);
+            note.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteGrayText));
+            note.setPadding(dp(16), dp(8), dp(16), dp(8));
+            box.addView(note);
+            box.addView(textList, new LinearLayout.LayoutParams(LayoutHelper.MATCH_PARENT, 0, 1f));
+            setContent(box);
+        } else {
+            setContent(textList);
+        }
+    }
+
+    private SpannableStringBuilder styleCode(String text) {
+        SpannableStringBuilder sb = new SpannableStringBuilder(text);
+        int n = text.length();
+        int i = 0;
+        final boolean hash = ext.equals("py") || ext.equals("sh") || ext.equals("yaml") || ext.equals("yml") || ext.equals("toml")
+                || ext.equals("rb") || ext.equals("ini") || ext.equals("conf") || ext.equals("properties") || ext.equals("env") || ext.equals("gitignore");
+        while (i < n) {
+            char c = text.charAt(i);
+            if (c == '"' || c == '\'') {
+                int j = i + 1;
+                while (j < n && text.charAt(j) != c && text.charAt(j) != '\n') {
+                    if (text.charAt(j) == '\\') {
+                        j++;
+                    }
+                    j++;
+                }
+                j = Math.min(n, j + 1);
+                sb.setSpan(new ForegroundColorSpan(0xFF2E9E5B), i, j, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+                i = j;
+            } else if ((c == '/' && i + 1 < n && text.charAt(i + 1) == '/') || (hash && c == '#') || (c == '-' && i + 1 < n && text.charAt(i + 1) == '-' && ext.equals("sql"))) {
+                int j = text.indexOf('\n', i);
+                j = j < 0 ? n : j;
+                sb.setSpan(new ForegroundColorSpan(0xFF8A8F98), i, j, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+                i = j;
+            } else if (Character.isDigit(c) && (i == 0 || !Character.isLetterOrDigit(text.charAt(i - 1)))) {
+                int j = i + 1;
+                while (j < n && (Character.isLetterOrDigit(text.charAt(j)) || text.charAt(j) == '.')) {
+                    j++;
+                }
+                sb.setSpan(new ForegroundColorSpan(0xFFE08A1E), i, j, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+                i = j;
+            } else if (Character.isLetter(c) || c == '_') {
+                int j = i + 1;
+                while (j < n && (Character.isLetterOrDigit(text.charAt(j)) || text.charAt(j) == '_')) {
+                    j++;
+                }
+                if (KEYWORDS.contains(text.substring(i, j))) {
+                    sb.setSpan(new ForegroundColorSpan(0xFF7C5CE6), i, j, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+                    sb.setSpan(new StyleSpan(Typeface.BOLD), i, j, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+                }
+                i = j;
+            } else {
+                i++;
+            }
+        }
+        return sb;
+    }
+
+    private final class TextAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
+        @Override
+        public RecyclerView.ViewHolder onCreateViewHolder(ViewGroup parent, int viewType) {
+            TextView tv = new TextView(parent.getContext());
+            tv.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteBlackText));
+            tv.setLineSpacing(0, 1.12f);
+            tv.setTypeface(monoText ? Typeface.MONOSPACE : Typeface.DEFAULT);
+            tv.setLayoutParams(new RecyclerView.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+            return new RecyclerView.ViewHolder(tv) {
+            };
+        }
+
+        @Override
+        public void onBindViewHolder(RecyclerView.ViewHolder holder, int position) {
+            TextView tv = (TextView) holder.itemView;
+            tv.setTextSize(TypedValue.COMPLEX_UNIT_SP, (monoText ? 13 : 16) * textScale);
+            String chunk = chunks.get(position);
+            SpannableStringBuilder sb = highlightCode ? styleCode(chunk) : new SpannableStringBuilder(chunk);
+            highlight(sb, query, !hits.isEmpty() && hits.get(hitIndex) == position);
+            tv.setText(sb);
+            tv.setOnLongClickListener(v -> {
+                AndroidUtilities.addToClipboard(chunks.get(holder.getAdapterPosition()));
+                Toast.makeText(v.getContext(), "Bu qism nusxalandi", Toast.LENGTH_SHORT).show();
+                return true;
+            });
+        }
+
+        @Override
+        public int getItemCount() {
+            return chunks.size();
+        }
+    }
+
     private void showDoc(Context context, ParadoksDocParsers.Doc doc) {
         if (destroyed || root == null) {
             return;
@@ -510,7 +965,25 @@ public class ParadoksDocViewerActivity extends BaseFragment {
             fail("Hujjatda matn topilmadi");
             return;
         }
+        currentDoc = doc;
+        int words = 0;
+        for (ParadoksDocParsers.Block b : doc.blocks) {
+            words += countWords(blockText(b));
+        }
+        String sub = formatSize(file.length()) + " · " + words + " so'z · ~" + ParadoksTextFormats.readingMinutes(words) + " daq";
+        if (ext.equals("pptx") || ext.equals("odp")) {
+            int slides = 0;
+            for (ParadoksDocParsers.Block b : doc.blocks) {
+                if (b.heading == 1 && !b.runs.isEmpty() && b.runs.get(0).text.startsWith("Slayd ")) {
+                    slides++;
+                }
+            }
+            sub = formatSize(file.length()) + " · " + slides + " slayd · " + words + " so'z";
+        }
+        actionBar.setSubtitle(sub);
+        infoExtra = "So'zlar: " + words + "\nO'qish vaqti: ~" + ParadoksTextFormats.readingMinutes(words) + " daqiqa";
         RecyclerView list = new RecyclerView(context);
+        docList = list;
         list.setLayoutManager(new LinearLayoutManager(context));
         list.setPadding(dp(16), dp(8), dp(16), dp(24));
         list.setClipToPadding(false);
@@ -607,6 +1080,7 @@ public class ParadoksDocViewerActivity extends BaseFragment {
                 return;
             }
             TextView tv = (TextView) holder.itemView;
+            tv.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16 * textScale);
             SpannableStringBuilder sb = new SpannableStringBuilder();
             sb.append(block.prefix);
             for (ParadoksDocParsers.Run run : block.runs) {
@@ -629,11 +1103,12 @@ public class ParadoksDocViewerActivity extends BaseFragment {
             if (block.heading > 0) {
                 int[] sizes = {0, 26, 22, 19, 17, 16, 16};
                 sb.setSpan(new StyleSpan(Typeface.BOLD), 0, sb.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-                sb.setSpan(new AbsoluteSizeSpan(sizes[Math.min(6, block.heading)], true), 0, sb.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+                sb.setSpan(new AbsoluteSizeSpan(Math.round(sizes[Math.min(6, block.heading)] * textScale), true), 0, sb.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
                 tv.setPadding(0, dp(block.heading <= 2 ? 10 : 6), 0, dp(2));
             } else {
                 tv.setPadding(0, 0, 0, 0);
             }
+            highlight(sb, query, position == hitBlock());
             tv.setText(sb);
         }
 
