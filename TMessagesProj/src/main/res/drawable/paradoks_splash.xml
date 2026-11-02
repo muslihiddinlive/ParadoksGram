@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- ParadoksGram splash: the ghost floats up, wakes up (eyes open) and blinks. -->
+<animated-vector
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt">
+    <aapt:attr name="android:drawable">
+        <vector
+            android:width="320dp"
+            android:height="320dp"
+            android:viewportWidth="432"
+            android:viewportHeight="432">
+            <group android:name="center" android:translateX="4.5" android:translateY="-3.5"
+                android:pivotX="211.5" android:pivotY="219.5" android:scaleX="1.15" android:scaleY="1.15">
+                <group android:name="rise" android:translateY="90">
+                    <path android:name="shadow0" android:fillColor="#34363e" android:fillAlpha="0" android:pathData="M 176,249 L 163,265 L 165,267 L 156,301 L 185,263 L 187,265 Z"/>
+                    <path android:name="shadow1" android:fillColor="#34363e" android:fillAlpha="0" android:pathData="M 236,247 L 225,265 L 234,280 L 246,261 Z"/>
+                    <path android:name="shadow2" android:fillColor="#34363e" android:fillAlpha="0" android:pathData="M 206,247 L 194,267 L 197,268 L 204,280 L 214,263 L 216,263 Z"/>
+                    <path android:name="shadow3" android:fillColor="#34363e" android:fillAlpha="0" android:pathData="M 248,146 L 268,169 L 268,238 L 254,264 L 256,264 L 264,278 L 280,249 L 280,178 L 253,147 Z"/>
+                    <path android:name="body" android:fillColor="#b7bbc6" android:fillAlpha="0" android:pathData="M 241,138 L 182,138 L 156,169 L 157,238 L 143,290 L 176,248 L 191,270 L 206,246 L 221,270 L 236,246 L 252,267 L 267,238 L 267,169 Z"/>
+                    <group android:name="eyes" android:pivotX="211" android:pivotY="200" android:scaleY="0">
+                        <path android:fillColor="#0b0c0f" android:pathData="M 252,185 L 252,201 L 250,203 L 217,214 L 215,206 L 217,199 L 247,185 Z"/>
+                        <path android:fillColor="#0b0c0f" android:pathData="M 171,185 L 176,185 L 208,201 L 206,213 L 202,214 L 171,201 Z"/>
+                    </group>
+                </group>
+            </group>
+        </vector>
+    </aapt:attr>
+    <target android:name="rise">
+        <aapt:attr name="android:animation">
+            <objectAnimator android:propertyName="translateY" android:duration="650"
+                android:valueFrom="90" android:valueTo="0" android:valueType="floatType"
+                android:interpolator="@android:anim/overshoot_interpolator"/>
+        </aapt:attr>
+    </target>
+    <target android:name="shadow0">
+        <aapt:attr name="android:animation">
+            <objectAnimator android:propertyName="fillAlpha" android:duration="300"
+                android:valueFrom="0" android:valueTo="1" android:valueType="floatType"
+                android:interpolator="@android:interpolator/fast_out_slow_in"/>
+        </aapt:attr>
+    </target>
+    <target android:name="shadow1">
+        <aapt:attr name="android:animation">
+            <objectAnimator android:propertyName="fillAlpha" android:duration="300"
+                android:valueFrom="0" android:valueTo="1" android:valueType="floatType"
+                android:interpolator="@android:interpolator/fast_out_slow_in"/>
+        </aapt:attr>
+    </target>
+    <target android:name="shadow2">
+        <aapt:attr name="android:animation">
+            <objectAnimator android:propertyName="fillAlpha" android:duration="300"
+                android:valueFrom="0" android:valueTo="1" android:valueType="floatType"
+                android:interpolator="@android:interpolator/fast_out_slow_in"/>
+        </aapt:attr>
+    </target>
+    <target android:name="shadow3">
+        <aapt:attr name="android:animation">
+            <objectAnimator android:propertyName="fillAlpha" android:duration="300"
+                android:valueFrom="0" android:valueTo="1" android:valueType="floatType"
+                android:interpolator="@android:interpolator/fast_out_slow_in"/>
+        </aapt:attr>
+    </target>
+    <target android:name="body">
+        <aapt:attr name="android:animation">
+            <objectAnimator android:propertyName="fillAlpha" android:duration="300"
+                android:valueFrom="0" android:valueTo="1" android:valueType="floatType"
+                android:interpolator="@android:interpolator/fast_out_slow_in"/>
+        </aapt:attr>
+    </target>
+    <target android:name="eyes">
+        <aapt:attr name="android:animation">
+            <set>
+                <objectAnimator android:propertyName="scaleY" android:startOffset="520" android:duration="130"
+                    android:valueFrom="0" android:valueTo="1" android:valueType="floatType"
+                    android:interpolator="@android:interpolator/fast_out_slow_in"/>
+                <objectAnimator android:propertyName="scaleY" android:startOffset="730" android:duration="60"
+                    android:valueFrom="1" android:valueTo="0.08" android:valueType="floatType"/>
+                <objectAnimator android:propertyName="scaleY" android:startOffset="790" android:duration="60"
+                    android:valueFrom="0.08" android:valueTo="1" android:valueType="floatType"/>
+            </set>
+        </aapt:attr>
+    </target>
+</animated-vector>
