@@ -44,6 +44,7 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import org.telegram.messenger.AndroidUtilities;
+import org.telegram.messenger.ApplicationLoader;
 import org.telegram.messenger.R;
 import org.telegram.ui.ActionBar.ActionBar;
 import org.telegram.ui.ActionBar.ActionBarMenu;
@@ -144,6 +145,9 @@ public class ParadoksDocViewerActivity extends BaseFragment {
                     }
                 } else if (id == 3 || id == 4) {
                     changeTextSize(id == 3 ? 1.15f : 1f / 1.15f);
+                } else if (id == 8) {
+                    lineNumbers = !lineNumbers;
+                    refreshLists();
                 } else if (id == 5) {
                     copyAll();
                 } else if (id == 6) {
@@ -180,6 +184,9 @@ public class ParadoksDocViewerActivity extends BaseFragment {
             more.addSubItem(3, R.drawable.msg_zoomin, "Matnni kattalashtirish");
             more.addSubItem(4, R.drawable.msg_zoomout, "Matnni kichiklashtirish");
             more.addSubItem(5, R.drawable.msg_copy, "Hammasini nusxalash");
+        }
+        if (ParadoksTextFormats.isText(ext) && !ParadoksTextFormats.isTable(ext)) {
+            more.addSubItem(8, R.drawable.msg_text_check, "Qator raqamlarini ko'rsatish/yashirish");
         }
         more.addSubItem(6, R.drawable.msg_info, "Fayl haqida");
         more.addSubItem(1, R.drawable.msg_openin, "Boshqa ilova bilan ochish");
@@ -239,6 +246,7 @@ public class ParadoksDocViewerActivity extends BaseFragment {
                     case "pptx":
                     case "odt":
                     case "odp":
+                    case "ppt":
                     case "rtf":
                     case "doc": {
                         final ParadoksDocParsers.Doc doc;
@@ -246,6 +254,7 @@ public class ParadoksDocViewerActivity extends BaseFragment {
                             case "pptx": doc = ParadoksOfficeExtra.readPptx(file); break;
                             case "odt": doc = ParadoksOfficeExtra.readOdt(file); break;
                             case "odp": doc = ParadoksOfficeExtra.readOdp(file); break;
+                            case "ppt": doc = ParadoksOfficeExtra.readPpt(file); break;
                             case "rtf": doc = ParadoksOfficeExtra.readRtf(file); break;
                             case "doc": doc = ParadoksOfficeExtra.readDoc(file); break;
                             default: doc = ParadoksDocParsers.readDocx(file);
@@ -554,7 +563,7 @@ public class ParadoksDocViewerActivity extends BaseFragment {
             image.setTag(position);
             final int width = pdfWidth();
             final int target = Math.min(1600, Math.round(width * 1.25f));
-            final String key = position + "@" + target;
+            final String key = position + "@" + target + "@" + pdfQuery;
             image.setMinimumHeight((int) (width * pageRatio));
             Bitmap cached = pageCache.get(key);
             if (cached != null) {
@@ -575,6 +584,16 @@ public class ParadoksDocViewerActivity extends BaseFragment {
                         bitmap = Bitmap.createBitmap(target, h, Bitmap.Config.ARGB_8888);
                         bitmap.eraseColor(Color.WHITE);
                         page.render(bitmap, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY);
+                        ArrayList<float[]> marks = pdfMatches.get(position);
+                        if (marks != null) {
+                            android.graphics.Canvas canvas = new android.graphics.Canvas(bitmap);
+                            android.graphics.Paint paint = new android.graphics.Paint();
+                            paint.setColor(0x80FFEB3B);
+                            float scale = target / (float) Math.max(1, page.getWidth());
+                            for (float[] m : marks) {
+                                canvas.drawRect(m[0] * scale, m[1] * scale, m[2] * scale, m[3] * scale, paint);
+                            }
+                        }
                         page.close();
                     } catch (Throwable e) {
                         bitmap = null;
@@ -611,7 +630,75 @@ public class ParadoksDocViewerActivity extends BaseFragment {
     }
 
     private boolean isSearchable() {
-        return !ext.equals("pdf") && !isSheetFormat();
+        return true;
+    }
+
+    private boolean lineNumbers = true;
+    private ParadoksDocParsers.Sheet activeSheet;
+    private final java.util.concurrent.ConcurrentHashMap<Integer, ArrayList<float[]>> pdfMatches = new java.util.concurrent.ConcurrentHashMap<>();
+    private volatile String pdfQuery = "";
+    private int pdfSearchToken;
+
+    private static boolean cellMatches(String text, String q) {
+        return !q.isEmpty() && !text.isEmpty() && text.toLowerCase(Locale.ROOT).contains(q.toLowerCase(Locale.ROOT));
+    }
+
+    /** Android 15+ can search PDF text (PdfRenderer.Page.searchText); older versions cannot. */
+    private void searchPdf(final String q) {
+        final int token = ++pdfSearchToken;
+        pdfMatches.clear();
+        pdfQuery = q;
+        if (pdfExecutor == null) {
+            return;
+        }
+        if (android.os.Build.VERSION.SDK_INT < 35) {
+            Toast.makeText(getParentActivity(), "PDF ichidan qidirish Android 15 va undan yangisida ishlaydi", Toast.LENGTH_LONG).show();
+            return;
+        }
+        searchCount.setText("Qidirilmoqda...");
+        try {
+            pdfExecutor.execute(() -> {
+                final ArrayList<Integer> found = new ArrayList<>();
+                try {
+                    for (int i = 0; i < pageCount && i < 1500 && token == pdfSearchToken && !destroyed; i++) {
+                        PdfRenderer.Page page = renderer.openPage(i);
+                        try {
+                            java.lang.reflect.Method m = page.getClass().getMethod("searchText", String.class);
+                            java.util.List<?> list = (java.util.List<?>) m.invoke(page, q);
+                            if (list != null && !list.isEmpty()) {
+                                ArrayList<float[]> rects = new ArrayList<>();
+                                for (Object match : list) {
+                                    java.util.List<?> bounds = (java.util.List<?>) match.getClass().getMethod("getBounds").invoke(match);
+                                    for (Object r : bounds) {
+                                        android.graphics.RectF rf = (android.graphics.RectF) r;
+                                        rects.add(new float[]{rf.left, rf.top, rf.right, rf.bottom, page.getWidth(), page.getHeight()});
+                                    }
+                                }
+                                pdfMatches.put(i, rects);
+                                found.add(i);
+                            }
+                        } finally {
+                            page.close();
+                        }
+                    }
+                } catch (Throwable e) {
+                    AndroidUtilities.runOnUIThread(() -> Toast.makeText(ApplicationLoader.applicationContext, "Bu qurilmada PDF qidiruvi ishlamadi", Toast.LENGTH_LONG).show());
+                }
+                AndroidUtilities.runOnUIThread(() -> {
+                    if (destroyed || token != pdfSearchToken) {
+                        return;
+                    }
+                    hits.clear();
+                    hits.addAll(found);
+                    hitIndex = 0;
+                    if (pdfList != null && pdfList.getAdapter() != null) {
+                        pdfList.getAdapter().notifyDataSetChanged();
+                    }
+                    goToHit();
+                });
+            });
+        } catch (RejectedExecutionException ignore) {
+        }
     }
 
     private static String blockText(ParadoksDocParsers.Block b) {
@@ -714,6 +801,11 @@ public class ParadoksDocViewerActivity extends BaseFragment {
         ensureSearchBar(root.getContext());
         if (query.length() < 1) {
             searchBar.setVisibility(View.GONE);
+            if (renderer != null) {
+                pdfSearchToken++;
+                pdfMatches.clear();
+                pdfQuery = "";
+            }
             refreshLists();
             return;
         }
@@ -739,6 +831,18 @@ public class ParadoksDocViewerActivity extends BaseFragment {
                 }
                 hits.add(lo);
             }
+        } else if (activeSheet != null) {
+            for (int r = 0; r < activeSheet.rows.size() && hits.size() < 5000; r++) {
+                for (String c : activeSheet.rows.get(r)) {
+                    if (c != null && cellMatches(c, query)) {
+                        hits.add(r + 1);
+                    }
+                }
+            }
+        } else if (renderer != null) {
+            searchBar.setVisibility(View.VISIBLE);
+            searchPdf(query);
+            return;
         }
         searchBar.setVisibility(View.VISIBLE);
         refreshLists();
@@ -752,6 +856,12 @@ public class ParadoksDocViewerActivity extends BaseFragment {
         if (textList != null && textList.getAdapter() != null) {
             textList.getAdapter().notifyDataSetChanged();
         }
+        if (gridList != null && gridList.getAdapter() != null) {
+            gridList.getAdapter().notifyDataSetChanged();
+        }
+        if (pdfList != null && pdfList.getAdapter() != null) {
+            pdfList.getAdapter().notifyDataSetChanged();
+        }
     }
 
     private void goToHit() {
@@ -763,7 +873,7 @@ public class ParadoksDocViewerActivity extends BaseFragment {
             return;
         }
         searchCount.setText((hitIndex + 1) + " / " + hits.size());
-        RecyclerView target = currentDoc != null ? docList : textList;
+        RecyclerView target = currentDoc != null ? docList : textData != null ? textList : activeSheet != null ? gridList : pdfList;
         if (target != null && target.getLayoutManager() instanceof LinearLayoutManager) {
             ((LinearLayoutManager) target.getLayoutManager()).scrollToPositionWithOffset(hits.get(hitIndex), dp(80));
             if (currentDoc != null && target.getAdapter() != null) {
@@ -943,6 +1053,29 @@ public class ParadoksDocViewerActivity extends BaseFragment {
             String chunk = chunks.get(position);
             SpannableStringBuilder sb = highlightCode ? styleCode(chunk) : new SpannableStringBuilder(chunk);
             highlight(sb, query, !hits.isEmpty() && hits.get(hitIndex) == position);
+            if (monoText && lineNumbers) {
+                int digits = String.valueOf(Math.max(1, textData.lines)).length();
+                int base = position * 25;
+                int lineNo = 0;
+                for (int i = 0; i < chunk.length(); i++) {
+                    if (chunk.charAt(i) == '\n') {
+                        lineNo++;
+                    }
+                }
+                // insert from the last line to the first so earlier offsets stay valid
+                int idx = lineNo;
+                int pos = chunk.lastIndexOf('\n') + 1;
+                while (true) {
+                    String num = String.format(Locale.US, "%" + digits + "d  ", base + idx + 1);
+                    sb.insert(pos, num);
+                    sb.setSpan(new ForegroundColorSpan(0xFF8A8F98), pos, pos + num.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+                    if (idx == 0) {
+                        break;
+                    }
+                    pos = chunk.lastIndexOf('\n', pos - 2) + 1;
+                    idx--;
+                }
+            }
             tv.setText(sb);
             tv.setOnLongClickListener(v -> {
                 AndroidUtilities.addToClipboard(chunks.get(holder.getAdapterPosition()));
@@ -971,7 +1104,7 @@ public class ParadoksDocViewerActivity extends BaseFragment {
             words += countWords(blockText(b));
         }
         String sub = formatSize(file.length()) + " · " + words + " so'z · ~" + ParadoksTextFormats.readingMinutes(words) + " daq";
-        if (ext.equals("pptx") || ext.equals("odp")) {
+        if (ext.equals("pptx") || ext.equals("odp") || ext.equals("ppt")) {
             int slides = 0;
             for (ParadoksDocParsers.Block b : doc.blocks) {
                 if (b.heading == 1 && !b.runs.isEmpty() && b.runs.get(0).text.startsWith("Slayd ")) {
@@ -1321,6 +1454,7 @@ public class ParadoksDocViewerActivity extends BaseFragment {
 
     private void selectSheet(Context context, ArrayList<ParadoksDocParsers.Sheet> sheets, int index) {
         ParadoksDocParsers.Sheet sheet = sheets.get(index);
+        activeSheet = sheet;
         for (int i = 0; i < tabs.size(); i++) {
             TextView tab = tabs.get(i);
             boolean active = i == index;
@@ -1369,6 +1503,9 @@ public class ParadoksDocViewerActivity extends BaseFragment {
         gridList.setLayoutParams(lp);
         gridList.setAdapter(new GridAdapter(sheet, widths, rowNumberWidth));
         gridScroll.scrollTo(0, 0);
+        if (!query.isEmpty()) {
+            runSearch(query);
+        }
     }
 
     private final class GridAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
@@ -1419,6 +1556,10 @@ public class ParadoksDocViewerActivity extends BaseFragment {
                 TextView cell = (TextView) row.getChildAt(c + 1);
                 final String text = c < data.length && data[c] != null ? data[c] : "";
                 cell.setText(text);
+                if (cell.getBackground() instanceof GradientDrawable) {
+                    ((GradientDrawable) cell.getBackground()).setColor(cellMatches(text, query) ? 0xFFFFEB3B : 0);
+                    cell.setTextColor(cellMatches(text, query) ? Color.BLACK : Theme.getColor(Theme.key_windowBackgroundWhiteBlackText));
+                }
                 cell.setGravity((looksNumeric(text) ? Gravity.END : Gravity.START) | Gravity.CENTER_VERTICAL);
                 if (text.isEmpty()) {
                     cell.setOnClickListener(null);

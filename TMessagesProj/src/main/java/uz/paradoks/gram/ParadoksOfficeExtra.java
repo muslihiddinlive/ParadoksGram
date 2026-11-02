@@ -1197,6 +1197,147 @@ public final class ParadoksOfficeExtra {
         }
     }
 
+    // ================================================================== PPT (PowerPoint 97-2003, text only)
+
+    public static ParadoksDocParsers.Doc readPpt(File file) throws IOException {
+        byte[] all = ParadoksXlsReader.readAll(file);
+        byte[] d;
+        try {
+            d = ParadoksXlsReader.stream(all, new String[]{"PowerPoint Document"});
+        } catch (ParadoksDocParsers.ParseException e) {
+            throw new ParadoksDocParsers.ParseException("Bu PowerPoint (.ppt) fayli emas yoki buzilgan");
+        }
+        ParadoksDocParsers.Doc doc = new ParadoksDocParsers.Doc();
+        int[] slideCount = new int[1];
+        walkPpt(d, 0, d.length, doc, slideCount, 0);
+        if (doc.blocks.size() <= slideCount[0]) {
+            // text lives in the slides themselves (some writers, LibreOffice for one, skip the text list)
+            doc.blocks.clear();
+            slideCount[0] = 0;
+            walkPptSlides(d, 0, d.length, doc, slideCount, 0);
+        }
+        if (slideCount[0] == 0 || doc.blocks.size() <= slideCount[0]) {
+            throw new ParadoksDocParsers.ParseException("Slaydlarda matn topilmadi");
+        }
+        return doc;
+    }
+
+    private static void walkPptSlides(byte[] d, int start, int limit, ParadoksDocParsers.Doc doc, int[] count, int depth) throws IOException {
+        int p = start;
+        while (p + 8 <= limit) {
+            int verInst = u16(d, p);
+            int type = u16(d, p + 2);
+            long len = i32(d, p + 4) & 0xFFFFFFFFL;
+            int body = p + 8;
+            if (len > limit - body) {
+                break;
+            }
+            int end = (int) (body + len);
+            if (type == 0x03EE && (verInst & 0xF) == 0xF) {
+                count[0]++;
+                doc.blocks.add(paragraph("Slayd " + count[0], true, false, 1, ""));
+                collectPptText(d, body, end, doc, 0);
+            } else if ((verInst & 0xF) == 0xF && depth < 8 && type != 0x03F8 && type != 0x03F0) {
+                walkPptSlides(d, body, end, doc, count, depth + 1);
+            }
+            p = end;
+        }
+    }
+
+    private static void collectPptText(byte[] d, int start, int limit, ParadoksDocParsers.Doc doc, int depth) throws IOException {
+        int p = start;
+        while (p + 8 <= limit) {
+            int verInst = u16(d, p);
+            int type = u16(d, p + 2);
+            long len = i32(d, p + 4) & 0xFFFFFFFFL;
+            int body = p + 8;
+            if (len > limit - body) {
+                break;
+            }
+            int end = (int) (body + len);
+            if ((verInst & 0xF) == 0xF) {
+                if (depth < 16) {
+                    collectPptText(d, body, end, doc, depth + 1);
+                }
+            } else if (type == 0x0FA0 || type == 0x0FA8) {
+                String text;
+                if (type == 0x0FA0) {
+                    text = new String(d, body, (int) (len & ~1L), "UTF-16LE");
+                } else {
+                    StringBuilder sb = new StringBuilder();
+                    for (int i = body; i < end; i++) {
+                        sb.append(cp1252(d[i] & 0xFF));
+                    }
+                    text = sb.toString();
+                }
+                for (String line : text.split("[\\r\\u000B\\n]")) {
+                    String tl = line.trim();
+                    if (!tl.isEmpty() && doc.blocks.size() < MAX_BLOCKS) {
+                        doc.blocks.add(paragraph(tl, false, false, 0, ""));
+                    }
+                }
+            }
+            p = end;
+        }
+    }
+
+    private static void walkPpt(byte[] d, int start, int limit, ParadoksDocParsers.Doc doc, int[] count, int depth) throws IOException {
+        int p = start;
+        while (p + 8 <= limit) {
+            int verInst = u16(d, p);
+            int type = u16(d, p + 2);
+            long len = i32(d, p + 4) & 0xFFFFFFFFL;
+            int body = p + 8;
+            if (len > limit - body) {
+                break;
+            }
+            int end = (int) (body + len);
+            if (type == 0x0FF0 && (verInst >> 4) == 0) {
+                // SlideListWithTexts for slides: SlidePersistAtom starts a slide, text atoms follow
+                int q = body;
+                boolean title = false;
+                while (q + 8 <= end) {
+                    int t = u16(d, q + 2);
+                    long l = i32(d, q + 4) & 0xFFFFFFFFL;
+                    int b = q + 8;
+                    if (l > end - b) {
+                        break;
+                    }
+                    int e = (int) (b + l);
+                    if (t == 0x03F3) {
+                        count[0]++;
+                        doc.blocks.add(paragraph("Slayd " + count[0], true, false, 1, ""));
+                        title = false;
+                    } else if (t == 0x0F9F && l >= 4) {
+                        int kind = i32(d, b);
+                        title = kind == 0 || kind == 6;
+                    } else if (t == 0x0FA0 || t == 0x0FA8) {
+                        String text;
+                        if (t == 0x0FA0) {
+                            text = new String(d, b, (int) (l & ~1L), "UTF-16LE");
+                        } else {
+                            StringBuilder sb = new StringBuilder();
+                            for (int i = b; i < e; i++) {
+                                sb.append(cp1252(d[i] & 0xFF));
+                            }
+                            text = sb.toString();
+                        }
+                        for (String line : text.split("[\\r\\u000B\\n]")) {
+                            String tl = line.trim();
+                            if (!tl.isEmpty() && doc.blocks.size() < MAX_BLOCKS) {
+                                doc.blocks.add(paragraph(tl, title, false, title ? 2 : 0, ""));
+                            }
+                        }
+                    }
+                    q = e;
+                }
+            }
+            else if ((verInst & 0xF) == 0xF && depth < 8) {
+                walkPpt(d, body, end, doc, count, depth + 1);
+            }
+            p = end;
+        }
+    }
     private ParadoksOfficeExtra() {
     }
 }

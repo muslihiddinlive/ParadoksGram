@@ -42,7 +42,7 @@ public final class ParadoksDocViewer {
         switch (ext) {
             case "pdf": case "docx": case "doc": case "rtf": case "odt":
             case "xlsx": case "xls": case "ods":
-            case "pptx": case "odp":
+            case "pptx": case "odp": case "ppt":
                 return true;
             default:
                 return ParadoksTextFormats.isText(ext);
