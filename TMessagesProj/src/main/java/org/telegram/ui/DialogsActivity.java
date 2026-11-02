@@ -3544,7 +3544,7 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
                 statusDrawable = new AnimatedEmojiDrawable.SwapAnimatedEmojiDrawable(null, dp(26));
                 statusDrawable.center = true;
                 // ParadoksGram: show text title instead of the Telegram logo image; the name is fixed (the language pack would turn AppName into "Telegram") and shrinks when the buttons leave little room
-                actionBar.setTitle(getString(R.string.ParadoksAppName), statusDrawable);
+                actionBar.setTitle("ParadoksGram", statusDrawable); // plain text: the localization lookup returned "LOC_ERR:null" for this string
                 actionBar.setParadoksFitTitle(true);
                 updateStatus(UserConfig.getInstance(currentAccount).getCurrentUser(), false);
             }
