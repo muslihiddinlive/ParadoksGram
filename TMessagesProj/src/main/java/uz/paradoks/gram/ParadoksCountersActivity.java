@@ -21,7 +21,10 @@ import android.widget.TextView;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ChatObject;
 import org.telegram.messenger.DialogObject;
+import org.telegram.messenger.LocaleController;
 import org.telegram.messenger.MessagesController;
+import org.telegram.messenger.NotificationCenter;
+import org.telegram.messenger.NotificationsController;
 import org.telegram.messenger.R;
 import org.telegram.messenger.UserConfig;
 import org.telegram.tgnet.TLRPC;
@@ -30,8 +33,13 @@ import org.telegram.ui.ActionBar.AlertDialog;
 import org.telegram.ui.ActionBar.BaseFragment;
 import org.telegram.ui.ActionBar.Theme;
 import org.telegram.ui.ChatActivity;
+import org.telegram.ui.Components.AlertsCreator;
+import org.telegram.ui.Components.BulletinFactory;
+import org.telegram.ui.Components.ItemOptions;
 import org.telegram.ui.Components.LayoutHelper;
+import org.telegram.ui.Components.Premium.LimitReachedBottomSheet;
 import org.telegram.ui.Components.RecyclerListView;
+import org.telegram.ui.ProfileActivity;
 
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
@@ -43,9 +51,11 @@ import java.util.List;
 
 /**
  * Interactive chat counters screen. Shows totals per category; tapping a category
- * opens a list of those chats; tapping a chat opens it. Unread messages has a bar chart.
+ * opens a list of those chats; tapping a chat opens it; long-pressing a chat shows the usual
+ * chat actions (read/unread, profile, pin, mute, archive, clear, delete...).
+ * Unread messages has a bar chart.
  */
-public class ParadoksCountersActivity extends BaseFragment {
+public class ParadoksCountersActivity extends BaseFragment implements NotificationCenter.NotificationCenterDelegate {
 
     // Sections
     private static final int S_HEADER_TOTALS = 0;
@@ -72,6 +82,9 @@ public class ParadoksCountersActivity extends BaseFragment {
     private List<TLRPC.Dialog> allDialogs;
     private List<TLRPC.Dialog> people, bots, groups, channels, unreadChats, mutedChats;
     private int totalUnreadMessages;
+    private boolean menuShowing;
+    private boolean refreshPending;
+    private final Runnable refreshRunnable = this::refreshData;
 
     private static class Item {
         int type;
@@ -82,6 +95,56 @@ public class ParadoksCountersActivity extends BaseFragment {
         // chart bar
         String barLabel;
         int barValue, barMax;
+    }
+
+    @Override
+    public boolean onFragmentCreate() {
+        account = UserConfig.selectedAccount;
+        NotificationCenter nc = NotificationCenter.getInstance(account);
+        nc.addObserver(this, NotificationCenter.dialogsNeedReload);
+        nc.addObserver(this, NotificationCenter.dialogsUnreadCounterChanged);
+        nc.addObserver(this, NotificationCenter.notificationsSettingsUpdated);
+        nc.addObserver(this, NotificationCenter.updateInterfaces);
+        return super.onFragmentCreate();
+    }
+
+    @Override
+    public void onFragmentDestroy() {
+        NotificationCenter nc = NotificationCenter.getInstance(account);
+        nc.removeObserver(this, NotificationCenter.dialogsNeedReload);
+        nc.removeObserver(this, NotificationCenter.dialogsUnreadCounterChanged);
+        nc.removeObserver(this, NotificationCenter.notificationsSettingsUpdated);
+        nc.removeObserver(this, NotificationCenter.updateInterfaces);
+        AndroidUtilities.cancelRunOnUIThread(refreshRunnable);
+        super.onFragmentDestroy();
+    }
+
+    @Override
+    public void didReceivedNotification(int id, int account, Object... args) {
+        if (account != this.account) return;
+        if (id == NotificationCenter.updateInterfaces) {
+            int mask = args.length > 0 && args[0] instanceof Integer ? (Integer) args[0] : 0;
+            if ((mask & MessagesController.UPDATE_MASK_READ_DIALOG_MESSAGE) == 0) return;
+        }
+        scheduleRefresh();
+    }
+
+    /** Re-reads the dialogs and rebuilds the current screen (debounced; postponed while a menu is open). */
+    private void scheduleRefresh() {
+        if (menuShowing) {
+            refreshPending = true;
+            return;
+        }
+        AndroidUtilities.cancelRunOnUIThread(refreshRunnable);
+        AndroidUtilities.runOnUIThread(refreshRunnable, 350);
+    }
+
+    private void refreshData() {
+        if (listView == null || adapter == null) return;
+        refreshPending = false;
+        collectData();
+        buildItems();
+        adapter.notifyDataSetChanged();
     }
 
     @Override
@@ -114,6 +177,13 @@ public class ParadoksCountersActivity extends BaseFragment {
         listView.setLayoutManager(new LinearLayoutManager(context));
         listView.setAdapter(adapter = new Adapter());
         listView.setOnItemClickListener((view, position) -> onItemClick(items.get(position)));
+        listView.setOnItemLongClickListener((view, position) -> {
+            if (position < 0 || position >= items.size()) return false;
+            Item item = items.get(position);
+            if (item.dialog == null) return false;
+            showDialogMenu(view, item.dialog);
+            return true;
+        });
         frame.addView(listView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT));
 
         buildItems();
@@ -280,6 +350,178 @@ public class ParadoksCountersActivity extends BaseFragment {
         }
         // open chat
         presentFragment(ChatActivity.of(item.dialog.id));
+    }
+
+    // ---- Long-press chat menu ----
+
+    private void showDialogMenu(View anchor, TLRPC.Dialog d) {
+        if (getParentActivity() == null) return;
+        MessagesController mc = MessagesController.getInstance(account);
+        final long did = d.id;
+        final boolean isUser = DialogObject.isUserDialog(did);
+        final TLRPC.User user = isUser ? mc.getUser(did) : null;
+        final TLRPC.Chat chat = isUser ? null : mc.getChat(-did);
+        if (user == null && chat == null) return;
+
+        final boolean unread = d.unread_count > 0 || d.unread_mark;
+        final boolean muted = mc.isDialogMuted(did, 0);
+        final boolean archived = d.folder_id == 1;
+        final boolean pinned = d.pinned;
+        final boolean isSelf = user != null && user.id == UserConfig.getInstance(account).getClientUserId();
+        final boolean canBlock = user != null && !isSelf && !MessagesController.isSupportUser(user);
+        final boolean blocked = canBlock && mc.blockePeers.indexOfKey(did) >= 0;
+        final boolean isBot = user != null && user.bot && !MessagesController.isSupportUser(user);
+        final boolean cacheOnly = chat != null && ChatObject.isChannel(chat) && (!chat.megagroup || ChatObject.isPublic(chat));
+        final boolean leave = chat != null && !ChatObject.isNotInChat(chat);
+
+        ItemOptions o = ItemOptions.makeOptions(this, anchor);
+        o.add(R.drawable.msg_openprofile, "Profilni ochish", () -> openProfile(did));
+        o.add(unread ? R.drawable.msg_markread : R.drawable.msg_markunread,
+                unread ? "O'qilgan deb belgilash" : "O'qilmagan deb belgilash",
+                () -> toggleRead(d, unread));
+        o.add(pinned ? R.drawable.msg_unpin : R.drawable.msg_pin,
+                pinned ? "Mahkamdan olish" : "Mahkamlash",
+                () -> togglePin(d));
+        o.add(muted ? R.drawable.msg_unmute : R.drawable.msg_mute,
+                muted ? "Ovozini yoqish" : "Ovozini o'chirish",
+                () -> toggleMute(did, muted));
+        o.add(archived ? R.drawable.msg_unarchive : R.drawable.msg_archive,
+                archived ? "Arxivdan chiqarish" : "Arxivlash",
+                () -> toggleArchive(d));
+        o.add(R.drawable.msg_copy, "ID nusxalash", () -> copyId(did, chat));
+        if (canBlock) {
+            o.add(R.drawable.msg_block, blocked ? "Blokdan chiqarish" : (isBot ? "Botni bloklash" : "Bloklash"),
+                    () -> toggleBlock(did, user, blocked));
+        }
+        o.addGap();
+        o.add(R.drawable.msg_clear, cacheOnly ? "Keshni tozalash" : "Tarixni tozalash", true,
+                () -> clearOrDelete(d, chat, user, true, isBot));
+        o.add(leave ? R.drawable.msg_leave : R.drawable.msg_delete,
+                leave ? (ChatObject.isChannelAndNotMegaGroup(chat) ? "Kanaldan chiqish" : "Guruhdan chiqish") : "Chatni o'chirish",
+                true,
+                () -> clearOrDelete(d, chat, user, false, isBot));
+        menuShowing = true;
+        o.setOnDismiss(() -> {
+            menuShowing = false;
+            if (refreshPending) scheduleRefresh();
+        });
+        o.show();
+    }
+
+    private void openProfile(long did) {
+        Bundle args = new Bundle();
+        if (DialogObject.isUserDialog(did)) args.putLong("user_id", did);
+        else args.putLong("chat_id", -did);
+        presentFragment(new ProfileActivity(args, null));
+    }
+
+    private void toggleRead(TLRPC.Dialog d, boolean markRead) {
+        MessagesController mc = MessagesController.getInstance(account);
+        final long did = d.id;
+        if (markRead) {
+            if (mc.isForum(did) || mc.isMonoForumWithManageRights(did)) {
+                mc.markAllTopicsAsRead(did);
+            }
+            mc.markMentionsAsRead(did, 0);
+            mc.markDialogAsRead(did, d.top_message, d.top_message, d.last_message_date, false, 0, 0, true, 0);
+        } else {
+            mc.markDialogAsUnread(did, null, 0);
+        }
+        scheduleRefresh();
+    }
+
+    private void togglePin(TLRPC.Dialog d) {
+        MessagesController mc = MessagesController.getInstance(account);
+        final int folderId = d.folder_id;
+        if (!d.pinned) {
+            int count = 0;
+            for (TLRPC.Dialog x : mc.getDialogs(folderId)) {
+                if (x instanceof TLRPC.TL_dialogFolder) continue;
+                if (x.pinned) count++;
+                else if (!mc.isPromoDialog(x.id, false)) break;
+            }
+            boolean premium = UserConfig.getInstance(account).isPremium();
+            int max = folderId == 0
+                    ? (premium ? mc.maxPinnedDialogsCountPremium : mc.maxPinnedDialogsCountDefault)
+                    : (premium ? mc.dialogFiltersPinnedLimitPremium : mc.dialogFiltersPinnedLimitDefault);
+            if (count >= max) {
+                if (folderId != 0) {
+                    AlertsCreator.showSimpleAlert(this, LocaleController.formatString("PinFolderLimitReached", R.string.PinFolderLimitReached, LocaleController.formatPluralString("Chats", max)));
+                } else {
+                    showDialog(new LimitReachedBottomSheet(this, getParentActivity(), LimitReachedBottomSheet.TYPE_PIN_DIALOGS, account, null));
+                }
+                return;
+            }
+        }
+        mc.pinDialog(d.id, !d.pinned, null, -1);
+        mc.reorderPinnedDialogs(folderId, null, 0);
+        scheduleRefresh();
+    }
+
+    private void toggleMute(long did, boolean muted) {
+        if (muted) {
+            NotificationsController.getInstance(account).setDialogNotificationsSettings(did, 0, NotificationsController.SETTING_MUTE_UNMUTE);
+            BulletinFactory.createMuteBulletin(this, false, null).show();
+            scheduleRefresh();
+        } else {
+            showDialog(AlertsCreator.createMuteAlert(this, did, 0, null), dlg -> scheduleRefresh());
+        }
+    }
+
+    private void toggleArchive(TLRPC.Dialog d) {
+        MessagesController.getInstance(account).addDialogToFolder(d.id, d.folder_id == 1 ? 0 : 1, -1, 0);
+        scheduleRefresh();
+    }
+
+    private void copyId(long did, TLRPC.Chat chat) {
+        String id;
+        if (chat == null) id = String.valueOf(did);
+        else id = (ChatObject.isChannel(chat) ? "-100" : "-") + chat.id;
+        AndroidUtilities.addToClipboard(id);
+        BulletinFactory.of(this).createCopyBulletin("ID nusxalandi: " + id).show();
+    }
+
+    private void toggleBlock(long did, TLRPC.User user, boolean blocked) {
+        MessagesController mc = MessagesController.getInstance(account);
+        if (blocked) {
+            mc.unblockPeer(did);
+            scheduleRefresh();
+            return;
+        }
+        AlertsCreator.createBlockDialogAlert(this, 1, false, user, (report, delete) -> {
+            if (report) mc.reportSpam(did, user, null, null, false);
+            if (delete) mc.deleteDialog(did, 0, true);
+            mc.blockPeer(did);
+            scheduleRefresh();
+        });
+    }
+
+    private void clearOrDelete(TLRPC.Dialog d, TLRPC.Chat chat, TLRPC.User user, boolean clear, boolean isBot) {
+        if (getParentActivity() == null) return;
+        MessagesController mc = MessagesController.getInstance(account);
+        final long did = d.id;
+        final int folderId = d.folder_id;
+        AlertsCreator.createClearOrDeleteDialogAlert(this, clear, chat, user, false, !clear, false, false, (revoke) -> {
+            if (clear) {
+                if (chat != null && ChatObject.isChannel(chat) && (!chat.megagroup || ChatObject.isPublic(chat))) {
+                    mc.deleteDialog(did, 2, revoke);
+                } else {
+                    mc.deleteDialog(did, 1, revoke);
+                }
+            } else if (chat != null) {
+                if (ChatObject.isNotInChat(chat)) {
+                    mc.deleteDialog(did, 0, revoke);
+                } else {
+                    TLRPC.User self = mc.getUser(UserConfig.getInstance(account).getClientUserId());
+                    mc.deleteParticipantFromChat(-did, self, null, revoke, false);
+                }
+            } else {
+                mc.deleteDialog(did, 0, revoke);
+                if (isBot && revoke) mc.blockPeer(did);
+            }
+            if (!clear) mc.checkIfFolderEmpty(folderId);
+            scheduleRefresh();
+        });
     }
 
     // ---- Adapter ----
