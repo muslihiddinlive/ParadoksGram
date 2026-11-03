@@ -45,7 +45,7 @@ public final class ParadoksUpdater {
      * Official site (gateway) base URL, e.g. "https://paradoksgram.uz". When set, updates come from the
      * site's /app/latest and /app/apk instead of GitHub, so users never see the release repository.
      */
-    private static final String SITE_URL = "";
+    private static final String SITE_URL = "https://paradoksgram.pages.dev";
     private static final long CHECK_INTERVAL_MS = 30L * 60 * 1000;
 
     private static volatile int state = IDLE;
@@ -164,12 +164,14 @@ public final class ParadoksUpdater {
         Utilities.globalQueue.postRunnable(() -> {
             String failure = null;
             try {
-                int build;
+                int build = 0;
                 String url = null;
                 long size = 0;
                 String body = "";
                 String version = "";
+                boolean viaSite = false;
                 if (!SITE_URL.isEmpty()) {
+                  try {
                     // the official site's gateway (hides the release repository from users)
                     HttpURLConnection connection = (HttpURLConnection) new URL(SITE_URL + "/app/latest").openConnection();
                     connection.setConnectTimeout(15000);
@@ -184,7 +186,12 @@ public final class ParadoksUpdater {
                     body = info.optString("notes", "");
                     version = info.optString("version", "");
                     url = SITE_URL + "/app/apk";
-                } else {
+                    viaSite = true;
+                  } catch (Exception siteError) {
+                    // the site is unreachable: fall back to the release feed below
+                  }
+                }
+                if (!viaSite) {
                     HttpURLConnection connection = (HttpURLConnection) new URL(RELEASE_API).openConnection();
                     connection.setConnectTimeout(15000);
                     connection.setReadTimeout(20000);

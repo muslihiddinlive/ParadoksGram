@@ -17,6 +17,9 @@ Chat ro'yxati sarlavhasidagi "LOC_ERR:null" xatosi tuzatildi
 ## 3.11.0 (2-noyabr)
 Chat hisoblagichlarida chatni uzoq bosib, oddiy chat menyusini ochish
 
+## 3.12.1 (3-noyabr)
+Yangilanishlar rasmiy saytdan olinadi, zaxira yo'li bilan
+
 ## 3.10.0 (2-noyabr)
 Fayl ko'rgich: PPT, jadvallar va PDF ichidan qidirish, kodda qator raqamlari
 
