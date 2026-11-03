@@ -91,6 +91,8 @@ import java.util.HashMap;
 import java.util.Timer;
 import java.util.TimerTask;
 
+import uz.paradoks.gram.ParadoksInvite;
+
 import me.vkryl.android.animator.FactorAnimator;
 
 public class InviteContactsActivity extends BaseFragment implements NotificationCenter.NotificationCenterDelegate, View.OnClickListener, FactorAnimator.Target, WindowAnimatedInsetsProvider.Listener {
@@ -478,15 +480,7 @@ public class InviteContactsActivity extends BaseFragment implements Notification
         contentView.addView(listView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT, Gravity.FILL, 0, -ADDITIONAL_LIST_HEIGHT_DP, 0, 0));
         listView.setOnItemClickListener((view, position) -> {
             if (position == 0 && !searching) {
-                try {
-                    Intent intent = new Intent(Intent.ACTION_SEND);
-                    intent.setType("text/plain");
-                    String text = ContactsController.getInstance(currentAccount).getInviteText(0);
-                    intent.putExtra(Intent.EXTRA_TEXT, text);
-                    getParentActivity().startActivityForResult(Intent.createChooser(intent, text), 500);
-                } catch (Exception e) {
-                    FileLog.e(e);
-                }
+                ParadoksInvite.open(this);
                 return;
             }
             if (!(view instanceof InviteUserCell)) {

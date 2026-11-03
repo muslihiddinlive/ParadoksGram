@@ -46,7 +46,6 @@ import org.telegram.ui.ChatActivity;
 import org.telegram.ui.Components.AvatarDrawable;
 import org.telegram.ui.Components.BackupImageView;
 import org.telegram.ui.ContactsActivity;
-import org.telegram.ui.InviteContactsActivity;
 import org.telegram.ui.LaunchActivity;
 import org.telegram.ui.LoginActivity;
 import org.telegram.ui.ThemeActivity;
@@ -142,7 +141,7 @@ public class ParadoksSideMenu {
         addRow(column, context, R.drawable.msg_calls, LocaleController.getString(R.string.Calls),
                 () -> fragment.presentFragment(new CallLogActivity()));
         addRow(column, context, R.drawable.msg_user_search, "Do'stlarni taklif qilish",
-                () -> fragment.presentFragment(new InviteContactsActivity()));
+                () -> ParadoksInvite.open(fragment));
         addRow(column, context, R.drawable.msg_settings_old, LocaleController.getString(R.string.Settings),
                 () -> fragment.presentFragment(new SettingsActivity()));
         addDivider(column, context);
