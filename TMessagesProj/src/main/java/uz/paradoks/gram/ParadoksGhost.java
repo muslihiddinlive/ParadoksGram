@@ -72,6 +72,27 @@ public final class ParadoksGhost {
         return false;
     }
 
+    /**
+     * The fake answer for a dropped request must be of the SAME type the server's real answer would have:
+     * callbacks cast the response to that type, and a wrong one crashes with ClassCastException
+     * (e.g. TL_messages_affectedMessages cannot be cast to TLRPC.Bool).
+     */
+    public static TLObject fakeResponse(TLObject object) {
+        if (object instanceof TLRPC.TL_messages_readHistory || object instanceof TLRPC.TL_messages_readMessageContents) {
+            TLRPC.TL_messages_affectedMessages affected = new TLRPC.TL_messages_affectedMessages();
+            affected.pts = 0;
+            affected.pts_count = 0;
+            return affected;
+        }
+        if (object instanceof TL_stories.TL_stories_readStories) {
+            // real answer: Vector<int> (ids of the stories that were marked read) - empty is fine
+            return new org.telegram.tgnet.Vector<TLObject>((stream, constructor, exception) -> null);
+        }
+        // channels.readHistory, messages.readEncryptedHistory, messages.readDiscussion, messages.setTyping,
+        // account.updateStatus, stories.incrementStoryViews all answer with Bool
+        return new TLRPC.TL_boolTrue();
+    }
+
     /** True once the "offline" packet of the current ghost-online period has been sent. */
     private static volatile boolean onlineGhostActive;
 

@@ -410,15 +410,7 @@ public class ConnectionsManager extends BaseController {
         // ParadoksGhost: drop read receipts and typing packets; force offline status
         if (uz.paradoks.gram.ParadoksGhost.shouldDropRequest(object)) {
             if (onComplete != null) {
-                final TLObject fake;
-                if (object instanceof org.telegram.tgnet.tl.TL_account.updateStatus) {
-                    fake = new TLRPC.TL_boolTrue();
-                } else {
-                    TLRPC.TL_messages_affectedMessages affected = new TLRPC.TL_messages_affectedMessages();
-                    affected.pts = 0;
-                    affected.pts_count = 0;
-                    fake = affected;
-                }
+                final TLObject fake = uz.paradoks.gram.ParadoksGhost.fakeResponse(object);
                 Utilities.stageQueue.postRunnable(() -> onComplete.run(fake, null));
             }
             return;
