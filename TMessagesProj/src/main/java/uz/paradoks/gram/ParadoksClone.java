@@ -41,13 +41,13 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * (Telegram refuses those forwards, and the content protection is respected).
  *
  * Messages are forwarded with their original author shown ("Forwarded from"), up to 100 per request,
- * with a pause between requests and automatic waiting when Telegram asks for it (FLOOD_WAIT).
+ * without artificial pauses between requests and with automatic waiting when Telegram asks for it (FLOOD_WAIT).
  */
 public final class ParadoksClone {
 
     private static final int PAGE_LIMIT = 100;
     private static final int FORWARD_CHUNK = 100;
-    private static final long CHUNK_PAUSE_MS = 500;
+    private static final long CHUNK_PAUSE_MS = 0;
 
     private static volatile boolean running;
     private static volatile Job activeJob;
@@ -639,7 +639,7 @@ public final class ParadoksClone {
                 offsetId = minId;
                 progress("Xabarlar o'qilmoqda: " + seen + (res.count > seen ? " / " + res.count : ""),
                         res.count > 0 ? Math.min(1f, seen / (float) res.count) : -1);
-                Thread.sleep(120);
+                Thread.sleep(0);
             }
             Collections.sort(items, (a, b) -> Long.compare(a[0], b[0]));
             return items;
