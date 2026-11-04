@@ -11,6 +11,9 @@ Versiya raqami `VERSION` faylida turadi. Har versiya uchun foydalanuvchiga ko'ri
 ## 3.12.0 (3-noyabr)
 Do'stlarni taklif qilish: Telegram chatlari ro'yxati (ulashish oynasi) orqali yuborish
 
+## 3.12.0 (4-noyabr)
+Yon menyuda "Qo'llab-quvvatlash guruhi"
+
 ## 3.11.1 (2-noyabr)
 Chat ro'yxati sarlavhasidagi "LOC_ERR:null" xatosi tuzatildi
 

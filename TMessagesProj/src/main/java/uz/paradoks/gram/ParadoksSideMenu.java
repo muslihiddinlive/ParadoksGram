@@ -154,6 +154,8 @@ public class ParadoksSideMenu {
                 () -> fragment.presentFragment(new ParadoksBroadcastActivity()));
         addRow(column, context, R.drawable.msg_settings, "ParadoksGram sozlamalari",
                 () -> fragment.presentFragment(new ParadoksSettingsActivity()));
+        addRow(column, context, R.drawable.msg_help, "Qo'llab-quvvatlash guruhi",
+                () -> org.telegram.messenger.browser.Browser.openUrl(fragment.getParentActivity(), "https://t.me/+xi5ozsTo2bUzZTVi"));
 
         TextView footer = new TextView(context);
         footer.setText("ParadoksGram " + ParadoksBuild.VERSION);
