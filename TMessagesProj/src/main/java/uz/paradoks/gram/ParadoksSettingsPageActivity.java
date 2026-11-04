@@ -303,6 +303,9 @@ public class ParadoksSettingsPageActivity extends BaseFragment {
                         + "Manzil ko'rinishi: socks5://host:port, http://host:port yoki login bilan: http://login:parol@host:port. "
                         + "Parol faqat shu telefonda saqlanadi va zaxira nusxaga kirmaydi.\n\n"
                         + "Proxy ishlamasa, sahifalar ochilmaydi (haqiqiy IP'ga o'tib ketmaydi). Ishlamay qolsa tumblerni o'chiring.");
+                value("Mini-app dasturchi paneli", () -> "Ochish", () -> ParadoksWebDev.show(getParentActivity()));
+                info("Dasturchilar uchun: mini-app va Telegram o'rtasidagi chaqiruvlar jurnali, initData, konsol, tarmoq so'rovlari, tema va viewport simulyatori, "
+                        + "cookie/kesh tozalash va WebView DevTools. Panelni mini-appning \u22ee menyusidagi \"Dasturchi paneli\" orqali ham ochish mumkin.");
                 header("Paradoks AI");
                 check("Sarlavhada Paradoks AI tugmasi", ParadoksConfig::showAiButton, ParadoksConfig::setShowAiButton);
                 info("Chat ro'yxati sarlavhasida (ghost tugmasi yonida) Paradoks AI tugmasi chiqadi. Bosilganda @ParadoksAiBot bilan gaplashadigan AI oynasi ochiladi: "

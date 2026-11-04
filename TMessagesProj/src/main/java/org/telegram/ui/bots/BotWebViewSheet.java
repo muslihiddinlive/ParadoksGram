@@ -1705,6 +1705,7 @@ public class BotWebViewSheet extends Dialog implements NotificationCenter.Notifi
             .addIf(onVerifiedAge == null && hasSettings, R.drawable.msg_settings, LocaleController.getString(R.string.BotWebViewSettings), () -> {
                 webViewContainer.onSettingsButtonPressed();
             })
+            .add(R.drawable.msg_settings, "Dasturchi paneli", () -> uz.paradoks.gram.ParadoksWebDev.show(getContext()))
             .add(R.drawable.msg_retry, LocaleController.getString(R.string.BotWebViewReloadPage), () -> {
                 if (webViewContainer.getWebView() != null) {
                     webViewContainer.getWebView().animate().cancel();
