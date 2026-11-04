@@ -8,6 +8,9 @@ Versiya formati Telegram kabi: `MAJOR.MINOR.PATCH`, qavs ichida build raqami (ma
 
 Versiya raqami `VERSION` faylida turadi. Har versiya uchun foydalanuvchiga ko'rinadigan matn `changelog/<versiya>.md` fayliga yoziladi: CI shuni reliz matniga qo'yadi, ilova yangilanish oynasida shuni ko'rsatadi. Commit xabari reliz matniga tushmaydi.
 
+## 3.12.3 (4-noyabr)
+Ikonka tanlash ro'yxatidagi build xatosi tuzatildi
+
 ## 3.12.0 (3-noyabr)
 Do'stlarni taklif qilish: Telegram chatlari ro'yxati (ulashish oynasi) orqali yuborish
 
@@ -16,6 +19,9 @@ Chatni klonlash tezlashtirildi
 
 ## 3.12.1 (3-noyabr)
 Yangilanishlar rasmiy saytdan olinadi, zaxira yo'li bilan
+
+## 3.12.3 (4-noyabr)
+Ikonka tanlash ro'yxatidagi build xatosi tuzatildi
 
 ## 3.12.0 (4-noyabr)
 Yon menyuda "Qo'llab-quvvatlash guruhi"
