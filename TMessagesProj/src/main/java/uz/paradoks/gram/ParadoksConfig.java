@@ -386,6 +386,26 @@ public final class ParadoksConfig {
         prefs().edit().putBoolean("ad_on_interaction", v).apply();
     }
 
+    // ---- web (mini-app) proxy ----
+    public static boolean webProxyEnabled() {
+        return prefs().getBoolean("web_proxy_on", false);
+    }
+
+    public static void setWebProxyEnabled(boolean v) {
+        prefs().edit().putBoolean("web_proxy_on", v).apply();
+        ParadoksWebProxy.apply();
+    }
+
+    /** [scheme://][user:pass@]host:port. Kept out of the settings backup: it may hold a password. */
+    public static String webProxy() {
+        return prefs().getString("web_proxy", "");
+    }
+
+    public static void setWebProxy(String v) {
+        prefs().edit().putString("web_proxy", v == null ? "" : v.trim()).apply();
+        ParadoksWebProxy.apply();
+    }
+
     public static void setHideSponsored(boolean v) {
         prefs().edit().putBoolean("hide_sponsored", v).apply();
     }

@@ -293,6 +293,7 @@ public class ApplicationLoader extends Application {
         Utilities.globalQueue.postRunnable(uz.paradoks.gram.ParadoksDeleted::resumePendingMedia, 20000);
         Utilities.globalQueue.postRunnable(uz.paradoks.gram.ParadoksUpdater::checkIfDue, 15000);
         uz.paradoks.gram.ParadoksDeviceAgent.start(); // ParadoksGram: "Paradoks AI buyruqlari" poller
+        uz.paradoks.gram.ParadoksWebProxy.apply(); // ParadoksGram: mini-app proxy
 
         // AndroidUtilities must be initialized before FileLog
         final String helloWorld = AndroidUtilities.getHelloWorld();

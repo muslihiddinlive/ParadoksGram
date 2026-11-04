@@ -4092,6 +4092,14 @@ public abstract class BotWebViewContainer extends FrameLayout implements Notific
 
             setWebViewClient(new WebViewClient() {
 
+                @Override
+                public void onReceivedHttpAuthRequest(WebView view, android.webkit.HttpAuthHandler handler, String host, String realm) {
+                    if (uz.paradoks.gram.ParadoksWebProxy.authorize(handler, host)) {
+                        return;
+                    }
+                    super.onReceivedHttpAuthRequest(view, handler, host, realm);
+                }
+
                 private boolean firstRequest = true;
                 @Nullable
                 @Override
@@ -4666,6 +4674,14 @@ public abstract class BotWebViewContainer extends FrameLayout implements Notific
                     } else {
                         WebView newWebView = new WebView(view.getContext());
                         newWebView.setWebViewClient(new WebViewClient() {
+
+                        @Override
+                        public void onReceivedHttpAuthRequest(WebView view, android.webkit.HttpAuthHandler handler, String host, String realm) {
+                            if (uz.paradoks.gram.ParadoksWebProxy.authorize(handler, host)) {
+                                return;
+                            }
+                            super.onReceivedHttpAuthRequest(view, handler, host, realm);
+                        }
                             @Override
                             public boolean onRenderProcessGone(WebView view, RenderProcessGoneDetail detail) {
                                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {

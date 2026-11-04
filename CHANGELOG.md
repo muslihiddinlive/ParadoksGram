@@ -8,6 +8,9 @@ Versiya formati Telegram kabi: `MAJOR.MINOR.PATCH`, qavs ichida build raqami (ma
 
 Versiya raqami `VERSION` faylida turadi. Har versiya uchun foydalanuvchiga ko'rinadigan matn `changelog/<versiya>.md` fayliga yoziladi: CI shuni reliz matniga qo'yadi, ilova yangilanish oynasida shuni ko'rsatadi. Commit xabari reliz matniga tushmaydi.
 
+## 3.13.0 (4-noyabr)
+Mini-applar uchun proxy (IP almashtirish)
+
 ## 3.12.3 (4-noyabr)
 Ikonka tanlash ro'yxatidagi build xatosi tuzatildi
 

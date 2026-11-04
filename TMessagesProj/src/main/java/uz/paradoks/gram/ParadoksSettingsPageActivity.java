@@ -292,6 +292,17 @@ public class ParadoksSettingsPageActivity extends BaseFragment {
                 info("PDF, Word (.docx) va Excel (.xlsx, .xls) fayllari tashqi ilovasiz, shu yerning o'zida ochiladi. "
                         + "Ochilgan fayl Yuklashlar/Telegram papkasiga bir marta saqlanadi. Saqlash cheklangan chatlardagi fayllar ko'rsatiladi, lekin saqlanmaydi. "
                         + "Eski .doc, .ppt va parol bilan himoyalangan fayllar avvalgidek tashqi ilovada ochiladi; ko'rgichdagi ⋮ menyudan ham tashqi ilovani tanlash mumkin.");
+                header("Mini-app proxy");
+                check("Mini-applar proxy orqali ochilsin", ParadoksConfig::webProxyEnabled, ParadoksConfig::setWebProxyEnabled);
+                value("Proxy manzili", () -> {
+                    ParadoksWebProxy.Parsed p = ParadoksWebProxy.parse(ParadoksConfig.webProxy());
+                    return p == null ? "O'rnatilmagan" : p.rule();
+                }, this::showWebProxyDialog);
+                info("Mini-applar (webapp) va ilova ichidagi brauzer internetga qurilmangizning IP manzili o'rniga siz kiritgan proxy orqali chiqadi, "
+                        + "shuning uchun saytlar boshqa IP va joylashuvni ko'radi. Telegram chatlari bunga tegmaydi.\n\n"
+                        + "Manzil ko'rinishi: socks5://host:port, http://host:port yoki login bilan: http://login:parol@host:port. "
+                        + "Parol faqat shu telefonda saqlanadi va zaxira nusxaga kirmaydi.\n\n"
+                        + "Proxy ishlamasa, sahifalar ochilmaydi (haqiqiy IP'ga o'tib ketmaydi). Ishlamay qolsa tumblerni o'chiring.");
                 header("Paradoks AI");
                 check("Sarlavhada Paradoks AI tugmasi", ParadoksConfig::showAiButton, ParadoksConfig::setShowAiButton);
                 info("Chat ro'yxati sarlavhasida (ghost tugmasi yonida) Paradoks AI tugmasi chiqadi. Bosilganda @ParadoksAiBot bilan gaplashadigan AI oynasi ochiladi: "
@@ -434,6 +445,33 @@ public class ParadoksSettingsPageActivity extends BaseFragment {
                 value = "https://" + value;
             }
             ParadoksConfig.setAiServerUrl(value);
+            refresh();
+        });
+        builder.setNegativeButton(LocaleController.getString(R.string.Cancel), null);
+        showDialog(builder.create());
+    }
+
+    private void showWebProxyDialog() {
+        if (getParentActivity() == null) {
+            return;
+        }
+        final android.widget.EditText input = new android.widget.EditText(getParentActivity());
+        input.setSingleLine(true);
+        input.setHint("socks5://host:port");
+        input.setText(ParadoksConfig.webProxy());
+        input.setPadding(org.telegram.messenger.AndroidUtilities.dp(24), org.telegram.messenger.AndroidUtilities.dp(12),
+                org.telegram.messenger.AndroidUtilities.dp(24), org.telegram.messenger.AndroidUtilities.dp(12));
+        AlertDialog.Builder builder = new AlertDialog.Builder(getParentActivity());
+        builder.setTitle("Mini-app proxy manzili");
+        builder.setMessage("socks5://host:port, http://host:port yoki http://login:parol@host:port");
+        builder.setView(input);
+        builder.setPositiveButton("OK", (d, w) -> {
+            String value = input.getText().toString().trim();
+            if (!value.isEmpty() && ParadoksWebProxy.parse(value) == null) {
+                org.telegram.ui.Components.BulletinFactory.of(this).createErrorBulletin("Manzil noto'g'ri. Misol: socks5://1.2.3.4:1080").show();
+                return;
+            }
+            ParadoksConfig.setWebProxy(value);
             refresh();
         });
         builder.setNegativeButton(LocaleController.getString(R.string.Cancel), null);
