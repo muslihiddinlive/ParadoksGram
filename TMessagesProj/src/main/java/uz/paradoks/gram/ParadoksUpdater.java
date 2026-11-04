@@ -42,6 +42,27 @@ public final class ParadoksUpdater {
     private static final String RELEASE_API = "https://api.github.com/repos/muslihiddinlive/ParadoksGram/releases?per_page=100";
     private static final String DOWNLOAD_PREFIX = "https://github.com/muslihiddinlive/ParadoksGram/releases/download/";
     /**
+     * Repositories whose releases the website fallback reads (newest build wins). The public releases repo is
+     * listed first so the source repo can be made private later without breaking updates.
+     */
+    private static final String[] WEB_REPOS = {"muslihiddinlive/ParadoksGram-releases", "muslihiddinlive/ParadoksGram"};
+
+    private static String downloadPrefix(String repo) {
+        return "https://github.com/" + repo + "/releases/download/";
+    }
+
+    private static boolean isTrustedDownload(String url) {
+        if (url == null) {
+            return false;
+        }
+        for (String repo : WEB_REPOS) {
+            if (url.startsWith(downloadPrefix(repo))) {
+                return true;
+            }
+        }
+        return url.startsWith(DOWNLOAD_PREFIX);
+    }
+    /**
      * Official site (gateway) base URL, e.g. "https://paradoksgram.uz". When set, updates come from the
      * site's /app/latest and /app/apk instead of GitHub, so users never see the release repository.
      */
@@ -156,6 +177,89 @@ public final class ParadoksUpdater {
     }
 
     /** Asks GitHub for the newest release; {@code done} runs on the UI thread. */
+    private static final class Found {
+        int build;
+        String url;
+        long size;
+        String body = "";
+        String version = "";
+    }
+
+    private static String httpGetText(String link) throws Exception {
+        HttpURLConnection connection = (HttpURLConnection) new URL(link).openConnection();
+        connection.setConnectTimeout(15000);
+        connection.setReadTimeout(20000);
+        connection.setRequestProperty("User-Agent", "ParadoksGram-Updater");
+        int code = connection.getResponseCode();
+        if (code != 200) {
+            throw new Exception("GitHub javob bermadi (" + code + ")");
+        }
+        return readAll(connection.getInputStream());
+    }
+
+    private static String unescapeHtml(String text) {
+        return text.replace("&lt;", "<").replace("&gt;", ">").replace("&quot;", "\"").replace("&#39;", "'").replace("&amp;", "&");
+    }
+
+    /**
+     * Newest release without the REST API: the releases Atom feed gives the tag, name and notes, the
+     * "expanded_assets" page of that tag gives the .apk link (size stays 0, the downloader asks the server).
+     * Every repository in WEB_REPOS is tried, the highest build wins; null when none works.
+     */
+    private static Found fetchFromWeb() {
+        Found best = null;
+        for (String repo : WEB_REPOS) {
+            try {
+                String feed = httpGetText("https://github.com/" + repo + "/releases.atom");
+                int entryStart = feed.indexOf("<entry>");
+                if (entryStart < 0) {
+                    continue;
+                }
+                String entry = feed.substring(entryStart);
+                int entryEnd = entry.indexOf("</entry>");
+                if (entryEnd > 0) {
+                    entry = entry.substring(0, entryEnd);
+                }
+                java.util.regex.Matcher tagMatcher = java.util.regex.Pattern.compile("releases/tag/([^\"]+)\"").matcher(entry);
+                if (!tagMatcher.find()) {
+                    continue;
+                }
+                String tag = tagMatcher.group(1);
+                Found found = new Found();
+                found.build = Integer.parseInt(tag.substring(tag.lastIndexOf('-') + 1));
+                if (best != null && found.build <= best.build) {
+                    continue;
+                }
+                java.util.regex.Matcher titleMatcher = java.util.regex.Pattern.compile("<title>([^<]*)</title>").matcher(entry);
+                if (titleMatcher.find()) {
+                    java.util.regex.Matcher m = java.util.regex.Pattern.compile("(\\d+\\.\\d+\\.\\d+)").matcher(unescapeHtml(titleMatcher.group(1)));
+                    if (m.find()) {
+                        found.version = m.group(1);
+                    }
+                }
+                java.util.regex.Matcher contentMatcher = java.util.regex.Pattern.compile("<content[^>]*>([\\s\\S]*?)</content>").matcher(entry);
+                if (contentMatcher.find()) {
+                    String html = unescapeHtml(contentMatcher.group(1));
+                    html = html.replaceAll("(?i)<br\\s*/?>|</p>|</li>|</h\\d>", "\n").replaceAll("<[^>]+>", "");
+                    found.body = unescapeHtml(html).trim();
+                }
+                String assets = httpGetText("https://github.com/" + repo + "/releases/expanded_assets/" + tag);
+                java.util.regex.Matcher apkMatcher = java.util.regex.Pattern.compile("href=\"(/" + java.util.regex.Pattern.quote(repo) + "/releases/download/[^\"]+\\.apk)\"").matcher(assets);
+                if (!apkMatcher.find()) {
+                    continue;
+                }
+                found.url = "https://github.com" + apkMatcher.group(1);
+                if (!found.url.startsWith(downloadPrefix(repo))) {
+                    continue;
+                }
+                best = found;
+            } catch (Throwable ignore) {
+                // try the next repository
+            }
+        }
+        return best;
+    }
+
     public static void check(Runnable done) {
         if (checking || state == DOWNLOADING) {
             return;
@@ -192,6 +296,7 @@ public final class ParadoksUpdater {
                   }
                 }
                 if (!viaSite) {
+                  try {
                     HttpURLConnection connection = (HttpURLConnection) new URL(RELEASE_API).openConnection();
                     connection.setConnectTimeout(15000);
                     connection.setReadTimeout(20000);
@@ -240,7 +345,7 @@ public final class ParadoksUpdater {
                         for (int i = 0; i < assets.length(); i++) {
                             JSONObject asset = assets.getJSONObject(i);
                             String candidate = asset.optString("browser_download_url", "");
-                            if (asset.optString("name", "").endsWith(".apk") && candidate.startsWith(DOWNLOAD_PREFIX)) {
+                            if (asset.optString("name", "").endsWith(".apk") && isTrustedDownload(candidate)) {
                                 url = candidate;
                                 size = asset.optLong("size", 0);
                                 break;
@@ -252,6 +357,19 @@ public final class ParadoksUpdater {
                     if (m.find()) {
                         version = m.group(1);
                     }
+                  } catch (Exception apiError) {
+                    // GitHub's API allows only 60 requests/hour per IP (403 on shared mobile IPs):
+                    // read the plain website pages instead, they have no such limit
+                    Found web = fetchFromWeb();
+                    if (web == null) {
+                        throw apiError;
+                    }
+                    build = web.build;
+                    url = web.url;
+                    size = web.size;
+                    body = web.body;
+                    version = web.version;
+                  }
                 }
                 lastCheck = System.currentTimeMillis();
                 if (build > ParadoksBuild.NUMBER && url != null) {
@@ -339,7 +457,7 @@ public final class ParadoksUpdater {
     }
 
     public static void download(Activity activity) {
-        if (state == DOWNLOADING || apkUrl == null || !apkUrl.startsWith(DOWNLOAD_PREFIX)) {
+        if (state == DOWNLOADING || apkUrl == null || !isTrustedDownload(apkUrl)) {
             return;
         }
         installActivity = new WeakReference<>(activity);

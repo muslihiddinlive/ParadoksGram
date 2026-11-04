@@ -16,6 +16,9 @@ jobs:
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 150
+    env:
+      # fine-grained token with Contents: Read and write for ParadoksGram-releases only (repo secret RELEASES_TOKEN)
+      RELEASES_TOKEN: ${{ secrets.RELEASES_TOKEN }}
 
     steps:
       - name: Free disk space
@@ -168,3 +171,17 @@ jobs:
           prerelease: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish release to the public ParadoksGram-releases repo
+        if: ${{ env.RELEASES_TOKEN != '' }}
+        continue-on-error: true
+        uses: softprops/action-gh-release@v2
+        with:
+          repository: muslihiddinlive/ParadoksGram-releases
+          token: ${{ secrets.RELEASES_TOKEN }}
+          tag_name: build-${{ github.run_number }}
+          name: "ParadoksGram ${{ steps.ver.outputs.version }} (build ${{ github.run_number }})"
+          body_path: release-notes.md
+          files: ${{ steps.find_apk.outputs.apk_path }}
+          generate_release_notes: false
+          prerelease: true
