@@ -11,6 +11,9 @@ Versiya raqami `VERSION` faylida turadi. Har versiya uchun foydalanuvchiga ko'ri
 ## 3.12.0 (3-noyabr)
 Do'stlarni taklif qilish: Telegram chatlari ro'yxati (ulashish oynasi) orqali yuborish
 
+## 3.13.0 (5-noyabr)
+Asos Telegram Android 13.1.1 ga yangilandi
+
 ## 3.12.2 (4-noyabr)
 Chatni klonlash tezlashtirildi
 
