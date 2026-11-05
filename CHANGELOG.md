@@ -8,6 +8,11 @@ Versiya formati Telegram kabi: `MAJOR.MINOR.PATCH`, qavs ichida build raqami (ma
 
 Versiya raqami `VERSION` faylida turadi. Har versiya uchun foydalanuvchiga ko'rinadigan matn `changelog/<versiya>.md` fayliga yoziladi: CI shuni reliz matniga qo'yadi, ilova yangilanish oynasida shuni ko'rsatadi. Commit xabari reliz matniga tushmaydi.
 
+## 3.14.2 (5-noyabr)
+Yangilanishni yuklab olish tuzatildi
+Tuzatildi:
+- Pastdagi "yangilash" tugmasi bosilganda hech narsa bo'lmasdi: sayt orqali kelgan yangilanish manzili ishonchli deb tan olinmay, yuklash indamay to'xtardi. Endi yuklash boshlanadi, xato bo'lsa "Yuklab bo'lmadi. Qayta urinish" ko'rinadi.
+
 ## 3.14.1 (5-noyabr)
 Mini-app proxy olib tashlandi
 O'zgardi:
