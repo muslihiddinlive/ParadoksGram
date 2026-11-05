@@ -203,6 +203,42 @@ public final class ParadoksWebDev {
         view.reload();
     }
 
+    /** Saves the open mini-app's public files into a ZIP and offers to share it. */
+    private static void copyPage(Context context) {
+        if (url == null || url.isEmpty()) {
+            toast(context, "Mini-app ochilmagan");
+            return;
+        }
+        toast(context, "Sahifa saqlanmoqda...");
+        ParadoksWebCopy.start(url, new ParadoksWebCopy.Callback() {
+            @Override
+            public void log(String line) {
+            }
+
+            @Override
+            public void done(java.io.File zip) {
+                if (zip == null) {
+                    toast(context, "Sahifani saqlab bo'lmadi");
+                    return;
+                }
+                try {
+                    android.content.Intent intent = new android.content.Intent(android.content.Intent.ACTION_SEND);
+                    intent.setType("application/zip");
+                    intent.putExtra(android.content.Intent.EXTRA_STREAM, androidx.core.content.FileProvider.getUriForFile(
+                            context, org.telegram.messenger.ApplicationLoader.getApplicationId() + ".provider", zip));
+                    intent.addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                    android.content.Intent chooser = android.content.Intent.createChooser(intent, "Mini-app nusxasi (ZIP)");
+                    if (!(context instanceof android.app.Activity)) {
+                        chooser.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK);
+                    }
+                    context.startActivity(chooser);
+                } catch (Exception e) {
+                    toast(context, "ZIP saqlandi: " + zip.getAbsolutePath());
+                }
+            }
+        });
+    }
+
     private static void toast(Context context, String text) {
         Toast.makeText(context, text, Toast.LENGTH_SHORT).show();
     }
@@ -327,6 +363,7 @@ public final class ParadoksWebDev {
         addEnvButton(context, envPanel, "Viewport: to'liq (balandlik 800)", () ->
                 sendEvent(context, "viewport_changed", "{\"height\":800,\"is_state_stable\":true,\"is_expanded\":true}"));
         addEnvButton(context, envPanel, "Sahifani qayta yuklash", () -> reload(context));
+        addEnvButton(context, envPanel, "Sahifani nusxalash (ZIP, ochiq fayllar)", () -> copyPage(context));
         addEnvButton(context, envPanel, "Cookie, localStorage va keshni tozalash", () -> clearData(context));
         final Button devtools = new Button(context);
         devtools.setAllCaps(false);
