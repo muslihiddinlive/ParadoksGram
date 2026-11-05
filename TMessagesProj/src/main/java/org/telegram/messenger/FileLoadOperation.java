@@ -8,6 +8,8 @@
 
 package org.telegram.messenger;
 
+import android.os.SystemClock;
+
 import org.telegram.messenger.utils.ImmutableByteArrayOutputStream;
 import org.telegram.tgnet.ConnectionsManager;
 import org.telegram.tgnet.NativeByteBuffer;
@@ -45,6 +47,16 @@ public class FileLoadOperation {
     public static volatile DispatchQueue filesQueue = new DispatchQueue("writeFileQueue");
     public static ImmutableByteArrayOutputStream filesQueueByteBuffer;
     private boolean forceSmallChunk;
+    private boolean useDownloadByteBudget;
+    private int downloadConnectionsCount = 2;
+    private boolean paceDocumentRequests;
+    private DownloadRequestPacer downloadRequestPacer;
+    private final Runnable pacedDownloadRequest = () -> {
+        // Unlike response callbacks, a timer must never restart a cancelling operation.
+        if (this.state == stateDownloading && !this.paused) {
+            startDownloadRequest(-1);
+        }
+    };
     private Runnable fileWriteRunnable;
     public boolean isStory;
 
@@ -422,6 +434,8 @@ public class FileLoadOperation {
     }
 
     public FileLoadOperation(TLRPC.Document documentLocation, Object parent) {
+        paceDocumentRequests = documentLocation != null && !MessageObject.isAnyKindOfStickerOrEmoji(documentLocation) &&
+                !"application/x-tgwallpattern".equals(documentLocation.mime_type);
         updateParams();
         try {
             parentObject = parent;
@@ -840,6 +854,24 @@ public class FileLoadOperation {
         return start(stream, streamOffset, streamPriority);
     }
 
+    // Snapshot the policy for this operation, including its connection pool.
+    // Streams use it too, like TDLib, which shares one downloader between streaming and downloads.
+    private void updateDownloadByteBudget() {
+        useDownloadByteBudget = !MessagesController.getInstance(currentAccount).downloadImprovementKillswitch &&
+                totalBytesCount > 0 && key == null && !encryptFile && !isPreloadVideoOperation && preloadPrefixSize == 0;
+        if (useDownloadByteBudget) {
+            boolean premium = UserConfig.getInstance(currentAccount).isPremium();
+            downloadConnectionsCount = premium ? ConnectionsManager.DownloadConnectionsCount : 2;
+            int byteBudget = (premium ? 16 : 2) * 1024 * 1024;
+            currentMaxDownloadRequests = byteBudget / currentDownloadChunkSize;
+        }
+    }
+
+    // Same branch of start() that picks the regular chunk size.
+    private boolean canUseDownloadByteBudget() {
+        return currentDownloadChunkSize != 0 && !forceSmallChunk && !isStory && !isStream;
+    }
+
     public boolean start(final FileLoadOperationStream stream, final long streamOffset, final boolean streamPriority) {
         startTime = System.currentTimeMillis();
         updateParams();
@@ -862,6 +894,7 @@ public class FileLoadOperation {
                 boolean hugeChunk = totalBytesCount >= PARADOKS_HUGE_FROM;
                 currentDownloadChunkSize = hugeChunk ? PARADOKS_HUGE_CHUNK : (bigChunk ? downloadChunkSizeBig : downloadChunkSize);
                 currentMaxDownloadRequests = (bigChunk || hugeChunk) ? maxDownloadRequestsBig : maxDownloadRequests;
+                updateDownloadByteBudget();
             }
         }
         final boolean alreadyStarted = state != stateIdle;
@@ -1329,6 +1362,9 @@ public class FileLoadOperation {
         if (!value && isPreloadVideoOperation) {
             if (state == stateFinished) {
                 isPreloadVideoOperation = value;
+                if (canUseDownloadByteBudget()) {
+                    updateDownloadByteBudget();
+                }
                 state = stateIdle;
                 preloadFinished = false;
                 start();
@@ -1337,6 +1373,9 @@ public class FileLoadOperation {
                     requestedBytesCount = 0;
                     clearOperation(null, true, true);
                     isPreloadVideoOperation = value;
+                    if (canUseDownloadByteBudget()) {
+                        updateDownloadByteBudget();
+                    }
                     startDownloadRequest(-1);
                 });
             } else {
@@ -2251,6 +2290,7 @@ public class FileLoadOperation {
     }
 
     protected void startDownloadRequest(int useConnectionType) {
+        Utilities.stageQueue.cancelRunnable(pacedDownloadRequest);
         if (BuildVars.DEBUG_PRIVATE_VERSION) {
             if (Utilities.stageQueue != null && Utilities.stageQueue.getHandler() != null && Thread.currentThread() != Utilities.stageQueue.getHandler().getLooper().getThread()) {
                 throw new RuntimeException("Wrong thread!!!");
@@ -2275,8 +2315,18 @@ public class FileLoadOperation {
             count = Math.max(0, currentMaxDownloadRequests - requestInfos.size());
         } else {
             if (streamPriorityStartOffset == 0 && !nextPartWasPreloaded && (!isPreloadVideoOperation || moovFound != 0) && totalBytesCount > 0) {
-                count = Math.max(0, currentMaxDownloadRequests - requestInfos.size());
+                count = Math.max(0, currentMaxDownloadRequests - requestInfos.size() -
+                        (useDownloadByteBudget ? delayedRequestInfos.size() : 0));
             }
+        }
+
+        if (downloadRequestPacer != null) {
+            long delay = downloadRequestPacer.remainingDelay(SystemClock.uptimeMillis());
+            if (delay > 0) {
+                Utilities.stageQueue.postRunnable(pacedDownloadRequest, delay);
+                return;
+            }
+            count = Math.min(count, 1);
         }
 
         if (!requestedReference) {
@@ -2412,6 +2462,12 @@ public class FileLoadOperation {
             }
 
             int flags = (isForceRequest ? ConnectionsManager.RequestFlagForceDownload : 0);
+            if (useDownloadByteBudget) {
+                flags |= ConnectionsManager.RequestFlagDownloadByteBudget;
+                if (totalBytesCount < 20 * 1024) {
+                    flags |= ConnectionsManager.RequestFlagSmallDownload;
+                }
+            }
             if (isCdn) {
                 TLRPC.TL_upload_getCdnFile req = new TLRPC.TL_upload_getCdnFile();
                 req.file_token = cdnToken;
@@ -2668,6 +2724,11 @@ public class FileLoadOperation {
             }
             AndroidUtilities.runOnUIThread(() -> uiRequestTokens.add(requestToken));
             requestsCount++;
+            if (downloadRequestPacer != null) {
+                long now = SystemClock.uptimeMillis();
+                downloadRequestPacer.onRequestSent(now);
+                Utilities.stageQueue.postRunnable(pacedDownloadRequest, downloadRequestPacer.remainingDelay(now));
+            }
         }
     }
 
