@@ -203,13 +203,13 @@ public final class ParadoksWebDev {
         view.reload();
     }
 
-    /** Saves the open mini-app's public files into a ZIP and offers to share it. */
+    /** Saves the open mini-app's public files into a ZIP and sends it to Saved Messages. */
     private static void copyPage(Context context) {
         if (url == null || url.isEmpty()) {
             toast(context, "Mini-app ochilmagan");
             return;
         }
-        toast(context, "Sahifa saqlanmoqda...");
+        toast(context, "Sahifa saqlanmoqda, tayyor bo'lgach Saved Messages ga yuboriladi...");
         ParadoksWebCopy.start(url, new ParadoksWebCopy.Callback() {
             @Override
             public void log(String line) {
@@ -222,16 +222,14 @@ public final class ParadoksWebDev {
                     return;
                 }
                 try {
-                    android.content.Intent intent = new android.content.Intent(android.content.Intent.ACTION_SEND);
-                    intent.setType("application/zip");
-                    intent.putExtra(android.content.Intent.EXTRA_STREAM, androidx.core.content.FileProvider.getUriForFile(
-                            context, org.telegram.messenger.ApplicationLoader.getApplicationId() + ".provider", zip));
-                    intent.addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION);
-                    android.content.Intent chooser = android.content.Intent.createChooser(intent, "Mini-app nusxasi (ZIP)");
-                    if (!(context instanceof android.app.Activity)) {
-                        chooser.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK);
-                    }
-                    context.startActivity(chooser);
+                    int account = org.telegram.messenger.UserConfig.selectedAccount;
+                    org.telegram.messenger.AccountInstance instance = org.telegram.messenger.AccountInstance.getInstance(account);
+                    long self = org.telegram.messenger.UserConfig.getInstance(account).getClientUserId();
+                    java.util.ArrayList<String> paths = new java.util.ArrayList<>();
+                    paths.add(zip.getAbsolutePath());
+                    org.telegram.messenger.SendMessagesHelper.prepareSendingDocuments(instance, paths, paths, null,
+                            "Mini-app nusxasi: " + zip.getName(), "application/zip", self, null, null, null, null, null, true, 0, null, null, 0, false, 0);
+                    toast(context, "Saved Messages ga yuborilmoqda");
                 } catch (Exception e) {
                     toast(context, "ZIP saqlandi: " + zip.getAbsolutePath());
                 }
@@ -363,7 +361,7 @@ public final class ParadoksWebDev {
         addEnvButton(context, envPanel, "Viewport: to'liq (balandlik 800)", () ->
                 sendEvent(context, "viewport_changed", "{\"height\":800,\"is_state_stable\":true,\"is_expanded\":true}"));
         addEnvButton(context, envPanel, "Sahifani qayta yuklash", () -> reload(context));
-        addEnvButton(context, envPanel, "Sahifani nusxalash (ZIP, ochiq fayllar)", () -> copyPage(context));
+        addEnvButton(context, envPanel, "Sahifani saqlash (ZIP, Saved Messages ga)", () -> copyPage(context));
         addEnvButton(context, envPanel, "Cookie, localStorage va keshni tozalash", () -> clearData(context));
         final Button devtools = new Button(context);
         devtools.setAllCaps(false);

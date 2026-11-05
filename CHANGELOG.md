@@ -8,6 +8,11 @@ Versiya formati Telegram kabi: `MAJOR.MINOR.PATCH`, qavs ichida build raqami (ma
 
 Versiya raqami `VERSION` faylida turadi. Har versiya uchun foydalanuvchiga ko'rinadigan matn `changelog/<versiya>.md` fayliga yoziladi: CI shuni reliz matniga qo'yadi, ilova yangilanish oynasida shuni ko'rsatadi. Commit xabari reliz matniga tushmaydi.
 
+## 3.15.1 (6-noyabr)
+Mini-app nusxasi Saved Messages ga
+O'zgardi:
+- Mini-app sahifa nusxasi endi ZIP bo'lib Saved Messages ga yuboriladi. Hajm limiti 1.5 GB, fayllar to'g'ridan-to'g'ri diskka yoziladi.
+
 ## 3.15.0 (6-noyabr)
 Mini-app sahifasini saqlash
 Yangi:

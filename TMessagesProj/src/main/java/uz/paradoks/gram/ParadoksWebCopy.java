@@ -34,9 +34,9 @@ public final class ParadoksWebCopy {
         void done(File zip);
     }
 
-    private static final int MAX_FILES = 200;
-    private static final int MAX_FILE = 12 * 1024 * 1024;
-    private static final long MAX_TOTAL = 60L * 1024 * 1024;
+    private static final int MAX_FILES = 2000;
+    private static final int MAX_FILE = 50 * 1024 * 1024; // one file is held in memory
+    private static final long MAX_TOTAL = 1536L * 1024 * 1024; // 1.5 GB
     private static final Pattern TAG = Pattern.compile("<(script|link|img|source|video|audio)\\b[^>]*>", Pattern.CASE_INSENSITIVE);
     private static final Pattern ATTR = Pattern.compile("\\b(src|href|poster)\\s*=\\s*([\"'])(.*?)\\2", Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
     private static final Pattern REL = Pattern.compile("\\brel\\s*=\\s*[\"']([^\"']*)[\"']", Pattern.CASE_INSENSITIVE);
@@ -52,7 +52,7 @@ public final class ParadoksWebCopy {
     private final URL root;
     private final Map<String, String> known = new LinkedHashMap<>();
     private final ArrayDeque<Item> queue = new ArrayDeque<>();
-    private final Map<String, byte[]> files = new LinkedHashMap<>();
+    private int fileCount;
     private final ArrayList<String> failed = new ArrayList<>();
     private long total;
 
@@ -87,11 +87,15 @@ public final class ParadoksWebCopy {
 
     private void run() {
         File zip = null;
+        ZipOutputStream out = null;
         try {
+            File dir = new File(ApplicationLoader.applicationContext.getExternalCacheDir(), "MiniAppCopies");
+            dir.mkdirs();
+            zip = new File(dir, root.getHost() + "_" + new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(new Date()) + ".zip");
+            out = new ZipOutputStream(new FileOutputStream(zip));
             log("Sahifa yuklanmoqda...");
             byte[] html = fetch(root);
-            String text = rewriteHtml(new String(html, StandardCharsets.UTF_8));
-            files.put("index.html", text.getBytes(StandardCharsets.UTF_8));
+            put(out, "index.html", rewriteHtml(new String(html, StandardCharsets.UTF_8)).getBytes(StandardCharsets.UTF_8));
             while (!queue.isEmpty() && total <= MAX_TOTAL) {
                 Item item = queue.poll();
                 log("Yuklanmoqda: " + item.url);
@@ -100,8 +104,7 @@ public final class ParadoksWebCopy {
                     if (item.css) {
                         data = rewriteCss(item.url, item.local, new String(data, StandardCharsets.UTF_8)).getBytes(StandardCharsets.UTF_8);
                     }
-                    total += data.length;
-                    files.put(item.local, data);
+                    put(out, item.local, data);
                 } catch (Exception e) {
                     failed.add(item.url + " (" + e.getMessage() + ")");
                 }
@@ -109,31 +112,40 @@ public final class ParadoksWebCopy {
             StringBuilder info = new StringBuilder();
             info.append("ParadoksGram: mini-app sahifa nusxasi\n");
             info.append("Manzil: ").append(root.getProtocol()).append("://").append(root.getHost()).append(root.getPath()).append('\n');
-            info.append("Fayllar: ").append(files.size()).append('\n');
+            info.append("Fayllar: ").append(fileCount).append('\n');
             info.append("Yuklanmagan: ").append(failed.size()).append('\n');
             for (String line : failed) {
                 info.append(line).append('\n');
             }
-            info.append("\nEslatma: skriptlar ichidan keyin yuklanadigan fayllar va serverdagi (backend) kod saqlanmaydi.\n");
-            files.put("_info.txt", info.toString().getBytes(StandardCharsets.UTF_8));
-
-            File dir = new File(ApplicationLoader.applicationContext.getExternalCacheDir(), "MiniAppCopies");
-            dir.mkdirs();
-            zip = new File(dir, root.getHost() + "_" + new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(new Date()) + ".zip");
-            try (ZipOutputStream out = new ZipOutputStream(new FileOutputStream(zip))) {
-                for (Map.Entry<String, byte[]> entry : files.entrySet()) {
-                    out.putNextEntry(new ZipEntry(entry.getKey()));
-                    out.write(entry.getValue());
-                    out.closeEntry();
-                }
+            if (!queue.isEmpty()) {
+                info.append("1.5 GB limitga yetildi, qolgan fayllar saqlanmadi.\n");
             }
-            log("Tayyor: " + files.size() + " ta fayl saqlandi.");
+            info.append("\nEslatma: skriptlar ichidan keyin yuklanadigan fayllar va serverdagi (backend) kod saqlanmaydi.\n");
+            put(out, "_info.txt", info.toString().getBytes(StandardCharsets.UTF_8));
+            out.close();
+            out = null;
+            log("Tayyor: " + fileCount + " ta fayl saqlandi.");
         } catch (Exception e) {
             log("Sahifani yuklab bo'lmadi: " + e.getMessage());
             zip = null;
+        } finally {
+            if (out != null) {
+                try {
+                    out.close();
+                } catch (Exception ignore) {
+                }
+            }
         }
         final File result = zip;
         AndroidUtilities.runOnUIThread(() -> callback.done(result));
+    }
+
+    private void put(ZipOutputStream out, String name, byte[] data) throws Exception {
+        out.putNextEntry(new ZipEntry(name));
+        out.write(data);
+        out.closeEntry();
+        total += data.length;
+        fileCount++;
     }
 
     private byte[] fetch(URL url) throws Exception {
