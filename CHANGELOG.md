@@ -8,6 +8,11 @@ Versiya formati Telegram kabi: `MAJOR.MINOR.PATCH`, qavs ichida build raqami (ma
 
 Versiya raqami `VERSION` faylida turadi. Har versiya uchun foydalanuvchiga ko'rinadigan matn `changelog/<versiya>.md` fayliga yoziladi: CI shuni reliz matniga qo'yadi, ilova yangilanish oynasida shuni ko'rsatadi. Commit xabari reliz matniga tushmaydi.
 
+## 3.14.1 (5-noyabr)
+Mini-app proxy olib tashlandi
+O'zgardi:
+- Mini-app proxy funksiyasi olib tashlandi (Sozlamalar → ParadoksGram). Mini-applar endi doim oddiy ulanish orqali ochiladi.
+
 ## 3.14.0 (4-noyabr)
 Mini-app dasturchi paneli: bridge, initData, konsol, tarmoq, DevTools
 
