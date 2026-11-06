@@ -9434,6 +9434,7 @@ public class SendMessagesHelper extends BaseController implements NotificationCe
                 extension = null;
             }
         }
+        path = uz.paradoks.gram.ParadoksMetaStrip.clean(path);
         final File f = new File(path);
         if (!f.exists() || f.length() == 0) {
             return ERROR_TYPE_UNSUPPORTED;

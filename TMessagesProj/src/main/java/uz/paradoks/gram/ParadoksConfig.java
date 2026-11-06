@@ -399,6 +399,15 @@ public final class ParadoksConfig {
         prefs().edit().putStringSet("hidden_chats", new java.util.HashSet<>(set)).apply();
     }
 
+    /** Remove EXIF/GPS/XMP from pictures before sending (default: on). */
+    public static boolean stripMetadata() {
+        return prefs().getBoolean("strip_metadata", true);
+    }
+
+    public static void setStripMetadata(boolean value) {
+        prefs().edit().putBoolean("strip_metadata", value).apply();
+    }
+
     /** Show hidden chats in global search results (default: off). */
     public static boolean showHiddenInSearch() {
         return prefs().getBoolean("hidden_in_search", false);

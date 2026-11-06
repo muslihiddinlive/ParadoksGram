@@ -230,6 +230,7 @@ public class ParadoksSettingsPageActivity extends BaseFragment {
                     }
                 }));
                 check("Qidiruvda yashirin chatlarni ko'rsatish", ParadoksConfig::showHiddenInSearch, ParadoksConfig::setShowHiddenInSearch);
+                check("Yuborilayotgan rasmlardan metadata (EXIF) ni tozalash", ParadoksConfig::stripMetadata, ParadoksConfig::setStripMetadata);
                 info("Chat menyusidagi \"Chat qulfi\" chatni qulflaydi va u har ochilganda PIN so'raydi. PIN faqat shifrlangan (hash) ko'rinishida saqlanadi.\n\n"
                         + "\"Yashirin chat\" ro'yxat, forward va bildirishnomalardan yo'qoladi. Tumbler yoqilsa, ular qidiruvda ham ko'rinadi; "
                         + "o'chiq bo'lsa, yashirinlarni ko'rish uchun qidiruv belgisini bosib turing va PIN kiriting.\n\n"
