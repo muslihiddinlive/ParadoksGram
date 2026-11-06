@@ -57,6 +57,7 @@ public final class ParadoksGhost {
                 onlineGhostActive = false;
                 return false;
             }
+            ensureTicker();
             if (!onlineGhostActive) {
                 // first status packet after ghost-online became active: tell the server "offline" once
                 onlineGhostActive = true;
@@ -106,6 +107,11 @@ public final class ParadoksGhost {
             return;
         }
         onlineGhostActive = true;
+        sendOfflineAll();
+        ensureTicker();
+    }
+
+    private static void sendOfflineAll() {
         for (int a = 0; a < org.telegram.messenger.UserConfig.MAX_ACCOUNT_COUNT; a++) {
             if (!org.telegram.messenger.UserConfig.getInstance(a).isClientActivated()) {
                 continue;
@@ -115,6 +121,29 @@ public final class ParadoksGhost {
             ALLOWED.add(request);
             ConnectionsManager.getInstance(a).sendRequest(request, (response, error) -> {});
         }
+    }
+
+    private static volatile boolean tickerRunning;
+    private static final Runnable TICK = new Runnable() {
+        @Override
+        public void run() {
+            if (!ParadoksConfig.ghostOnline()) {
+                tickerRunning = false;
+                return;
+            }
+            // Some actions (sending a message, opening a chat...) make the server show "online" again,
+            // so while the online part is on, the "offline" status is repeated.
+            sendOfflineAll();
+            org.telegram.messenger.AndroidUtilities.runOnUIThread(this, 15000);
+        }
+    };
+
+    private static synchronized void ensureTicker() {
+        if (tickerRunning) {
+            return;
+        }
+        tickerRunning = true;
+        org.telegram.messenger.AndroidUtilities.runOnUIThread(TICK, 15000);
     }
 
     /**
