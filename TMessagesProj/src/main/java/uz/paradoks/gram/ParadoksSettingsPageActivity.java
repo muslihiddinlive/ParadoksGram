@@ -293,6 +293,13 @@ public class ParadoksSettingsPageActivity extends BaseFragment {
                 info("PDF, Word (.docx) va Excel (.xlsx, .xls) fayllari tashqi ilovasiz, shu yerning o'zida ochiladi. "
                         + "Ochilgan fayl Yuklashlar/Telegram papkasiga bir marta saqlanadi. Saqlash cheklangan chatlardagi fayllar ko'rsatiladi, lekin saqlanmaydi. "
                         + "Eski .doc, .ppt va parol bilan himoyalangan fayllar avvalgidek tashqi ilovada ochiladi; ko'rgichdagi ⋮ menyudan ham tashqi ilovani tanlash mumkin.");
+                header("Yuklash");
+                value("Yuklash rejimi", () -> {
+                    int m = ParadoksConfig.downloadMode();
+                    return m == 1 ? "Sekin internet" : m == 2 ? "Avto" : "Oddiy";
+                }, this::showDownloadModeDialog);
+                info("Fayl bir necha oqim bilan yuklanadi. \"Sekin internet\": bo'laklar kichikroq, uzilishlar kamroq sezilinadi. "
+                        + "\"Avto\": yuklash tezligini o'lchab, o'zi tanlaydi. Yangi boshlangan yuklashlarga qo'llanadi.");
                 header("Mini-app dasturchilari uchun");
                 value("Mini-app dasturchi paneli", () -> "Ochish", () -> ParadoksWebDev.show(getParentActivity()));
                 info("Dasturchilar uchun: mini-app va Telegram o'rtasidagi chaqiruvlar jurnali, initData, konsol, tarmoq so'rovlari, tema va viewport simulyatori, "
@@ -514,6 +521,20 @@ public class ParadoksSettingsPageActivity extends BaseFragment {
             return (maxMb / 1024) + " GB gacha";
         }
         return "o'chirilmaydi";
+    }
+
+    private void showDownloadModeDialog() {
+        if (getParentActivity() == null) {
+            return;
+        }
+        AlertDialog.Builder builder = new AlertDialog.Builder(getParentActivity());
+        builder.setTitle("Yuklash rejimi");
+        builder.setItems(new CharSequence[]{"Oddiy", "Sekin internet (kichik bo'laklar)", "Avto (tezlikka qarab)"}, (d, which) -> {
+            ParadoksConfig.setDownloadMode(which);
+            refresh();
+        });
+        builder.setNegativeButton("Bekor qilish", null);
+        showDialog(builder.create());
     }
 
     private void showCleanupDialog() {

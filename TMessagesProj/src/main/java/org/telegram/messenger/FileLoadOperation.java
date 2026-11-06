@@ -313,8 +313,9 @@ public class FileLoadOperation {
         // ParadoksGram: always use large chunks and deep request pipelining.
         // forceSmallChunk (set on LIMIT_INVALID) is kept as a safe fallback.
         if (!forceSmallChunk) {
-            downloadChunkSize = 1024 * 128;
-            downloadChunkSizeBig = 1024 * 512;
+            final boolean paradoksWeak = uz.paradoks.gram.ParadoksDownloadMode.weak();
+            downloadChunkSize = paradoksWeak ? 1024 * 64 : 1024 * 128;
+            downloadChunkSizeBig = paradoksWeak ? 1024 * 128 : 1024 * 512;
             maxDownloadRequests = PARADOKS_MAX_REQUESTS_SMALL;
             maxDownloadRequestsBig = PARADOKS_MAX_REQUESTS_BIG;
         } else {
@@ -892,7 +893,7 @@ public class FileLoadOperation {
                 boolean bigChunk = totalBytesCount >= bigFileSizeFrom;
                 // ParadoksGram: 1 MB parts (the server maximum) for files of 4 MB and more, like the Windows client.
                 boolean hugeChunk = totalBytesCount >= PARADOKS_HUGE_FROM;
-                currentDownloadChunkSize = hugeChunk ? PARADOKS_HUGE_CHUNK : (bigChunk ? downloadChunkSizeBig : downloadChunkSize);
+                currentDownloadChunkSize = hugeChunk ? (uz.paradoks.gram.ParadoksDownloadMode.weak() ? 1024 * 256 : PARADOKS_HUGE_CHUNK) : (bigChunk ? downloadChunkSizeBig : downloadChunkSize);
                 currentMaxDownloadRequests = (bigChunk || hugeChunk) ? maxDownloadRequestsBig : maxDownloadRequests;
                 updateDownloadByteBudget();
             }
@@ -1962,6 +1963,7 @@ public class FileLoadOperation {
                     }
                 } else {
                     downloadedBytes += currentBytesSize;
+                    uz.paradoks.gram.ParadoksDownloadMode.note((int) currentBytesSize);
                     if (totalBytesCount > 0) {
                         finishedDownloading = downloadedBytes >= totalBytesCount || (preloadPrefixSize > 0 && downloadedBytes >= preloadPrefixSize && canFinishPreload() && requestInfos.isEmpty());
                         if (downloadedBytes < totalBytesCount) {

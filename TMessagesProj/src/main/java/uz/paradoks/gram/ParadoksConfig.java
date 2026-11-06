@@ -399,6 +399,15 @@ public final class ParadoksConfig {
         prefs().edit().putStringSet("hidden_chats", new java.util.HashSet<>(set)).apply();
     }
 
+    /** 0 standard, 1 weak internet, 2 auto. */
+    public static int downloadMode() {
+        return prefs().getInt("download_mode", 0);
+    }
+
+    public static void setDownloadMode(int mode) {
+        prefs().edit().putInt("download_mode", mode).apply();
+    }
+
     /** Remove EXIF/GPS/XMP from pictures before sending (default: on). */
     public static boolean stripMetadata() {
         return prefs().getBoolean("strip_metadata", true);

@@ -72,6 +72,7 @@ public final class ParadoksBackup {
         SCHEMA.put("hidden_chats", T_STRING_SET);
         SCHEMA.put("hidden_in_search", T_BOOL);
         SCHEMA.put("strip_metadata", T_BOOL);
+        SCHEMA.put("download_mode", T_INT);
         SCHEMA.put("lock_hash", T_STRING);
         SCHEMA.put("lock_salt", T_STRING);
         SCHEMA.put("lock_chats", T_STRING_SET);
