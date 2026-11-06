@@ -43,7 +43,7 @@ public final class ParadoksWebDev {
     /** Menu id used in the mini-app menus. */
     public static final int MENU_ID = 9001;
     public static final int MENU_COPY_ID = 9002;
-    public static final String MENU_COPY_TEXT = "Mini-appni klonlash (ZIP)";
+    public static final String MENU_COPY_TEXT = "Mini-appni klonlash";
 
     private static final int MAX = 500;
     private static final int MAX_TEXT = 3000;
@@ -211,8 +211,21 @@ public final class ParadoksWebDev {
             toast(context, "Mini-app ochilmagan");
             return;
         }
+        try {
+            new android.app.AlertDialog.Builder(context)
+                    .setTitle("Mini-appni klonlash")
+                    .setItems(new CharSequence[]{"ZIP (papka tuzilmasi bilan)", "Bitta HTML (hammasi ichida, offline)"},
+                            (d, which) -> copyPage(context, which == 1))
+                    .setNegativeButton("Bekor qilish", null)
+                    .show();
+        } catch (Exception e) {
+            copyPage(context, false);
+        }
+    }
+
+    private static void copyPage(Context context, boolean single) {
         toast(context, "Sahifa saqlanmoqda, tayyor bo'lgach Saved Messages ga yuboriladi...");
-        ParadoksWebCopy.start(url, new ParadoksWebCopy.Callback() {
+        ParadoksWebCopy.start(url, single, new ParadoksWebCopy.Callback() {
             @Override
             public void log(String line) {
             }
@@ -230,7 +243,7 @@ public final class ParadoksWebDev {
                     java.util.ArrayList<String> paths = new java.util.ArrayList<>();
                     paths.add(zip.getAbsolutePath());
                     org.telegram.messenger.SendMessagesHelper.prepareSendingDocuments(instance, paths, paths, null,
-                            "Mini-app nusxasi: " + zip.getName(), "application/zip", self, null, null, null, null, null, true, 0, null, null, 0, false, 0);
+                            "Mini-app nusxasi: " + zip.getName(), single ? "text/html" : "application/zip", self, null, null, null, null, null, true, 0, null, null, 0, false, 0);
                     toast(context, "Saved Messages ga yuborilmoqda");
                 } catch (Exception e) {
                     toast(context, "ZIP saqlandi: " + zip.getAbsolutePath());
@@ -363,7 +376,7 @@ public final class ParadoksWebDev {
         addEnvButton(context, envPanel, "Viewport: to'liq (balandlik 800)", () ->
                 sendEvent(context, "viewport_changed", "{\"height\":800,\"is_state_stable\":true,\"is_expanded\":true}"));
         addEnvButton(context, envPanel, "Sahifani qayta yuklash", () -> reload(context));
-        addEnvButton(context, envPanel, "Sahifani saqlash (ZIP, Saved Messages ga)", () -> copyPage(context));
+        addEnvButton(context, envPanel, "Sahifani saqlash (ZIP yoki bitta HTML, Saved Messages ga)", () -> copyPage(context));
         addEnvButton(context, envPanel, "Cookie, localStorage va keshni tozalash", () -> clearData(context));
         final Button devtools = new Button(context);
         devtools.setAllCaps(false);

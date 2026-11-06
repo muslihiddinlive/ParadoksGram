@@ -56,12 +56,27 @@ public final class ParadoksWebCopy {
     private final ArrayList<String> failed = new ArrayList<>();
     private long total;
 
-    private ParadoksWebCopy(URL root, Callback callback) {
+    private final boolean single;
+    private final ArrayList<String> placeholderLocals = new ArrayList<>();
+    private final Map<String, Integer> placeholderIndex = new LinkedHashMap<>();
+    private final Map<String, File> savedFiles = new LinkedHashMap<>();
+    private final Map<String, Boolean> savedCss = new LinkedHashMap<>();
+    private final Map<String, String> originalUrls = new LinkedHashMap<>();
+    private static final int INLINE_IN_CSS_MAX = 8 * 1024 * 1024;
+    private static final Pattern PLACEHOLDER = Pattern.compile("\uE000(\\d+)\uE001");
+
+    private ParadoksWebCopy(URL root, Callback callback, boolean single) {
         this.root = root;
         this.callback = callback;
+        this.single = single;
     }
 
     public static void start(String pageUrl, Callback callback) {
+        start(pageUrl, false, callback);
+    }
+
+    /** single = one self-contained .html file (everything inlined as data: URIs), otherwise a ZIP. */
+    public static void start(String pageUrl, boolean single, Callback callback) {
         final URL root;
         try {
             String clean = pageUrl;
@@ -78,7 +93,7 @@ public final class ParadoksWebCopy {
             AndroidUtilities.runOnUIThread(() -> callback.done(null));
             return;
         }
-        new Thread(() -> new ParadoksWebCopy(root, callback).run(), "ParadoksWebCopy").start();
+        new Thread(() -> new ParadoksWebCopy(root, callback, single).run(), "ParadoksWebCopy").start();
     }
 
     private void log(String line) {
@@ -86,6 +101,10 @@ public final class ParadoksWebCopy {
     }
 
     private void run() {
+        if (single) {
+            runSingle();
+            return;
+        }
         File zip = null;
         ZipOutputStream out = null;
         try {
@@ -169,6 +188,218 @@ public final class ParadoksWebCopy {
                 }
             }
             return out.toByteArray();
+        } finally {
+            connection.disconnect();
+        }
+    }
+
+    private void runSingle() {
+        File result = null;
+        File tmp = null;
+        try {
+            File dir = new File(ApplicationLoader.applicationContext.getExternalCacheDir(), "MiniAppCopies");
+            dir.mkdirs();
+            String stamp = new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(new Date());
+            tmp = new File(dir, "tmp_" + stamp);
+            tmp.mkdirs();
+            log("Sahifa yuklanmoqda...");
+            byte[] html = fetch(root);
+            String page = rewriteHtml(new String(html, StandardCharsets.UTF_8));
+            int n = 0;
+            while (!queue.isEmpty() && total <= MAX_TOTAL) {
+                Item item = queue.poll();
+                log("Yuklanmoqda: " + item.url);
+                try {
+                    File file = new File(tmp, String.valueOf(n++));
+                    long size = fetchToFile(item.url, file, MAX_TOTAL - total);
+                    boolean css = item.css && size <= 20 * 1024 * 1024;
+                    if (css) {
+                        String text = new String(readAll(file), StandardCharsets.UTF_8);
+                        text = rewriteCss(item.url, item.local, text);
+                        try (FileOutputStream os = new FileOutputStream(file)) {
+                            os.write(text.getBytes(StandardCharsets.UTF_8));
+                        }
+                    }
+                    total += size;
+                    fileCount++;
+                    savedFiles.put(item.local, file);
+                    savedCss.put(item.local, css);
+                } catch (Exception e) {
+                    failed.add(item.url + " (" + e.getMessage() + ")");
+                }
+            }
+            log("Bitta HTML fayl yig'ilmoqda...");
+            result = new File(dir, root.getHost() + "_" + stamp + ".html");
+            try (java.io.BufferedOutputStream out = new java.io.BufferedOutputStream(new FileOutputStream(result), 1 << 16)) {
+                Matcher m = PLACEHOLDER.matcher(page);
+                int last = 0;
+                while (m.find()) {
+                    out.write(page.substring(last, m.start()).getBytes(StandardCharsets.UTF_8));
+                    last = m.end();
+                    writeAsset(out, placeholderLocals.get(Integer.parseInt(m.group(1))));
+                }
+                out.write(page.substring(last).getBytes(StandardCharsets.UTF_8));
+                StringBuilder info = new StringBuilder("\n<!-- ParadoksGram: mini-app nusxasi. Fayllar: " + fileCount + ", yuklanmagan: " + failed.size() + "\n");
+                for (String line : failed) {
+                    info.append(line.replace("--", "- -")).append('\n');
+                }
+                if (!queue.isEmpty()) {
+                    info.append("1.5 GB limitga yetildi, qolgan fayllar saqlanmadi.\n");
+                }
+                info.append("Skriptlar ichidan keyin yuklanadigan fayllar va backend kod saqlanmaydi. -->\n");
+                out.write(info.toString().getBytes(StandardCharsets.UTF_8));
+            }
+            log("Tayyor: " + fileCount + " ta fayl bitta HTML ichiga joylandi.");
+        } catch (Throwable e) {
+            log("Sahifani yuklab bo'lmadi: " + e.getMessage());
+            result = null;
+        } finally {
+            deleteRecursive(tmp);
+        }
+        final File done = result;
+        AndroidUtilities.runOnUIThread(() -> callback.done(done));
+    }
+
+    private static void deleteRecursive(File file) {
+        if (file == null) {
+            return;
+        }
+        File[] children = file.listFiles();
+        if (children != null) {
+            for (File child : children) {
+                deleteRecursive(child);
+            }
+        }
+        file.delete();
+    }
+
+    private static byte[] readAll(File file) throws Exception {
+        try (java.io.FileInputStream in = new java.io.FileInputStream(file)) {
+            ByteArrayOutputStream out = new ByteArrayOutputStream((int) Math.max(16, file.length()));
+            byte[] buffer = new byte[16384];
+            int read;
+            while ((read = in.read(buffer)) > 0) {
+                out.write(buffer, 0, read);
+            }
+            return out.toByteArray();
+        }
+    }
+
+    private static String mimeFor(String local) {
+        String lower = local.toLowerCase(Locale.ROOT);
+        int dot = lower.lastIndexOf('.');
+        String ext = dot >= 0 ? lower.substring(dot + 1) : "";
+        int tilde = ext.indexOf('~');
+        if (tilde >= 0) {
+            ext = ext.substring(0, tilde);
+        }
+        switch (ext) {
+            case "css": return "text/css";
+            case "js": case "mjs": return "text/javascript";
+            case "json": return "application/json";
+            case "svg": return "image/svg+xml";
+            case "woff": return "font/woff";
+            case "woff2": return "font/woff2";
+            case "ttf": return "font/ttf";
+            case "otf": return "font/otf";
+            case "html": case "htm": return "text/html";
+        }
+        String guessed = android.webkit.MimeTypeMap.getSingleton().getMimeTypeFromExtension(ext);
+        return guessed != null ? guessed : "application/octet-stream";
+    }
+
+    /** Writes a data: URI of the saved asset; CSS is expanded first. Missing files fall back to the original address. */
+    private void writeAsset(java.io.OutputStream out, String local) throws Exception {
+        File file = savedFiles.get(local);
+        if (file == null) {
+            String original = originalUrls.get(local);
+            out.write((original == null ? "" : original).getBytes(StandardCharsets.UTF_8));
+            return;
+        }
+        if (Boolean.TRUE.equals(savedCss.get(local))) {
+            String css = expandCss(local, 0);
+            out.write("data:text/css;base64,".getBytes(StandardCharsets.US_ASCII));
+            out.write(android.util.Base64.encode(css.getBytes(StandardCharsets.UTF_8), android.util.Base64.NO_WRAP));
+            return;
+        }
+        out.write(("data:" + mimeFor(local) + ";base64,").getBytes(StandardCharsets.US_ASCII));
+        try (java.io.FileInputStream in = new java.io.FileInputStream(file)) {
+            byte[] buffer = new byte[3 * 16384];
+            while (true) {
+                int filled = 0;
+                while (filled < buffer.length) {
+                    int read = in.read(buffer, filled, buffer.length - filled);
+                    if (read <= 0) {
+                        break;
+                    }
+                    filled += read;
+                }
+                if (filled == 0) {
+                    break;
+                }
+                out.write(android.util.Base64.encode(buffer, 0, filled, android.util.Base64.NO_WRAP));
+                if (filled < buffer.length) {
+                    break;
+                }
+            }
+        }
+    }
+
+    private String expandCss(String local, int depth) throws Exception {
+        String css = new String(readAll(savedFiles.get(local)), StandardCharsets.UTF_8);
+        Matcher m = PLACEHOLDER.matcher(css);
+        StringBuilder result = new StringBuilder();
+        int last = 0;
+        while (m.find()) {
+            result.append(css, last, m.start());
+            last = m.end();
+            String inner = placeholderLocals.get(Integer.parseInt(m.group(1)));
+            File file = savedFiles.get(inner);
+            if (file == null || file.length() > INLINE_IN_CSS_MAX && !Boolean.TRUE.equals(savedCss.get(inner))) {
+                String original = originalUrls.get(inner);
+                result.append(original == null ? "" : original);
+            } else if (Boolean.TRUE.equals(savedCss.get(inner))) {
+                if (depth >= 4) {
+                    String original = originalUrls.get(inner);
+                    result.append(original == null ? "" : original);
+                } else {
+                    result.append("data:text/css;base64,").append(android.util.Base64.encodeToString(
+                            expandCss(inner, depth + 1).getBytes(StandardCharsets.UTF_8), android.util.Base64.NO_WRAP));
+                }
+            } else {
+                result.append("data:").append(mimeFor(inner)).append(";base64,")
+                        .append(android.util.Base64.encodeToString(readAll(file), android.util.Base64.NO_WRAP));
+            }
+        }
+        result.append(css.substring(last));
+        return result.toString();
+    }
+
+    /** Streams a response into a file, with no in-memory cap. Returns its size. */
+    private long fetchToFile(URL url, File file, long limit) throws Exception {
+        HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+        connection.setConnectTimeout(15000);
+        connection.setReadTimeout(20000);
+        connection.setInstanceFollowRedirects(true);
+        connection.setRequestProperty("User-Agent", "Mozilla/5.0 (Linux; Android 14) ParadoksGram-Copy");
+        try {
+            int code = connection.getResponseCode();
+            if (code != 200) {
+                throw new Exception("server javobi " + code);
+            }
+            long size = 0;
+            try (InputStream in = connection.getInputStream(); FileOutputStream os = new FileOutputStream(file)) {
+                byte[] buffer = new byte[65536];
+                int read;
+                while ((read = in.read(buffer)) > 0) {
+                    size += read;
+                    if (size > limit) {
+                        throw new Exception("limitdan oshdi");
+                    }
+                    os.write(buffer, 0, read);
+                }
+            }
+            return size;
         } finally {
             connection.disconnect();
         }
@@ -261,6 +492,16 @@ public final class ParadoksWebCopy {
             item.local = local;
             item.css = css || url.getPath().toLowerCase(Locale.ROOT).endsWith(".css");
             queue.add(item);
+        }
+        if (single) {
+            originalUrls.put(local, key);
+            Integer index = placeholderIndex.get(local);
+            if (index == null) {
+                index = placeholderLocals.size();
+                placeholderLocals.add(local);
+                placeholderIndex.put(local, index);
+            }
+            return "\uE000" + index + "\uE001";
         }
         return relative(fromLocal, local);
     }
