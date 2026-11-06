@@ -263,6 +263,8 @@ public class BotWebViewMenuContainer extends FrameLayout implements Notification
             botMenuItem.setVisibility(GONE);
 
             botMenuItem.addSubItem(R.id.menu_reload_page, R.drawable.msg_retry, LocaleController.getString(R.string.BotWebViewReloadPage));
+            botMenuItem.addSubItem(uz.paradoks.gram.ParadoksWebDev.MENU_ID, R.drawable.msg_settings, "Dasturchi paneli");
+            botMenuItem.addSubItem(uz.paradoks.gram.ParadoksWebDev.MENU_COPY_ID, R.drawable.msg_copy, uz.paradoks.gram.ParadoksWebDev.MENU_COPY_TEXT);
             settingsItem = botMenuItem.addSubItem(R.id.menu_settings, R.drawable.msg_settings, LocaleController.getString(R.string.BotWebViewSettings));
             settingsItem.setVisibility(View.GONE);
             addToHomeScreenItem = botMenuItem.addSubItem(R.id.menu_add_to_home_screen_bot, R.drawable.msg_home, LocaleController.getString(R.string.AddShortcut));
@@ -697,6 +699,10 @@ public class BotWebViewMenuContainer extends FrameLayout implements Notification
                                 if (!webViewContainer.onBackPressed()) {
                                     onCheckDismissByUser();
                                 }
+                            } else if (id == uz.paradoks.gram.ParadoksWebDev.MENU_ID) {
+                                uz.paradoks.gram.ParadoksWebDev.show(getContext());
+                            } else if (id == uz.paradoks.gram.ParadoksWebDev.MENU_COPY_ID) {
+                                uz.paradoks.gram.ParadoksWebDev.copyPage(getContext());
                             } else if (id == R.id.menu_reload_page) {
                                 if (webViewContainer.getWebView() != null) {
                                     webViewContainer.getWebView().animate().cancel();

@@ -60,6 +60,10 @@ public final class ParadoksUpdater {
                 return true;
             }
         }
+        // the official site's gateway (updates come through it when the site is reachable)
+        if (!SITE_URL.isEmpty() && url.equals(SITE_URL + "/app/apk")) {
+            return true;
+        }
         return url.startsWith(DOWNLOAD_PREFIX);
     }
     /**
@@ -457,7 +461,14 @@ public final class ParadoksUpdater {
     }
 
     public static void download(Activity activity) {
-        if (state == DOWNLOADING || apkUrl == null || !isTrustedDownload(apkUrl)) {
+        if (state == DOWNLOADING) {
+            return;
+        }
+        if (apkUrl == null || !isTrustedDownload(apkUrl)) {
+            // never fail silently: the bar shows "Yuklab bo'lmadi. Qayta urinish"
+            error = "yuklash manzili noto'g'ri";
+            state = FAILED;
+            notifyLayouts();
             return;
         }
         installActivity = new WeakReference<>(activity);

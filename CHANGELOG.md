@@ -8,8 +8,69 @@ Versiya formati Telegram kabi: `MAJOR.MINOR.PATCH`, qavs ichida build raqami (ma
 
 Versiya raqami `VERSION` faylida turadi. Har versiya uchun foydalanuvchiga ko'rinadigan matn `changelog/<versiya>.md` fayliga yoziladi: CI shuni reliz matniga qo'yadi, ilova yangilanish oynasida shuni ko'rsatadi. Commit xabari reliz matniga tushmaydi.
 
+## 3.21.0 (6-noyabr)
+Ghost mode: online holati qayta-qayta oflayn qilinadi
+
+## 3.20.0 (6-noyabr)
+Mini-appni bitta HTML qilib klonlash
+
+## 3.19.0 (6-noyabr)
+Yuklash rejimi: oddiy, sekin internet, avto
+
+## 3.18.0 (6-noyabr)
+Yuborilgan rasmlardan metadata avtomatik tozalanadi
+
+## 3.17.0 (6-noyabr)
+Mini-app menyusida "Mini-appni klonlash (ZIP)" tugmasi
+
+## 3.16.1 (6-noyabr)
+Eski telefonlarga o'rnatish tuzatildi (Samsung A03 kabi 32-bit)
+Tuzatildi:
+- Ilova endi 32-bitli (armeabi-v7a) telefonlarga ham o'rnatiladi. Oldin faqat 64-bitli telefonlarga tushardi.
+
+## 3.16.0 (6-noyabr)
+Asos Telegram Android 13.1.1 ga yangilandi
+
+## 3.15.1 (6-noyabr)
+Mini-app nusxasi Saved Messages ga
+O'zgardi:
+- Mini-app sahifa nusxasi endi ZIP bo'lib Saved Messages ga yuboriladi. Hajm limiti 1.5 GB, fayllar to'g'ridan-to'g'ri diskka yoziladi.
+
+## 3.15.0 (6-noyabr)
+Mini-app sahifasini saqlash
+Yangi:
+- Mini-app dasturchi panelida (Muhit bo'limi) "Sahifani nusxalash" tugmasi: ochiq mini-appning ochiq fayllari (HTML, CSS, skriptlar, rasmlar) ZIP qilinib ulashiladi. Shaxsiy ma'lumot (initData, cookie) yuborilmaydi.
+
+## 3.14.2 (5-noyabr)
+Yangilanishni yuklab olish tuzatildi
+Tuzatildi:
+- Pastdagi "yangilash" tugmasi bosilganda hech narsa bo'lmasdi: sayt orqali kelgan yangilanish manzili ishonchli deb tan olinmay, yuklash indamay to'xtardi. Endi yuklash boshlanadi, xato bo'lsa "Yuklab bo'lmadi. Qayta urinish" ko'rinadi.
+
+## 3.14.1 (5-noyabr)
+Mini-app proxy olib tashlandi
+O'zgardi:
+- Mini-app proxy funksiyasi olib tashlandi (Sozlamalar → ParadoksGram). Mini-applar endi doim oddiy ulanish orqali ochiladi.
+
+## 3.14.0 (4-noyabr)
+Mini-app dasturchi paneli: bridge, initData, konsol, tarmoq, DevTools
+
+## 3.13.0 (4-noyabr)
+Mini-applar uchun proxy (IP almashtirish)
+
+## 3.12.3 (4-noyabr)
+Ikonka tanlash ro'yxatidagi build xatosi tuzatildi
+
 ## 3.12.0 (3-noyabr)
 Do'stlarni taklif qilish: Telegram chatlari ro'yxati (ulashish oynasi) orqali yuborish
+
+## 3.12.2 (4-noyabr)
+Chatni klonlash tezlashtirildi
+
+## 3.12.1 (3-noyabr)
+Yangilanishlar rasmiy saytdan olinadi, zaxira yo'li bilan
+
+## 3.12.3 (4-noyabr)
+Ikonka tanlash ro'yxatidagi build xatosi tuzatildi
 
 ## 3.12.0 (4-noyabr)
 Yon menyuda "Qo'llab-quvvatlash guruhi"

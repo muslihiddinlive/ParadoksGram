@@ -1217,6 +1217,7 @@ public abstract class BotWebViewContainer extends FrameLayout implements Notific
             return;
         }
         d("notifyEvent " + event);
+        uz.paradoks.gram.ParadoksWebDev.bridgeOut(event, eventData == null ? "" : eventData.toString());
         evaluateJs("window.Telegram.WebView.receiveEvent('" + event + "', " + eventData + ");", false);
     }
 
@@ -1535,6 +1536,7 @@ public abstract class BotWebViewContainer extends FrameLayout implements Notific
     }
 
     private void onEventReceived(BotWebViewProxy proxy, WebRequestContext requestContext, String eventType, String eventData) {
+        uz.paradoks.gram.ParadoksWebDev.bridgeIn(eventType, eventData);
         if (!bot) {
             return;
         }
@@ -4097,6 +4099,9 @@ public abstract class BotWebViewContainer extends FrameLayout implements Notific
                 @Override
                 public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
                     d("shouldInterceptRequest " + (request == null ? null : request.getUrl()));
+                    if (request != null && request.getUrl() != null) {
+                        uz.paradoks.gram.ParadoksWebDev.network(request.getMethod(), request.getUrl().toString());
+                    }
                     if (request != null && isTonsite(request.getUrl())) {
                         d("proxying ton");
                         firstRequest = false;
@@ -4340,6 +4345,7 @@ public abstract class BotWebViewContainer extends FrameLayout implements Notific
 
                 @Override
                 public void onPageStarted(WebView view, String url, Bitmap favicon) {
+                    uz.paradoks.gram.ParadoksWebDev.setPage(url, view);
                     if (bot && botWebViewContainer != null) {
                         botWebViewContainer.documentGeneration++;
                     }
@@ -4472,6 +4478,14 @@ public abstract class BotWebViewContainer extends FrameLayout implements Notific
                 }
             });
             setWebChromeClient(new WebChromeClient() {
+                @Override
+                public boolean onConsoleMessage(android.webkit.ConsoleMessage message) {
+                    if (message != null) {
+                        uz.paradoks.gram.ParadoksWebDev.console(String.valueOf(message.messageLevel()), message.message(), message.sourceId(), message.lineNumber());
+                    }
+                    return super.onConsoleMessage(message);
+                }
+
                 @Override
                 public boolean onJsAlert(WebView view, String url, String message, JsResult result) {
                     final boolean[] done = new boolean[] { false };
@@ -4666,6 +4680,7 @@ public abstract class BotWebViewContainer extends FrameLayout implements Notific
                     } else {
                         WebView newWebView = new WebView(view.getContext());
                         newWebView.setWebViewClient(new WebViewClient() {
+
                             @Override
                             public boolean onRenderProcessGone(WebView view, RenderProcessGoneDetail detail) {
                                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {

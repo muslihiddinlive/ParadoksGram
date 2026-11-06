@@ -230,6 +230,7 @@ public class ParadoksSettingsPageActivity extends BaseFragment {
                     }
                 }));
                 check("Qidiruvda yashirin chatlarni ko'rsatish", ParadoksConfig::showHiddenInSearch, ParadoksConfig::setShowHiddenInSearch);
+                check("Yuborilayotgan rasmlardan metadata (EXIF) ni tozalash", ParadoksConfig::stripMetadata, ParadoksConfig::setStripMetadata);
                 info("Chat menyusidagi \"Chat qulfi\" chatni qulflaydi va u har ochilganda PIN so'raydi. PIN faqat shifrlangan (hash) ko'rinishida saqlanadi.\n\n"
                         + "\"Yashirin chat\" ro'yxat, forward va bildirishnomalardan yo'qoladi. Tumbler yoqilsa, ular qidiruvda ham ko'rinadi; "
                         + "o'chiq bo'lsa, yashirinlarni ko'rish uchun qidiruv belgisini bosib turing va PIN kiriting.\n\n"
@@ -292,6 +293,17 @@ public class ParadoksSettingsPageActivity extends BaseFragment {
                 info("PDF, Word (.docx) va Excel (.xlsx, .xls) fayllari tashqi ilovasiz, shu yerning o'zida ochiladi. "
                         + "Ochilgan fayl Yuklashlar/Telegram papkasiga bir marta saqlanadi. Saqlash cheklangan chatlardagi fayllar ko'rsatiladi, lekin saqlanmaydi. "
                         + "Eski .doc, .ppt va parol bilan himoyalangan fayllar avvalgidek tashqi ilovada ochiladi; ko'rgichdagi ⋮ menyudan ham tashqi ilovani tanlash mumkin.");
+                header("Yuklash");
+                value("Yuklash rejimi", () -> {
+                    int m = ParadoksConfig.downloadMode();
+                    return m == 1 ? "Sekin internet" : m == 2 ? "Avto" : "Oddiy";
+                }, this::showDownloadModeDialog);
+                info("Fayl bir necha oqim bilan yuklanadi. \"Sekin internet\": bo'laklar kichikroq, uzilishlar kamroq sezilinadi. "
+                        + "\"Avto\": yuklash tezligini o'lchab, o'zi tanlaydi. Yangi boshlangan yuklashlarga qo'llanadi.");
+                header("Mini-app dasturchilari uchun");
+                value("Mini-app dasturchi paneli", () -> "Ochish", () -> ParadoksWebDev.show(getParentActivity()));
+                info("Dasturchilar uchun: mini-app va Telegram o'rtasidagi chaqiruvlar jurnali, initData, konsol, tarmoq so'rovlari, tema va viewport simulyatori, "
+                        + "cookie/kesh tozalash va WebView DevTools. Panelni mini-appning \u22ee menyusidagi \"Dasturchi paneli\" orqali ham ochish mumkin.");
                 header("Paradoks AI");
                 check("Sarlavhada Paradoks AI tugmasi", ParadoksConfig::showAiButton, ParadoksConfig::setShowAiButton);
                 info("Chat ro'yxati sarlavhasida (ghost tugmasi yonida) Paradoks AI tugmasi chiqadi. Bosilganda @ParadoksAiBot bilan gaplashadigan AI oynasi ochiladi: "
@@ -509,6 +521,20 @@ public class ParadoksSettingsPageActivity extends BaseFragment {
             return (maxMb / 1024) + " GB gacha";
         }
         return "o'chirilmaydi";
+    }
+
+    private void showDownloadModeDialog() {
+        if (getParentActivity() == null) {
+            return;
+        }
+        AlertDialog.Builder builder = new AlertDialog.Builder(getParentActivity());
+        builder.setTitle("Yuklash rejimi");
+        builder.setItems(new CharSequence[]{"Oddiy", "Sekin internet (kichik bo'laklar)", "Avto (tezlikka qarab)"}, (d, which) -> {
+            ParadoksConfig.setDownloadMode(which);
+            refresh();
+        });
+        builder.setNegativeButton("Bekor qilish", null);
+        showDialog(builder.create());
     }
 
     private void showCleanupDialog() {

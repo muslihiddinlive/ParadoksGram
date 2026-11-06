@@ -1021,6 +1021,8 @@ public class BotWebViewAttachedSheet implements NotificationCenter.NotificationC
         settingsItem = otherItem.addSubItem(R.id.menu_settings, R.drawable.msg_settings, LocaleController.getString(R.string.BotWebViewSettings));
         settingsItem.setVisibility(View.GONE);
         otherItem.addSubItem(R.id.menu_reload_page, R.drawable.msg_retry, LocaleController.getString(R.string.BotWebViewReloadPage));
+        otherItem.addSubItem(uz.paradoks.gram.ParadoksWebDev.MENU_ID, R.drawable.msg_settings, "Dasturchi paneli");
+        otherItem.addSubItem(uz.paradoks.gram.ParadoksWebDev.MENU_COPY_ID, R.drawable.msg_copy, uz.paradoks.gram.ParadoksWebDev.MENU_COPY_TEXT);
         if (userbot != null && userbot.bot_has_main_app) {
             otherItem.addSubItem(R.id.menu_add_to_home_screen_bot, R.drawable.msg_home, LocaleController.getString(R.string.AddShortcut));
         }
@@ -1060,6 +1062,10 @@ public class BotWebViewAttachedSheet implements NotificationCenter.NotificationC
                     if (openPrivacy(currentAccount, botId)) {
                         dismiss(true);
                     }
+                } else if (id == uz.paradoks.gram.ParadoksWebDev.MENU_ID) {
+                    uz.paradoks.gram.ParadoksWebDev.show(getContext());
+                } else if (id == uz.paradoks.gram.ParadoksWebDev.MENU_COPY_ID) {
+                    uz.paradoks.gram.ParadoksWebDev.copyPage(getContext());
                 } else if (id == R.id.menu_reload_page) {
                     if (webViewContainer.getWebView() != null) {
                         webViewContainer.getWebView().animate().cancel();
