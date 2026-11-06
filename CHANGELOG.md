@@ -8,6 +8,11 @@ Versiya formati Telegram kabi: `MAJOR.MINOR.PATCH`, qavs ichida build raqami (ma
 
 Versiya raqami `VERSION` faylida turadi. Har versiya uchun foydalanuvchiga ko'rinadigan matn `changelog/<versiya>.md` fayliga yoziladi: CI shuni reliz matniga qo'yadi, ilova yangilanish oynasida shuni ko'rsatadi. Commit xabari reliz matniga tushmaydi.
 
+## 3.23.1 (6-noyabr)
+Yopiq guruhlarni ham klonlash mumkin
+O'zgardi:
+- Chatni klon qilish endi yopiq (havolasiz) guruh va kanallarda ham chiqadi. Saqlash va uzatish cheklangan chatlar oldingidek klonlanmaydi.
+
 ## 3.23.0 (6-noyabr)
 Xabar vaqti soniyalar bilan, a'zolar soni aniq
 Yangi:

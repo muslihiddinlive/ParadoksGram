@@ -262,7 +262,7 @@ public final class ParadoksClone {
             return false;
         }
         if (chat != null) {
-            return ChatObject.isPublic(chat) && !chat.noforwards && !ChatObject.isMonoForum(chat);
+            return !chat.noforwards && !ChatObject.isMonoForum(chat);
         }
         return user != null;
     }
