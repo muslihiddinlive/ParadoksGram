@@ -16,9 +16,6 @@ jobs:
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 150
-    env:
-      # fine-grained token with Contents: Read and write for ParadoksGram-releases only (repo secret RELEASES_TOKEN)
-      RELEASES_TOKEN: ${{ secrets.RELEASES_TOKEN }}
 
     steps:
       - name: Free disk space
@@ -43,6 +40,13 @@ jobs:
         uses: actions/checkout@v4
         with:
           submodules: recursive
+
+      - name: Apply AudioPlayerAlert patch (thumbnail download + Musiqiy ijodxona button)
+        run: |
+          F=TMessagesProj/src/main/java/org/telegram/ui/Components/AudioPlayerAlert.java
+          if [ -f patches/audioplayeralert-music-studio.patch ] && ! grep -q 'openMusicStudio' "$F"; then
+            git apply --3way patches/audioplayeralert-music-studio.patch || patch -p1 -F3 < patches/audioplayeralert-music-studio.patch
+          fi
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
@@ -171,17 +175,3 @@ jobs:
           prerelease: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Publish release to the public ParadoksGram-releases repo
-        if: ${{ env.RELEASES_TOKEN != '' }}
-        continue-on-error: true
-        uses: softprops/action-gh-release@v2
-        with:
-          repository: muslihiddinlive/ParadoksGram-releases
-          token: ${{ secrets.RELEASES_TOKEN }}
-          tag_name: build-${{ github.run_number }}
-          name: "ParadoksGram ${{ steps.ver.outputs.version }} (build ${{ github.run_number }})"
-          body_path: release-notes.md
-          files: ${{ steps.find_apk.outputs.apk_path }}
-          generate_release_notes: false
-          prerelease: true
