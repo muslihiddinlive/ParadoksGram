@@ -1752,6 +1752,7 @@ public class BotWebViewSheet extends Dialog implements NotificationCenter.Notifi
                 webViewContainer.onSettingsButtonPressed();
             })
             .add(R.drawable.msg_settings, "Dasturchi paneli", () -> uz.paradoks.gram.ParadoksWebDev.show(getContext()))
+            .add(R.drawable.msg_copy, uz.paradoks.gram.ParadoksWebDev.MENU_COPY_TEXT, () -> uz.paradoks.gram.ParadoksWebDev.copyPage(getContext()))
             .add(R.drawable.msg_retry, LocaleController.getString(R.string.BotWebViewReloadPage), () -> {
                 if (webViewContainer.getWebView() != null) {
                     webViewContainer.getWebView().animate().cancel();

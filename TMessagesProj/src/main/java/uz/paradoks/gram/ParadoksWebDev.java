@@ -42,6 +42,8 @@ public final class ParadoksWebDev {
 
     /** Menu id used in the mini-app menus. */
     public static final int MENU_ID = 9001;
+    public static final int MENU_COPY_ID = 9002;
+    public static final String MENU_COPY_TEXT = "Mini-appni klonlash (ZIP)";
 
     private static final int MAX = 500;
     private static final int MAX_TEXT = 3000;
@@ -204,7 +206,7 @@ public final class ParadoksWebDev {
     }
 
     /** Saves the open mini-app's public files into a ZIP and sends it to Saved Messages. */
-    private static void copyPage(Context context) {
+    public static void copyPage(Context context) {
         if (url == null || url.isEmpty()) {
             toast(context, "Mini-app ochilmagan");
             return;
