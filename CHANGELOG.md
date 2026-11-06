@@ -8,6 +8,12 @@ Versiya formati Telegram kabi: `MAJOR.MINOR.PATCH`, qavs ichida build raqami (ma
 
 Versiya raqami `VERSION` faylida turadi. Har versiya uchun foydalanuvchiga ko'rinadigan matn `changelog/<versiya>.md` fayliga yoziladi: CI shuni reliz matniga qo'yadi, ilova yangilanish oynasida shuni ko'rsatadi. Commit xabari reliz matniga tushmaydi.
 
+## 3.23.0 (6-noyabr)
+Xabar vaqti soniyalar bilan, a'zolar soni aniq
+Yangi:
+- Xabar pufagidagi vaqt endi soniyalar bilan ko'rinadi (masalan 11:52:37).
+- Kanal va guruh sarlavhasida hamda profilda obunachilar/a'zolar soni qisqartirilmay (12 345) ko'rinadi.
+
 ## 3.21.0 (6-noyabr)
 Ghost mode: online holati qayta-qayta oflayn qilinadi
 

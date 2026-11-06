@@ -1319,7 +1319,7 @@ public class ChatAvatarContainer extends FrameLayout implements FactorAnimator.T
                     }
                 } else {
                     int[] result = new int[1];
-                    boolean ignoreShort = AndroidUtilities.isAccessibilityScreenReaderEnabled();
+                    boolean ignoreShort = true;
                     String shortNumber = ignoreShort ? String.valueOf(result[0] = info.participants_count) : LocaleController.formatShortNumber(info.participants_count, result);
                     if (chat.megagroup) {
                         newSubtitle = LocaleController.formatPluralString("Members", result[0]).replace(String.format("%d", result[0]), shortNumber);

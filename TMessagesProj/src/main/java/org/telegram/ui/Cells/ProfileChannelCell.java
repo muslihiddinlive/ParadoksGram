@@ -206,7 +206,7 @@ public class ProfileChannelCell extends FrameLayout implements Theme.Colorable {
 
         if (channel != null) {
             int[] result = new int[1];
-            boolean ignoreShort = AndroidUtilities.isAccessibilityScreenReaderEnabled();
+            boolean ignoreShort = true;
             String shortNumber = ignoreShort ? String.valueOf(result[0] = channel.participants_count) : LocaleController.formatShortNumber(channel.participants_count, result);
             subscribersView.setText(LocaleController.formatPluralString("Subscribers", result[0]).replace(String.format("%d", result[0]), shortNumber), true);
 
