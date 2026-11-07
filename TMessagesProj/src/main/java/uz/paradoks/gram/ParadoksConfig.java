@@ -404,6 +404,33 @@ public final class ParadoksConfig {
         return prefs().getInt("glass_bubbles", 2);
     }
 
+    /** Liquid glass also on incoming bubbles (default: on). */
+    public static boolean glassIncoming() {
+        return prefs().getBoolean("glass_incoming", true);
+    }
+
+    public static void setGlassIncoming(boolean value) {
+        prefs().edit().putBoolean("glass_incoming", value).apply();
+    }
+
+    /** Pre-download of incoming media also on mobile data (default: Wi-Fi only). */
+    public static boolean preSaveMobile() {
+        return prefs().getBoolean("pre_save_mobile", false);
+    }
+
+    public static void setPreSaveMobile(boolean value) {
+        prefs().edit().putBoolean("pre_save_mobile", value).apply();
+    }
+
+    /** Biggest incoming file that is pre-downloaded, in MB (default 25). */
+    public static int preSaveMaxMb() {
+        return prefs().getInt("pre_save_max_mb", 25);
+    }
+
+    public static void setPreSaveMaxMb(int value) {
+        prefs().edit().putInt("pre_save_max_mb", value).apply();
+    }
+
     /** 0 colorless (default), 1 blue, 2 purple, 3 green, 4 pink, 5 gold. */
     public static int glassTint() {
         return prefs().getInt("glass_tint", 0);

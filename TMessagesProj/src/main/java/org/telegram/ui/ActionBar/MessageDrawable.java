@@ -565,7 +565,7 @@ public class MessageDrawable extends Drawable {
     private final Matrix glassMatrix = new Matrix();
 
     private boolean glassActive(Paint paintToUse) {
-        return isOut && paintToUse == null && currentType != TYPE_PREVIEW && uz.paradoks.gram.ParadoksConfig.glassBubbleLevel() > 0;
+        return (isOut || uz.paradoks.gram.ParadoksConfig.glassIncoming()) && paintToUse == null && currentType != TYPE_PREVIEW && uz.paradoks.gram.ParadoksConfig.glassBubbleLevel() > 0;
     }
 
     private static final int[] GLASS_TINTS = {

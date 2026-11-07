@@ -197,11 +197,13 @@ public class ParadoksSettingsPageActivity extends BaseFragment {
                 checkWarn("O'chirilgan xabarlarni saqlash", ParadoksConfig::keepDeleted, ParadoksConfig::setKeepDeleted);
                 checkWarn("O'chirilgan media'ni saqlash", ParadoksConfig::keepDeletedMedia, ParadoksConfig::setKeepDeletedMedia);
                 check("Media'ni oldindan saqlash", ParadoksConfig::preSaveMedia, ParadoksConfig::setPreSaveMedia);
+                check("Oldindan saqlash mobil internetda ham", ParadoksConfig::preSaveMobile, ParadoksConfig::setPreSaveMobile);
+                value("Oldindan saqlash: eng katta fayl", () -> ParadoksConfig.preSaveMaxMb() + " MB", this::showPreSaveSizeDialog);
                 check("Saqlangan media'ni chatda ko'rsatish", ParadoksConfig::restoreBackupMedia, ParadoksConfig::setRestoreBackupMedia);
                 check("Tahrirlar tarixini saqlash", ParadoksConfig::trackEdits, ParadoksConfig::setTrackEdits);
                 info("Kimdir xabarini o'chirsa, u chatingizda qoladi va \"o'chirilgan\" belgisi chiqadi. Rasm, video va fayllarning nusxasi "
                         + "ilova papkasida saqlanadi (150 MB gacha). Oldindan saqlash yangi kelgan rasm va fayllarni fonda yuklab qo'yadi "
-                        + "(faqat Wi-Fi, shaxsiy chat va guruhlarda, 25 MB gacha), shunda keyin o'chirilsa ham nusxasi tayyor bo'ladi. "
+                        + "(standart: faqat Wi-Fi va 25 MB gacha, ikkalasini yuqorida o'zgartirasiz; shaxsiy chat va guruhlarda), shunda keyin o'chirilsa ham nusxasi tayyor bo'ladi. "
                         + "\"Saqlangan media'ni chatda ko'rsatish\": o'chirilgan xabardagi rasm yoki video server'dan o'chib ketgan bo'lsa ham, chatning o'zida ochiladi "
                         + "(saqlangan fayldan, u bo'lmasa bazadagi nusxadan yuklab).\n\n"
                         + "Tahrirlangan xabarlarning eski variantlari saqlanadi, ularni xabar menyusidagi \"Tahrirlar tarixi\" dan ko'rasiz.\n\n"
@@ -303,6 +305,7 @@ public class ParadoksSettingsPageActivity extends BaseFragment {
                     int e = ParadoksConfig.glassEdge();
                     return e == 0 ? "Yo'q" : e == 1 ? "Yumshoq" : e == 3 ? "Yorqin" : "Oddiy";
                 }, this::showGlassEdgeDialog);
+                check("Kelgan xabarlarga ham liquid glass", ParadoksConfig::glassIncoming, ParadoksConfig::setGlassIncoming);
                 check("Sinish effekti (chekkada rangli nur)", ParadoksConfig::glassRefract, ParadoksConfig::setGlassRefract);
                 info("Yuborgan xabarlaringizning orqa foni shishaday yarim shaffof bo'ladi. \"Kuchli\" eng shaffof. "
                         + "Haqiqiy xiralashtirish yo'q: chat foni rasmli yoki rangli bo'lsa chiroyliroq ko'rinadi.");
@@ -534,6 +537,25 @@ public class ParadoksSettingsPageActivity extends BaseFragment {
             return (maxMb / 1024) + " GB gacha";
         }
         return "o'chirilmaydi";
+    }
+
+    private void showPreSaveSizeDialog() {
+        if (getParentActivity() == null) {
+            return;
+        }
+        final int[] sizes = {10, 25, 50, 100, 150};
+        CharSequence[] names = new CharSequence[sizes.length];
+        for (int i = 0; i < sizes.length; i++) {
+            names[i] = sizes[i] + " MB";
+        }
+        AlertDialog.Builder builder = new AlertDialog.Builder(getParentActivity());
+        builder.setTitle("Eng katta fayl hajmi");
+        builder.setItems(names, (d, which) -> {
+            ParadoksConfig.setPreSaveMaxMb(sizes[which]);
+            refresh();
+        });
+        builder.setNegativeButton("Bekor qilish", null);
+        showDialog(builder.create());
     }
 
     private static final String[] GLASS_TINT_NAMES = {"Rangsiz", "Moviy", "Binafsha", "Yashil", "Pushti", "Oltin"};

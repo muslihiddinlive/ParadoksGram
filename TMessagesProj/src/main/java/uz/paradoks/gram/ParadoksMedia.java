@@ -120,7 +120,7 @@ final class ParadoksMedia {
             if (!ParadoksConfig.keepDeletedMedia() || !ParadoksConfig.preSaveMedia()) {
                 return;
             }
-            if (!UserConfig.getInstance(account).isClientActivated() || !ApplicationLoader.isConnectedToWiFi()) {
+            if (!UserConfig.getInstance(account).isClientActivated() || (!ParadoksConfig.preSaveMobile() && !ApplicationLoader.isConnectedToWiFi())) {
                 return;
             }
             if (Boolean.TRUE.equals(args[2])) { // scheduled messages
@@ -138,7 +138,7 @@ final class ParadoksMedia {
                 if (MessageObject.isStickerMessage(message) || MessageObject.isAnimatedStickerMessage(message)) {
                     continue;
                 }
-                if (message.media.document != null && message.media.document.size > PREFETCH_MAX_SIZE) {
+                if (message.media.document != null && message.media.document.size > Math.max(1, ParadoksConfig.preSaveMaxMb()) * 1024L * 1024L) {
                     continue;
                 }
                 startDownload(account, message, FileLoader.PRIORITY_LOW);
