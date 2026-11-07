@@ -298,8 +298,14 @@ public class ParadoksSettingsPageActivity extends BaseFragment {
                     int g = ParadoksConfig.glassBubbleLevel();
                     return g == 1 ? "Yengil" : g == 2 ? "O'rtacha" : g == 3 ? "Kuchli" : "O'chiq";
                 }, this::showGlassDialog);
-                info("Yuborgan xabarlaringizning orqa foni shishaday yarim shaffof bo'ladi, yorug' chekka va yaltirash qo'shiladi. "
-                        + "Chat foni rasmli yoki rangli bo'lsa chiroyliroq ko'rinadi.");
+                value("Shisha rangi", () -> GLASS_TINT_NAMES[Math.max(0, Math.min(GLASS_TINT_NAMES.length - 1, ParadoksConfig.glassTint()))], this::showGlassTintDialog);
+                value("Chekka yorug'ligi", () -> {
+                    int e = ParadoksConfig.glassEdge();
+                    return e == 0 ? "Yo'q" : e == 1 ? "Yumshoq" : e == 3 ? "Yorqin" : "Oddiy";
+                }, this::showGlassEdgeDialog);
+                check("Sinish effekti (chekkada rangli nur)", ParadoksConfig::glassRefract, ParadoksConfig::setGlassRefract);
+                info("Yuborgan xabarlaringizning orqa foni shishaday yarim shaffof bo'ladi. \"Kuchli\" eng shaffof. "
+                        + "Haqiqiy xiralashtirish yo'q: chat foni rasmli yoki rangli bo'lsa chiroyliroq ko'rinadi.");
                 header("Yuklash");
                 value("Yuklash rejimi", () -> {
                     int m = ParadoksConfig.downloadMode();
@@ -528,6 +534,36 @@ public class ParadoksSettingsPageActivity extends BaseFragment {
             return (maxMb / 1024) + " GB gacha";
         }
         return "o'chirilmaydi";
+    }
+
+    private static final String[] GLASS_TINT_NAMES = {"Rangsiz", "Moviy", "Binafsha", "Yashil", "Pushti", "Oltin"};
+
+    private void showGlassTintDialog() {
+        if (getParentActivity() == null) {
+            return;
+        }
+        AlertDialog.Builder builder = new AlertDialog.Builder(getParentActivity());
+        builder.setTitle("Shisha rangi");
+        builder.setItems(GLASS_TINT_NAMES, (d, which) -> {
+            ParadoksConfig.setGlassTint(which);
+            refresh();
+        });
+        builder.setNegativeButton("Bekor qilish", null);
+        showDialog(builder.create());
+    }
+
+    private void showGlassEdgeDialog() {
+        if (getParentActivity() == null) {
+            return;
+        }
+        AlertDialog.Builder builder = new AlertDialog.Builder(getParentActivity());
+        builder.setTitle("Chekka yorug'ligi");
+        builder.setItems(new CharSequence[]{"Yo'q", "Yumshoq", "Oddiy", "Yorqin"}, (d, which) -> {
+            ParadoksConfig.setGlassEdge(which);
+            refresh();
+        });
+        builder.setNegativeButton("Bekor qilish", null);
+        showDialog(builder.create());
     }
 
     private void showGlassDialog() {

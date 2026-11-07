@@ -74,6 +74,9 @@ public final class ParadoksBackup {
         SCHEMA.put("strip_metadata", T_BOOL);
         SCHEMA.put("download_mode", T_INT);
         SCHEMA.put("glass_bubbles", T_INT);
+        SCHEMA.put("glass_tint", T_INT);
+        SCHEMA.put("glass_edge", T_INT);
+        SCHEMA.put("glass_refract", T_BOOL);
         SCHEMA.put("lock_hash", T_STRING);
         SCHEMA.put("lock_salt", T_STRING);
         SCHEMA.put("lock_chats", T_STRING_SET);

@@ -404,6 +404,32 @@ public final class ParadoksConfig {
         return prefs().getInt("glass_bubbles", 2);
     }
 
+    /** 0 colorless (default), 1 blue, 2 purple, 3 green, 4 pink, 5 gold. */
+    public static int glassTint() {
+        return prefs().getInt("glass_tint", 0);
+    }
+
+    public static void setGlassTint(int value) {
+        prefs().edit().putInt("glass_tint", value).apply();
+    }
+
+    /** Edge brightness / sheen: 0 off, 1 soft, 2 normal, 3 bright. */
+    public static int glassEdge() {
+        return prefs().getInt("glass_edge", 2);
+    }
+
+    public static void setGlassEdge(int value) {
+        prefs().edit().putInt("glass_edge", value).apply();
+    }
+
+    public static boolean glassRefract() {
+        return prefs().getBoolean("glass_refract", false);
+    }
+
+    public static void setGlassRefract(boolean value) {
+        prefs().edit().putBoolean("glass_refract", value).apply();
+    }
+
     public static void setGlassBubbleLevel(int level) {
         prefs().edit().putInt("glass_bubbles", level).apply();
     }
