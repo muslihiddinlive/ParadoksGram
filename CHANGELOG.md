@@ -8,6 +8,14 @@ Versiya formati Telegram kabi: `MAJOR.MINOR.PATCH`, qavs ichida build raqami (ma
 
 Versiya raqami `VERSION` faylida turadi. Har versiya uchun foydalanuvchiga ko'rinadigan matn `changelog/<versiya>.md` fayliga yoziladi: CI shuni reliz matniga qo'yadi, ilova yangilanish oynasida shuni ko'rsatadi. Commit xabari reliz matniga tushmaydi.
 
+## 3.30.0 (7-noyabr)
+Lotin↔Kirill, AI vositalari, yuklashlar ekrani, proksi lentasi
+Yangi:
+- Lotin ↔ Kirill o'girish: xabar menyusida va yozish maydonida matnni belgilab.
+- Xabar menyusida "AI bilan tarjima" va "AI bilan tushuntirish", chat menyusida "AI bilan qisqartirish".
+- Yuklashlar ekrani (sozlamalarda), qo'ng'iroq oldidan so'rash, proksi ro'yxatidan avto-ulanish va Minecraft server holati.
+- Xavfsizlik: AI va reklama serveri faqat HTTPS, AI amallarini telefonda tasdiqlash.
+
 ## 3.29.0 (7-noyabr)
 Musiqiy ijodxona
 

@@ -854,6 +854,11 @@ public class ParadoksAiActivity extends BaseFragment implements NotificationCent
         sendButton.setContentDescription("Yuborish");
         sendButton.setOnClickListener(v -> onSend());
         bottom.addView(sendButton, LayoutHelper.createLinear(36, 36, Gravity.CENTER_VERTICAL, 0, 0, 4, 0));
+        String prepared = ParadoksAiTools.takePendingPrompt(); // request prepared from a chat menu: the user reviews it and presses send
+        if (prepared != null) {
+            input.setText(prepared);
+            input.setSelection(input.getText().length());
+        }
         updateSendButton();
         return outer;
     }

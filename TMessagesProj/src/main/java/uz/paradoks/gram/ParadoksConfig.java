@@ -179,16 +179,156 @@ public final class ParadoksConfig {
         prefs().edit().putBoolean("device_commands", v).apply();
     }
 
+    /** Proxy list feed: download proxies from an HTTPS list and switch to the fastest when stuck on "Connecting...". */
+    public static boolean proxyFeedEnabled() {
+        return prefs().getBoolean("proxy_feed", false);
+    }
+
+    public static void setProxyFeedEnabled(boolean v) {
+        prefs().edit().putBoolean("proxy_feed", v).apply();
+    }
+
+    public static String proxyFeedUrlRaw() {
+        return stripSlashes(prefs().getString("proxy_feed_url", ""));
+    }
+
+    /** The feed address if it is HTTPS, otherwise empty. */
+    public static String proxyFeedUrl() {
+        String url = proxyFeedUrlRaw();
+        return isAllowedServerUrl(url) ? url : "";
+    }
+
+    public static void setProxyFeedUrl(String url) {
+        prefs().edit().putString("proxy_feed_url", url == null ? "" : url.trim()).putLong("proxy_feed_last", 0).apply();
+    }
+
+    public static long proxyFeedLastFetch() {
+        return prefs().getLong("proxy_feed_last", 0);
+    }
+
+    public static void setProxyFeedLastFetch(long time) {
+        prefs().edit().putLong("proxy_feed_last", time).apply();
+    }
+
+    public static String proxyFeedStatus() {
+        return prefs().getString("proxy_feed_status", "");
+    }
+
+    public static void setProxyFeedStatus(String text) {
+        prefs().edit().putString("proxy_feed_status", text == null ? "" : text).apply();
+    }
+
+    /** Bedrock server whose status is shown in settings. */
+    public static String mcHost() {
+        return prefs().getString("mc_host", "").trim();
+    }
+
+    public static int mcPort() {
+        return prefs().getInt("mc_port", 19132);
+    }
+
+    public static void setMcServer(String host, int port) {
+        prefs().edit().putString("mc_host", host == null ? "" : host.trim()).putInt("mc_port", port).apply();
+    }
+
+    /** Ask before an outgoing call. */
+    public static boolean confirmCalls() {
+        return prefs().getBoolean("confirm_calls", false);
+    }
+
+    public static void setConfirmCalls(boolean v) {
+        prefs().edit().putBoolean("confirm_calls", v).apply();
+    }
+
+    /** "AI bilan tarjima / tushuntirish" items in the message menu. */
+    public static boolean aiMessageTools() {
+        return prefs().getBoolean("ai_message_tools", true);
+    }
+
+    public static void setAiMessageTools(boolean v) {
+        prefs().edit().putBoolean("ai_message_tools", v).apply();
+    }
+
+    /** Lotin / Kirill converter in the message menu and the input field selection menu. */
+    public static boolean translitEnabled() {
+        return prefs().getBoolean("translit", true);
+    }
+
+    public static void setTranslitEnabled(boolean v) {
+        prefs().edit().putBoolean("translit", v).apply();
+    }
+
+    /** AI server address as saved, even if it is not secure (used only to show it in settings). */
+    public static String aiServerUrlRaw() {
+        return stripSlashes(prefs().getString("ai_server", ""));
+    }
+
+    /** AI server address that is safe to talk to: HTTPS only (HTTP is accepted for local development hosts). Empty otherwise. */
     public static String aiServerUrl() {
-        String url = prefs().getString("ai_server", "").trim();
+        String url = aiServerUrlRaw();
+        return isAllowedServerUrl(url) ? url : "";
+    }
+
+    public static void setAiServerUrl(String url) {
+        prefs().edit().putString("ai_server", url == null ? "" : url.trim()).apply();
+    }
+
+    /** True when a saved server address exists but is refused because it is not HTTPS. */
+    public static boolean aiServerInsecure() {
+        String url = aiServerUrlRaw();
+        return !url.isEmpty() && !isAllowedServerUrl(url);
+    }
+
+    /** Ask on this phone before the AI sends a message or posts a story (delete is always asked). */
+    public static boolean deviceConfirmActions() {
+        return prefs().getBoolean("device_confirm_actions", true);
+    }
+
+    public static void setDeviceConfirmActions(boolean v) {
+        prefs().edit().putBoolean("device_confirm_actions", v).apply();
+    }
+
+    private static String stripSlashes(String raw) {
+        String url = raw == null ? "" : raw.trim();
         while (url.endsWith("/")) {
             url = url.substring(0, url.length() - 1);
         }
         return url;
     }
 
-    public static void setAiServerUrl(String url) {
-        prefs().edit().putString("ai_server", url == null ? "" : url.trim()).apply();
+    /** Trims, removes trailing slashes and adds "https://" when the scheme is missing. */
+    public static String normalizeServerUrl(String raw) {
+        String url = stripSlashes(raw);
+        if (!url.isEmpty() && !url.contains("://")) {
+            url = "https://" + url;
+        }
+        return url;
+    }
+
+    /**
+     * Server addresses carry a device token and the account's actions (or the ads shown to the user), so plain HTTP would
+     * let anyone on the network read the token or inject content. Only HTTPS is allowed, plus HTTP to localhost / the
+     * Android emulator host for development.
+     */
+    public static boolean isAllowedServerUrl(String url) {
+        if (url == null || url.isEmpty()) {
+            return false;
+        }
+        try {
+            java.net.URI uri = new java.net.URI(url);
+            String scheme = uri.getScheme();
+            String host = uri.getHost();
+            if (scheme == null || host == null) {
+                return false;
+            }
+            if ("https".equalsIgnoreCase(scheme)) {
+                return true;
+            }
+            return "http".equalsIgnoreCase(scheme)
+                    && ("localhost".equalsIgnoreCase(host) || "127.0.0.1".equals(host) || "10.0.2.2".equals(host));
+        } catch (Exception e) {
+            return false;
+        }
     }
 
     /** Random per-install token that pairs this device with the AI bot; generated once. */
@@ -332,12 +472,15 @@ public final class ParadoksConfig {
         prefs().edit().putBoolean("own_ads", v).apply();
     }
 
+    /** Ad server address as saved, even if it is not secure (used only to show it in settings). */
+    public static String adServerUrlRaw() {
+        return stripSlashes(prefs().getString("ad_server", DEFAULT_AD_SERVER));
+    }
+
+    /** Ad server address that is safe to talk to (HTTPS only, see {@link #isAllowedServerUrl}). Empty otherwise. */
     public static String adServerUrl() {
-        String url = prefs().getString("ad_server", DEFAULT_AD_SERVER).trim();
-        while (url.endsWith("/")) {
-            url = url.substring(0, url.length() - 1);
-        }
-        return url;
+        String url = adServerUrlRaw();
+        return isAllowedServerUrl(url) ? url : "";
     }
 
     public static void setAdServerUrl(String url) {

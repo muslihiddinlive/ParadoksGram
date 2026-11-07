@@ -717,7 +717,9 @@ public class EditTextCaption extends EditTextBoldCursor implements FloatingToolb
             public boolean onCreateActionMode(ActionMode mode, Menu menu) {
                 copyPasteShowed = true;
                 onContextMenuOpen();
-                return callback.onCreateActionMode(mode, menu);
+                boolean created = callback.onCreateActionMode(mode, menu);
+                uz.paradoks.gram.ParadoksTranslit.addMenuItem(menu); // ParadoksGram: Lotin <-> Kirill
+                return created;
             }
 
             @Override
@@ -727,6 +729,11 @@ public class EditTextCaption extends EditTextBoldCursor implements FloatingToolb
 
             @Override
             public boolean onActionItemClicked(ActionMode mode, MenuItem item) {
+                if (item.getItemId() == uz.paradoks.gram.ParadoksTranslit.MENU_ID) { // ParadoksGram
+                    uz.paradoks.gram.ParadoksTranslit.convertSelection(EditTextCaption.this);
+                    mode.finish();
+                    return true;
+                }
                 if (performMenuAction(item.getItemId())) {
                     mode.finish();
                     return true;

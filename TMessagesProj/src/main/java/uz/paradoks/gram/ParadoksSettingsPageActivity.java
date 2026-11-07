@@ -230,9 +230,21 @@ public class ParadoksSettingsPageActivity extends BaseFragment {
                         adapter.notifyDataSetChanged();
                     }
                 }));
+                check("Barmoq izi / yuz bilan ochish", ParadoksConfig::lockBiometric, v -> {
+                    if (v && !ParadoksLock.hasPin()) {
+                        android.widget.Toast.makeText(getParentActivity(), "Avval PIN kod o'rnating", android.widget.Toast.LENGTH_LONG).show();
+                    } else if (v && !ParadoksLock.biometricAvailable()) {
+                        android.widget.Toast.makeText(getParentActivity(),
+                                "Bu telefonda barmoq izi yoki yuz bilan ochish sozlanmagan", android.widget.Toast.LENGTH_LONG).show();
+                    } else {
+                        ParadoksConfig.setLockBiometric(v);
+                    }
+                    refresh();
+                });
                 check("Qidiruvda yashirin chatlarni ko'rsatish", ParadoksConfig::showHiddenInSearch, ParadoksConfig::setShowHiddenInSearch);
                 check("Yuborilayotgan rasmlardan metadata (EXIF) ni tozalash", ParadoksConfig::stripMetadata, ParadoksConfig::setStripMetadata);
-                info("Chat menyusidagi \"Chat qulfi\" chatni qulflaydi va u har ochilganda PIN so'raydi. PIN faqat shifrlangan (hash) ko'rinishida saqlanadi.\n\n"
+                info("Chat menyusidagi \"Chat qulfi\" chatni qulflaydi va u har ochilganda PIN so'raydi. PIN faqat shifrlangan (hash) ko'rinishida saqlanadi. "
+                        + "Barmoq izi yoqilsa, avval barmoq izi so'raladi; bo'lmasa yoki bekor qilsangiz, PIN so'raladi.\n\n"
                         + "\"Yashirin chat\" ro'yxat, forward va bildirishnomalardan yo'qoladi. Tumbler yoqilsa, ular qidiruvda ham ko'rinadi; "
                         + "o'chiq bo'lsa, yashirinlarni ko'rish uchun qidiruv belgisini bosib turing va PIN kiriting.\n\n"
                         + "Ikkalasi ham ilovaning o'zida ishlaydi, ular haqida Telegram serveriga hech narsa yuborilmaydi.");
@@ -243,7 +255,13 @@ public class ParadoksSettingsPageActivity extends BaseFragment {
                 check("Reklamani yashirish (kanal va botlar)", ParadoksConfig::hideSponsored, ParadoksConfig::setHideSponsored);
                 check("ParadoksGram reklamasi", ParadoksConfig::ownAdsEnabled, ParadoksConfig::setOwnAdsEnabled);
                 check("Reaksiya yoki izohda reklama ko'rsatish", ParadoksConfig::adOnInteraction, ParadoksConfig::setAdOnInteraction);
-                value("Reklama serveri", () -> ParadoksConfig.adServerUrl().isEmpty() ? "O'rnatilmagan" : ParadoksConfig.adServerUrl(), this::showAdServerDialog);
+                value("Reklama serveri", () -> {
+                    String raw = ParadoksConfig.adServerUrlRaw();
+                    if (raw.isEmpty()) {
+                        return "O'rnatilmagan";
+                    }
+                    return ParadoksConfig.adServerUrl().isEmpty() ? "HTTPS emas, ishlatilmaydi" : raw;
+                }, this::showAdServerDialog);
                 info("Birinchisi kanal va botlardagi \"Sponsored\" (homiylik) xabarlarini yashiradi.\n\n"
                         + "ParadoksGram reklamasi dasturchi serveridan olinadi va \"Reklama\" belgisi bilan kanal oxirida yoki bot chati tepasida ko'rinadi. "
                         + "Serverga Telegram ma'lumotlaringiz yuborilmaydi, faqat reklama raqami, hodisa turi (ko'rildi yoki bosildi) va tasodifiy anonim raqam.\n\n"
@@ -319,8 +337,88 @@ public class ParadoksSettingsPageActivity extends BaseFragment {
                 value("Mini-app dasturchi paneli", () -> "Ochish", () -> ParadoksWebDev.show(getParentActivity()));
                 info("Dasturchilar uchun: mini-app va Telegram o'rtasidagi chaqiruvlar jurnali, initData, konsol, tarmoq so'rovlari, tema va viewport simulyatori, "
                         + "cookie/kesh tozalash va WebView DevTools. Panelni mini-appning \u22ee menyusidagi \"Dasturchi paneli\" orqali ham ochish mumkin.");
+                header("Matn va tasodifiy bosish");
+                check("Lotin \u2194 Kirill o'girish", ParadoksConfig::translitEnabled, ParadoksConfig::setTranslitEnabled);
+                check("Qo'ng'iroq oldidan so'rash", ParadoksConfig::confirmCalls, ParadoksConfig::setConfirmCalls);
+                info("Lotin \u2194 Kirill: yozish maydonida matnni belgilang va menyudan \"Lotin \u2194 Kirill\" ni tanlang; xabar menyusida ham shu band bor, "
+                        + "natija oynada ko'rinadi va nusxa olinadi. Yo'nalish matndan o'zi aniqlanadi (o', g', sh, ch, yo, ye, ts qoidalari bilan). "
+                        + "Havola, @username va #teg o'zgarmaydi.\n\n"
+                        + "Qo'ng'iroq oldidan so'rash: ovozli yoki video qo'ng'iroq tugmasi bosilganda \"Qo'ng'iroq qilinsinmi?\" deb so'raydi.");
+                header("Proxy ro'yxati");
+                check("Proxy ro'yxatidan avto-ulanish", ParadoksConfig::proxyFeedEnabled, v -> {
+                    ParadoksConfig.setProxyFeedEnabled(v);
+                    if (v && !ParadoksConfig.proxyFeedUrl().isEmpty()) {
+                        ParadoksProxyFeed.refresh();
+                    }
+                    refresh();
+                });
+                value("Ro'yxat manzili", () -> {
+                    String raw = ParadoksConfig.proxyFeedUrlRaw();
+                    if (raw.isEmpty()) {
+                        return "O'rnatilmagan";
+                    }
+                    return ParadoksConfig.proxyFeedUrl().isEmpty() ? "HTTPS emas, ishlatilmaydi" : raw;
+                }, () -> showTextDialog("Proxy ro'yxati manzili",
+                        "Har qatorda bitta proxy havolasi (tg://proxy?... yoki https://t.me/proxy?...) bo'lgan matn faylning https:// manzili.",
+                        "https://example.com/proxies.txt", ParadoksConfig.proxyFeedUrlRaw(), value -> {
+                            String url = ParadoksConfig.normalizeServerUrl(value);
+                            if (!url.isEmpty() && !ParadoksConfig.isAllowedServerUrl(url)) {
+                                toast("Manzil https:// bilan boshlanishi kerak. Saqlanmadi.");
+                                return;
+                            }
+                            ParadoksConfig.setProxyFeedUrl(url);
+                            refresh();
+                        }));
+                value("Holat", () -> ParadoksConfig.proxyFeedStatus().isEmpty() ? "-" : ParadoksConfig.proxyFeedStatus(), () -> {
+                    if (ParadoksConfig.proxyFeedUrl().isEmpty()) {
+                        toast("Avval ro'yxat manzilini kiriting");
+                    } else if (!ParadoksConfig.proxyFeedEnabled()) {
+                        toast("Avval \"Proxy ro'yxatidan avto-ulanish\" ni yoqing");
+                    } else {
+                        ParadoksProxyFeed.refreshNow();
+                        toast("Yangilanmoqda...");
+                    }
+                });
+                info("Yoqilsa, ilova ro'yxatni 6 soatda bir yuklab, Telegram'ning proxy ro'yxatiga qo'shadi (sizning proxylaringiz o'chirilmaydi). "
+                        + "\"Connecting...\" holatida 30 soniya turib qolsa, ro'yxatni yangilab, hammasini tekshiradi va eng tezkoriga ulanadi. "
+                        + "\"Holat\" qatoriga bossangiz, hozir yangilab ulanadi.\n\n"
+                        + "Faqat ishonchli manbadan foydalaning: proxy server trafikingiz borishini ko'radi (xabar matnlarini emas, ular shifrlangan).");
+                header("Minecraft server");
+                value("Server manzili", () -> ParadoksConfig.mcHost().isEmpty() ? "O'rnatilmagan" : ParadoksConfig.mcHost() + ":" + ParadoksConfig.mcPort(),
+                        () -> showTextDialog("Bedrock server", "Manzil yoki manzil:port (standart port 19132).", "play.example.uz:19132",
+                                ParadoksConfig.mcHost().isEmpty() ? "" : ParadoksConfig.mcHost() + ":" + ParadoksConfig.mcPort(), value -> {
+                                    String text = value.trim();
+                                    int port = 19132;
+                                    int colon = text.lastIndexOf(':');
+                                    if (colon > 0) {
+                                        try {
+                                            port = Integer.parseInt(text.substring(colon + 1).trim());
+                                            text = text.substring(0, colon);
+                                        } catch (NumberFormatException e) {
+                                            toast("Port noto'g'ri");
+                                            return;
+                                        }
+                                    }
+                                    if (port <= 0 || port > 65535) {
+                                        toast("Port noto'g'ri");
+                                        return;
+                                    }
+                                    ParadoksConfig.setMcServer(text, port);
+                                    mcStatusText = null;
+                                    refresh();
+                                }));
+                value("Holat", () -> mcStatusText == null ? "Bosib tekshiring" : mcStatusText, () -> {
+                    mcStatusText = "Tekshirilmoqda...";
+                    refresh();
+                    ParadoksMcStatus.check(text -> {
+                        mcStatusText = text;
+                        refresh();
+                    });
+                });
+                info("Bedrock serveringiz online ekanini, nechta o'yinchi borligini va ping'ini ko'rsatadi. \"Holat\" qatoriga bosganda server'ga bitta UDP so'rov yuboriladi.");
                 header("Paradoks AI");
                 check("Sarlavhada Paradoks AI tugmasi", ParadoksConfig::showAiButton, ParadoksConfig::setShowAiButton);
+                check("Xabar menyusida AI bilan tarjima va tushuntirish", ParadoksConfig::aiMessageTools, ParadoksConfig::setAiMessageTools);
                 info("Chat ro'yxati sarlavhasida (ghost tugmasi yonida) Paradoks AI tugmasi chiqadi. Bosilganda @ParadoksAiBot bilan gaplashadigan AI oynasi ochiladi: "
                         + "savolingiz botga o'zingizning akkauntingizdan yuboriladi va javob shu yerda ko'rinadi. Botning xotirasi, vositalari va limitlari ishlayveradi. "
                         + "O'zgarish chat ro'yxati qayta ochilganda ko'rinadi.");
@@ -336,10 +434,29 @@ public class ParadoksSettingsPageActivity extends BaseFragment {
                         refresh();
                     }
                 });
-                value("AI server manzili", () -> ParadoksConfig.aiServerUrl().isEmpty() ? "O'rnatilmagan" : ParadoksConfig.aiServerUrl(), this::showAiServerDialog);
+                value("AI server manzili", () -> {
+                    String raw = ParadoksConfig.aiServerUrlRaw();
+                    if (raw.isEmpty()) {
+                        return "O'rnatilmagan";
+                    }
+                    return ParadoksConfig.aiServerInsecure() ? "HTTPS emas, ishlatilmaydi" : raw;
+                }, this::showAiServerDialog);
+                check("Xabar va story'ni telefonda tasdiqlash", ParadoksConfig::deviceConfirmActions, v -> {
+                    if (v) {
+                        ParadoksConfig.setDeviceConfirmActions(true);
+                        refresh();
+                    } else {
+                        confirmDisableActionConfirm(() -> {
+                            ParadoksConfig.setDeviceConfirmActions(false);
+                            refresh();
+                        });
+                    }
+                });
                 info("Yoqsangiz, Paradoks AI chatida so'ragan amallarni telefoningizda O'ZI bajara oladi: ko'rsatgan chatga xabar yozish, qaysi chatlarda o'qilmagan xabar borligini aytish (o'qildi deb BELGILAMAY), "
-                        + "yuborgan videongizni story qilib qo'yish, kimdir yuborgan .apk faylining paket nomi/ruxsatlari/imzosini o'qib berish. Chatni o'chirish ANIQ roziligingizdan keyingina bajariladi. "
-                        + "Bu amallar sizning akkauntingizdan, siz Telegram'da qanday qilsangiz xuddi shunday bajariladi — AI hech qachon so'ramasdan muhim amal qilmaydi.");
+                        + "yuborgan videongizni story qilib qo'yish, kimdir yuborgan .apk faylining paket nomi/ruxsatlari/imzosini o'qib berish, chatni o'chirish.\n\n"
+                        + "Server manzili faqat HTTPS bo'lishi kerak: oddiy http:// manzil token'ni tarmoqda ochiq yuboradi, shuning uchun ishlatilmaydi.\n\n"
+                        + "Chatni o'chirish HAR DOIM shu telefonda ko'rsatiladigan oynada tasdiqlanadi. Xabar yuborish va story qo'yish ham tasdiq so'raydi "
+                        + "(tumblerni o'chirib, buni o'zgartirishingiz mumkin). Tasdiqlash uchun ilova ochiq turishi kerak, aks holda amal bajarilmaydi.");
                 header("Jonli efir");
                 check("Jonli efirni yozib olish", ParadoksConfig::recordStreams, ParadoksConfig::setRecordStreams);
                 info("Jonli efirni (Live stream) tomosha qilayotganingizda orqa fonda yozib boradi. Efir tugaganda (yoki 1 daqiqa hech narsa kelmasa) "
@@ -426,6 +543,50 @@ public class ParadoksSettingsPageActivity extends BaseFragment {
 
     // ---------------------------------------------------------------- dialogs
 
+    private String mcStatusText;
+
+    private interface StringSet {
+        void set(String value);
+    }
+
+    private void toast(String text) {
+        if (getParentActivity() != null) {
+            android.widget.Toast.makeText(getParentActivity(), text, android.widget.Toast.LENGTH_LONG).show();
+        }
+    }
+
+    private void showTextDialog(String title, String message, String hint, String current, StringSet onOk) {
+        if (getParentActivity() == null) {
+            return;
+        }
+        final android.widget.EditText input = new android.widget.EditText(getParentActivity());
+        input.setSingleLine(true);
+        input.setHint(hint);
+        input.setText(current);
+        input.setPadding(org.telegram.messenger.AndroidUtilities.dp(24), org.telegram.messenger.AndroidUtilities.dp(12),
+                org.telegram.messenger.AndroidUtilities.dp(24), org.telegram.messenger.AndroidUtilities.dp(12));
+        AlertDialog.Builder builder = new AlertDialog.Builder(getParentActivity());
+        builder.setTitle(title);
+        builder.setMessage(message);
+        builder.setView(input);
+        builder.setPositiveButton("OK", (d, w) -> onOk.set(input.getText().toString().trim()));
+        builder.setNegativeButton(LocaleController.getString(R.string.Cancel), null);
+        showDialog(builder.create());
+    }
+
+    private void confirmDisableActionConfirm(Runnable onOk) {
+        if (getParentActivity() == null) {
+            return;
+        }
+        AlertDialog.Builder builder = new AlertDialog.Builder(getParentActivity());
+        builder.setTitle("Tasdiqlashni o'chirasizmi?");
+        builder.setMessage("O'chirsangiz, AI server so'rasa, xabar yuborish va story qo'yish sizdan so'ramasdan bajariladi. "
+                + "Server yoki token xavf ostida bo'lsa, kimdir akkauntingizdan xabar yubora oladi. Chatni o'chirish baribir har doim so'raydi.");
+        builder.setPositiveButton("Baribir o'chirish", (d, w) -> onOk.run());
+        builder.setNegativeButton("Bekor qilish", null);
+        showDialog(builder.create());
+    }
+
     private void confirmDeviceCommands(Runnable onOk) {
         if (getParentActivity() == null) {
             onOk.run();
@@ -435,7 +596,7 @@ public class ParadoksSettingsPageActivity extends BaseFragment {
         builder.setTitle("AI buyruqlariga ishonasizmi?");
         builder.setMessage("Paradoks AI chatidagi so'rovlar bo'yicha telefoningizda amal bajara boshlaydi: xabar yozish, story qo'yish va hokazo — "
                 + "bularning hammasi SIZNING akkauntingizdan ketadi. Faqat o'zingiz ishongan AI server manzilini kiriting. "
-                + "Chatni o'chirish kabi qaytarib bo'lmaydigan amallarni AI avval sizdan so'raydi, lekin boshqa amallarni darhol bajaradi.");
+                + "Chatni o'chirish, xabar yuborish va story qo'yish oldidan shu telefonda tasdiqlash oynasi chiqadi.");
         builder.setPositiveButton("Tushundim, yoqish", (d, w) -> onOk.run());
         builder.setNegativeButton("Bekor qilish", null);
         showDialog(builder.create());
@@ -448,17 +609,19 @@ public class ParadoksSettingsPageActivity extends BaseFragment {
         final android.widget.EditText input = new android.widget.EditText(getParentActivity());
         input.setSingleLine(true);
         input.setHint("https://sizning-ai-bot.onrender.com");
-        input.setText(ParadoksConfig.aiServerUrl());
+        input.setText(ParadoksConfig.aiServerUrlRaw());
         input.setPadding(org.telegram.messenger.AndroidUtilities.dp(24), org.telegram.messenger.AndroidUtilities.dp(12),
                 org.telegram.messenger.AndroidUtilities.dp(24), org.telegram.messenger.AndroidUtilities.dp(12));
         AlertDialog.Builder builder = new AlertDialog.Builder(getParentActivity());
         builder.setTitle("AI server manzili");
-        builder.setMessage("Paradoks AI botingiz joylashgan server manzili (Render va h.k.). AI buyruqlari shu bilan gaplashadi.");
+        builder.setMessage("Paradoks AI botingiz joylashgan server manzili (Render va h.k.). AI buyruqlari shu bilan gaplashadi. Faqat https:// manzil qabul qilinadi.");
         builder.setView(input);
         builder.setPositiveButton("OK", (d, w) -> {
-            String value = input.getText().toString().trim();
-            if (!value.isEmpty() && !value.startsWith("https://") && !value.startsWith("http://")) {
-                value = "https://" + value;
+            String value = ParadoksConfig.normalizeServerUrl(input.getText().toString());
+            if (!value.isEmpty() && !ParadoksConfig.isAllowedServerUrl(value)) {
+                android.widget.Toast.makeText(getParentActivity(),
+                        "Manzil https:// bilan boshlanishi kerak. Saqlanmadi.", android.widget.Toast.LENGTH_LONG).show();
+                return;
             }
             ParadoksConfig.setAiServerUrl(value);
             refresh();
@@ -474,17 +637,19 @@ public class ParadoksSettingsPageActivity extends BaseFragment {
         final android.widget.EditText input = new android.widget.EditText(getParentActivity());
         input.setSingleLine(true);
         input.setHint("https://sizning-server.onrender.com");
-        input.setText(ParadoksConfig.adServerUrl());
+        input.setText(ParadoksConfig.adServerUrlRaw());
         input.setPadding(org.telegram.messenger.AndroidUtilities.dp(24), org.telegram.messenger.AndroidUtilities.dp(12),
                 org.telegram.messenger.AndroidUtilities.dp(24), org.telegram.messenger.AndroidUtilities.dp(12));
         AlertDialog.Builder builder = new AlertDialog.Builder(getParentActivity());
         builder.setTitle("Reklama serveri");
-        builder.setMessage("Reklama serveringiz manzili. Bo'sh qoldirsangiz, o'z reklamangiz o'chadi.");
+        builder.setMessage("Reklama serveringiz manzili. Bo'sh qoldirsangiz, o'z reklamangiz o'chadi. Faqat https:// manzil qabul qilinadi.");
         builder.setView(input);
         builder.setPositiveButton("OK", (d, w) -> {
-            String value = input.getText().toString().trim();
-            if (!value.isEmpty() && !value.startsWith("https://") && !value.startsWith("http://")) {
-                value = "https://" + value;
+            String value = ParadoksConfig.normalizeServerUrl(input.getText().toString());
+            if (!value.isEmpty() && !ParadoksConfig.isAllowedServerUrl(value)) {
+                android.widget.Toast.makeText(getParentActivity(),
+                        "Manzil https:// bilan boshlanishi kerak. Saqlanmadi.", android.widget.Toast.LENGTH_LONG).show();
+                return;
             }
             ParadoksConfig.setAdServerUrl(value);
             ParadoksAdsRemote.forceRefresh();
