@@ -302,7 +302,12 @@ public class AppIconsSelectorCell extends RecyclerListView implements Notificati
             super(context);
         }
 
+        // ParadoksGram icons carry the whole artwork in the background layer (blank foreground),
+        // so the Telegram-style zoom, made for full-bleed backgrounds, would crop them.
+        private boolean wholeArtwork;
+
         public void setForeground(int res) {
+            wholeArtwork = res == R.mipmap.icon_blank_fg;
             foreground = ContextCompat.getDrawable(getContext(), res);
             invalidate();
         }
@@ -329,7 +334,9 @@ public class AppIconsSelectorCell extends RecyclerListView implements Notificati
         public void draw(Canvas canvas) {
             canvas.save();
             canvas.clipPath(path);
-            canvas.scale(1f + backgroundOuterPadding / (float) getWidth(), 1f + backgroundOuterPadding / (float) getHeight(), getWidth() / 2f, getHeight() / 2f);
+            if (!wholeArtwork) {
+                canvas.scale(1f + backgroundOuterPadding / (float) getWidth(), 1f + backgroundOuterPadding / (float) getHeight(), getWidth() / 2f, getHeight() / 2f);
+            }
             super.draw(canvas);
             canvas.restore();
 
