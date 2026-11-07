@@ -39,6 +39,14 @@ public final class ParadoksGhost {
      * Called from ConnectionsManager.sendRequestInternal before native_sendRequest.
      */
     public static boolean shouldDropRequest(TLObject object) {
+        return shouldDropRequest(object, -1);
+    }
+
+    /**
+     * Same as {@link #shouldDropRequest(TLObject)}, but knows the account the request belongs to, so a
+     * dropped read receipt can be remembered and sent later, when ghost read is switched off.
+     */
+    public static boolean shouldDropRequest(TLObject object, int account) {
         if (object == null) return false;
         if (object instanceof TLRPC.TL_messages_readHistory
                 || object instanceof TLRPC.TL_channels_readHistory
@@ -46,7 +54,11 @@ public final class ParadoksGhost {
                 || object instanceof TLRPC.TL_messages_readMessageContents
                 || object instanceof TLRPC.TL_messages_readDiscussion) {
             if (ALLOWED.remove(object)) return false;
-            return ParadoksConfig.ghostRead();
+            if (ParadoksConfig.ghostRead()) {
+                rememberRead(object, account);
+                return true;
+            }
+            return false;
         }
         if (object instanceof TLRPC.TL_messages_setTyping) {
             return ParadoksConfig.ghostTyping();
@@ -71,6 +83,108 @@ public final class ParadoksGhost {
             return ParadoksConfig.ghostStories();
         }
         return false;
+    }
+
+    // ---- read receipts held back by ghost mode ----
+
+    private static final class PendingRead {
+        final int account;
+        final TLObject request;
+        final int maxId;
+
+        PendingRead(int account, TLObject request, int maxId) {
+            this.account = account;
+            this.request = request;
+            this.maxId = maxId;
+        }
+    }
+
+    /**
+     * While ghost read is on the chat is already marked as read locally, so nothing would ever
+     * resend the receipt after ghost mode is switched off - the messages stayed unread on the server.
+     * That is why the newest dropped readHistory per chat is kept here and sent by {@link #flushPendingReads}.
+     */
+    private static final java.util.HashMap<String, PendingRead> PENDING = new java.util.HashMap<>();
+    private static boolean flushTickerRunning;
+
+    private static void rememberRead(TLObject object, int account) {
+        if (account < 0) {
+            return;
+        }
+        String key;
+        int maxId;
+        if (object instanceof TLRPC.TL_messages_readHistory) {
+            TLRPC.TL_messages_readHistory r = (TLRPC.TL_messages_readHistory) object;
+            key = account + ":p:" + DialogObject.getPeerDialogId(r.peer);
+            maxId = r.max_id;
+        } else if (object instanceof TLRPC.TL_channels_readHistory) {
+            TLRPC.TL_channels_readHistory r = (TLRPC.TL_channels_readHistory) object;
+            key = account + ":c:" + (r.channel != null ? r.channel.channel_id : 0);
+            maxId = r.max_id;
+        } else {
+            return;
+        }
+        synchronized (PENDING) {
+            PendingRead old = PENDING.get(key);
+            if (old == null || old.maxId < maxId) {
+                PENDING.put(key, new PendingRead(account, object, maxId));
+            }
+        }
+        ensureFlushTicker();
+    }
+
+    /** Sends the held back read receipts, if ghost read is not active any more. */
+    public static void flushPendingReads() {
+        if (ParadoksConfig.ghostRead()) {
+            return;
+        }
+        java.util.ArrayList<PendingRead> list;
+        synchronized (PENDING) {
+            if (PENDING.isEmpty()) {
+                return;
+            }
+            list = new java.util.ArrayList<>(PENDING.values());
+            PENDING.clear();
+        }
+        for (PendingRead p : list) {
+            ALLOWED.add(p.request);
+            ConnectionsManager.getInstance(p.account).sendRequest(p.request, (response, error) -> {});
+        }
+    }
+
+    /** Called when a ghost read switch or the ghost schedule changes. */
+    public static void onReadSettingsChanged() {
+        org.telegram.messenger.AndroidUtilities.runOnUIThread(ParadoksGhost::flushPendingReads);
+    }
+
+    private static final Runnable FLUSH_TICK = new Runnable() {
+        @Override
+        public void run() {
+            flushPendingReads();
+            if (flushTickerDone()) {
+                return;
+            }
+            // still held back (ghost is active): the schedule window may end without any event, so re-check
+            org.telegram.messenger.AndroidUtilities.runOnUIThread(this, 15000);
+        }
+    };
+
+    private static synchronized boolean flushTickerDone() {
+        synchronized (PENDING) {
+            if (PENDING.isEmpty()) {
+                flushTickerRunning = false;
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static synchronized void ensureFlushTicker() {
+        if (flushTickerRunning) {
+            return;
+        }
+        flushTickerRunning = true;
+        org.telegram.messenger.AndroidUtilities.runOnUIThread(FLUSH_TICK, 15000);
     }
 
     /**

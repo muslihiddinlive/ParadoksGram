@@ -411,7 +411,7 @@ public class ConnectionsManager extends BaseController {
             FileLog.d("send request " + object + " with token = " + requestToken);
         }
         // ParadoksGhost: drop read receipts and typing packets; force offline status
-        if (uz.paradoks.gram.ParadoksGhost.shouldDropRequest(object)) {
+        if (uz.paradoks.gram.ParadoksGhost.shouldDropRequest(object, currentAccount)) {
             if (onComplete != null) {
                 final TLObject fake = uz.paradoks.gram.ParadoksGhost.fakeResponse(object);
                 Utilities.stageQueue.postRunnable(() -> onComplete.run(fake, null));

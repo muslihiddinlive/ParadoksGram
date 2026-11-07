@@ -402,7 +402,10 @@ public final class ParadoksConfig {
     public static boolean ghostOnlineSwitch() { return ghostPartRaw("ghost_online"); }
     public static boolean ghostStoriesSwitch() { return ghostPartRaw("ghost_stories"); }
 
-    public static void setGhostRead(boolean v) { setGhostPart("ghost_read", v); }
+    public static void setGhostRead(boolean v) {
+        setGhostPart("ghost_read", v);
+        ParadoksGhost.onReadSettingsChanged();
+    }
     public static void setGhostTyping(boolean v) { setGhostPart("ghost_typing", v); }
     public static void setGhostOnline(boolean v) {
         setGhostPart("ghost_online", v);
@@ -426,6 +429,7 @@ public final class ParadoksConfig {
 
     public static void setGhostScheduleEnabled(boolean v) {
         prefs().edit().putBoolean("ghost_sched", v).apply();
+        ParadoksGhost.onReadSettingsChanged();
     }
 
     /** Minutes since midnight. */
@@ -439,6 +443,7 @@ public final class ParadoksConfig {
 
     public static void setGhostSchedule(int startMinutes, int endMinutes) {
         prefs().edit().putInt("ghost_sched_start", startMinutes).putInt("ghost_sched_end", endMinutes).apply();
+        ParadoksGhost.onReadSettingsChanged();
     }
 
     private static boolean ghostInWindow() {
