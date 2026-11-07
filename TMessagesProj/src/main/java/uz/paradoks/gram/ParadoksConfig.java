@@ -413,15 +413,6 @@ public final class ParadoksConfig {
         prefs().edit().putBoolean("glass_incoming", value).apply();
     }
 
-    /** Pre-download of incoming media also on mobile data (default: Wi-Fi only). */
-    public static boolean preSaveMobile() {
-        return prefs().getBoolean("pre_save_mobile", false);
-    }
-
-    public static void setPreSaveMobile(boolean value) {
-        prefs().edit().putBoolean("pre_save_mobile", value).apply();
-    }
-
     /** Biggest incoming file that is pre-downloaded, in MB (default 25). */
     public static int preSaveMaxMb() {
         return prefs().getInt("pre_save_max_mb", 25);

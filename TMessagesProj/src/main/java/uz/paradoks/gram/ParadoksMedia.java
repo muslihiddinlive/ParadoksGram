@@ -120,7 +120,7 @@ final class ParadoksMedia {
             if (!ParadoksConfig.keepDeletedMedia() || !ParadoksConfig.preSaveMedia()) {
                 return;
             }
-            if (!UserConfig.getInstance(account).isClientActivated() || (!ParadoksConfig.preSaveMobile() && !ApplicationLoader.isConnectedToWiFi())) {
+            if (!UserConfig.getInstance(account).isClientActivated() || !ApplicationLoader.isConnectedToWiFi()) {
                 return;
             }
             if (Boolean.TRUE.equals(args[2])) { // scheduled messages

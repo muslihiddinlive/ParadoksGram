@@ -54,12 +54,51 @@ public final class ParadoksMediaRestore {
                 }
             }
             final WeakReference<ChatMessageCell> ref = new WeakReference<>(cell);
-            executor.execute(() -> restore(account, object, ref));
+            executor.execute(() -> restore(account, object, ref, false));
         } catch (Throwable ignore) {
         }
     }
 
-    private static void restore(int account, MessageObject object, WeakReference<ChatMessageCell> cellRef) {
+    private static final Set<String> loadingFromDb = new HashSet<>();
+
+    /**
+     * Called when the user presses the download button of a media message. If the message was deleted by
+     * its sender, the file is taken from the media database copy; it looks like an ordinary download.
+     * Nothing is downloaded without this press, so repeated send-and-delete cannot burn the traffic.
+     */
+    public static void onDownloadPressed(ChatMessageCell cell, int account, MessageObject object) {
+        try {
+            if (object == null || object.messageOwner == null || object.messageOwner.media == null || !ParadoksConfig.restoreBackupMedia()) {
+                return;
+            }
+            TLRPC.MessageMedia media = object.messageOwner.media;
+            if (media.photo == null && media.document == null) {
+                return;
+            }
+            if (object.mediaExists || object.attachPathExists || object.isSecretMedia() || !ParadoksDeleted.isDeleted(account, object)) {
+                return;
+            }
+            final String key = account + "_" + object.getDialogId() + "_" + object.getId();
+            synchronized (loadingFromDb) {
+                if (!loadingFromDb.add(key)) {
+                    return;
+                }
+            }
+            final WeakReference<ChatMessageCell> ref = new WeakReference<>(cell);
+            executor.execute(() -> {
+                try {
+                    restore(account, object, ref, true);
+                } finally {
+                    synchronized (loadingFromDb) {
+                        loadingFromDb.remove(key);
+                    }
+                }
+            });
+        } catch (Throwable ignore) {
+        }
+    }
+
+    private static void restore(int account, MessageObject object, WeakReference<ChatMessageCell> cellRef, boolean allowNetwork) {
         try {
             final long dialogId = object.getDialogId();
             final int mid = object.getId();
@@ -81,7 +120,10 @@ public final class ParadoksMediaRestore {
                 }
             }
 
-            // 2) the copy forwarded to the media database chat
+            // 2) the copy forwarded to the media database chat (only when the user asked for it)
+            if (!allowNetwork) {
+                return;
+            }
             long[] forward = ParadoksDb.get().queryForward(account, dialogId, mid);
             if (forward == null) {
                 return;

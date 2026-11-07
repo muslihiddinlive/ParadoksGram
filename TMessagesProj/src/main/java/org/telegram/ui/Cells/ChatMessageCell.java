@@ -17893,6 +17893,9 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
         if (currentMessageObject != null && !currentMessageObject.isAnyKindOfSticker()) {
             currentMessageObject.putInDownloadsStore = true;
         }
+        if (buttonState == 0) {
+            uz.paradoks.gram.ParadoksMediaRestore.onDownloadPressed(this, currentAccount, currentMessageObject); // ParadoksGram: deleted message, load from the media database
+        }
         if (buttonState == 0 && (!drawVideoImageButton || video)) {
             if (documentAttachType == DOCUMENT_ATTACH_TYPE_AUDIO || documentAttachType == DOCUMENT_ATTACH_TYPE_MUSIC || documentAttachType == DOCUMENT_ATTACH_TYPE_ROUND && currentMessageObject != null && currentMessageObject.isVoiceTranscriptionOpen() && currentMessageObject.mediaExists) {
                 if (miniButtonState == 0) {
