@@ -2893,6 +2893,15 @@ public class AudioPlayerAlert extends BottomSheet implements NotificationCenter.
             o.dismiss();
             onSubItemClick(4);
         });
+        // ParadoksGram: download the cover (thumbnail) of the playing track + open the music studio
+        o.addIf(!noforwards, R.drawable.msg_gallery, "Thumbnailni yuklab olish", () -> {
+            o.dismiss();
+            saveThumbnail();
+        });
+        o.add(R.drawable.files_music, "Musiqiy ijodxona", () -> {
+            o.dismiss();
+            openMusicStudio(messageObject);
+        });
         if (castAvailable) {
             castItem = o.add();
             castItem.setTextAndIcon(getString(R.string.VideoPlayerChromecast), R.drawable.menu_video_chromecast);
@@ -3045,6 +3054,95 @@ public class AudioPlayerAlert extends BottomSheet implements NotificationCenter.
                 unsaveFromProfileButton.setVisibility(visible ? View.VISIBLE : View.GONE);
             })
             .start();
+    }
+
+    /** ParadoksGram: saves the cover image of the track that is playing right now into Pictures/Telegram. */
+    private void saveThumbnail() {
+        if (parentActivity == null) {
+            return;
+        }
+        if (Build.VERSION.SDK_INT >= 23 && (Build.VERSION.SDK_INT <= 28 || BuildVars.NO_SCOPED_STORAGE) && parentActivity.checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+            parentActivity.requestPermissions(new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE}, 4);
+            return;
+        }
+        Bitmap bitmap = null;
+        try {
+            bitmap = coverContainer.getImageView().getImageReceiver().getBitmap();
+        } catch (Throwable ignore) {
+        }
+        if (bitmap == null || bitmap.isRecycled()) {
+            final AudioInfo audioInfo = MediaController.getInstance().getAudioInfo();
+            if (audioInfo != null) {
+                bitmap = audioInfo.getCover();
+            }
+        }
+        if (bitmap == null || bitmap.isRecycled()) {
+            BulletinFactory.of((FrameLayout) containerView, resourcesProvider)
+                .createErrorBulletin("Bu musiqada muqova rasmi yo'q")
+                .show();
+            return;
+        }
+        final Bitmap cover = bitmap;
+        Utilities.globalQueue.postRunnable(() -> {
+            File temp = null;
+            try {
+                temp = new File(AndroidUtilities.getCacheDir(), "thumb_" + System.currentTimeMillis() + ".jpg");
+                try (java.io.FileOutputStream out = new java.io.FileOutputStream(temp)) {
+                    Bitmap toSave = cover;
+                    if (toSave.getConfig() == Bitmap.Config.HARDWARE) {
+                        toSave = toSave.copy(Bitmap.Config.ARGB_8888, false);
+                    }
+                    toSave.compress(Bitmap.CompressFormat.JPEG, 95, out);
+                }
+            } catch (Throwable e) {
+                FileLog.e(e);
+                temp = null;
+            }
+            final File file = temp;
+            AndroidUtilities.runOnUIThread(() -> {
+                if (file == null || !file.exists() || parentActivity == null) {
+                    BulletinFactory.of((FrameLayout) containerView, resourcesProvider)
+                        .createErrorBulletin("Rasmni saqlab bo'lmadi")
+                        .show();
+                    return;
+                }
+                MediaController.saveFile(file.getAbsolutePath(), parentActivity, 0, file.getName(), "image/jpeg",
+                    uri -> BulletinFactory.of((FrameLayout) containerView, resourcesProvider).createDownloadBulletin(BulletinFactory.FileType.PHOTO).show());
+            });
+        });
+    }
+
+    /** ParadoksGram: opens the native music studio (effects, visualizer, export) with the playing track loaded. */
+    private void openMusicStudio(MessageObject messageObject) {
+        if (parentActivity == null) {
+            return;
+        }
+        String path = null;
+        if (!TextUtils.isEmpty(messageObject.messageOwner.attachPath)) {
+            File f = new File(messageObject.messageOwner.attachPath);
+            if (f.exists()) {
+                path = f.getAbsolutePath();
+            }
+        }
+        if (path == null) {
+            File f = FileLoader.getInstance(currentAccount).getPathToMessage(messageObject.messageOwner);
+            if (f != null && f.exists()) {
+                path = f.getAbsolutePath();
+            }
+        }
+        if (path == null) {
+            BulletinFactory.of((FrameLayout) containerView, resourcesProvider)
+                .createErrorBulletin("Avval musiqani yuklab oling (pleyerda ijro etilgach ochiladi)")
+                .show();
+            return;
+        }
+        String title = messageObject.getMusicTitle();
+        String author = messageObject.getMusicAuthor();
+        final String name = TextUtils.isEmpty(author) ? title : (author + " - " + title);
+        final float fraction = messageObject.audioProgress;
+        final LaunchActivity activity = parentActivity;
+        dismiss();
+        activity.presentFragment(new uz.paradoks.gram.ParadoksMusicLabActivity(path, name, fraction));
     }
 
     private void saveToMusic(MessageObject messageObject) {

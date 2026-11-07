@@ -4,7 +4,7 @@ package uz.paradoks.gram;
 public final class ParadoksBuild {
     public static final int NUMBER = 0;
     /** Version shown to users, e.g. "3.5.0". The CI copies it from the VERSION file. */
-    public static final String VERSION = "3.23.1";
+    public static final String VERSION = "3.29.0";
 
     private ParadoksBuild() {
     }

@@ -8,6 +8,13 @@ Versiya formati Telegram kabi: `MAJOR.MINOR.PATCH`, qavs ichida build raqami (ma
 
 Versiya raqami `VERSION` faylida turadi. Har versiya uchun foydalanuvchiga ko'rinadigan matn `changelog/<versiya>.md` fayliga yoziladi: CI shuni reliz matniga qo'yadi, ilova yangilanish oynasida shuni ko'rsatadi. Commit xabari reliz matniga tushmaydi.
 
+## 3.29.0 (7-noyabr)
+Musiqiy ijodxona
+
+Yangi:
+- Musiqa pleyerining "⋮" menyusida "Thumbnailni yuklab olish" tugmasi: ijro etilayotgan musiqaning muqova rasmini galereyaga saqlaydi.
+- Musiqa pleyerining "⋮" menyusida "Musiqiy ijodxona" tugmasi: lokal ishlaydigan (mini-app emas) musiqa studiyasi. Effektlar (karaoke, bass, equalizer, 8D, echo, reverb, slow, nightcore), spektr vizualizatori, A-B takror, BPM, WAV/M4A yuklab olish, vizualizatorli video yaratish va ulashish.
+
 ## 3.28.0 (7-noyabr)
 O'chirilgan xabar mediasi yuklash tugmasi bilan bazadan olinadi
 

@@ -44,6 +44,13 @@ jobs:
         with:
           submodules: recursive
 
+      - name: Apply AudioPlayerAlert patch (thumbnail download + Musiqiy ijodxona button)
+        run: |
+          F=TMessagesProj/src/main/java/org/telegram/ui/Components/AudioPlayerAlert.java
+          if [ -f patches/audioplayeralert-music-studio.patch ] && ! grep -q 'openMusicStudio' "$F"; then
+            git apply --3way patches/audioplayeralert-music-studio.patch || patch -p1 -F3 < patches/audioplayeralert-music-studio.patch
+          fi
+
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
