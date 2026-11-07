@@ -33860,6 +33860,11 @@ public class ChatActivity extends BaseFragment implements
                 }
                 break;
             }
+            case 9113: { // ParadoksGram: rasm metadatasi (EXIF)
+                final java.io.File exifFile = getFileLoader().getPathToMessage(selectedObject.messageOwner);
+                uz.paradoks.gram.ParadoksExifViewer.show(this, exifFile != null ? exifFile.getAbsolutePath() : null, selectedObject.getFileName());
+                break;
+            }
             case 9107: { // ParadoksGram: Xabar xususiyatlari
                 presentFragment(new uz.paradoks.gram.ParadoksInspectorActivity(selectedObject, selectedObjectGroup));
                 break;
@@ -47061,6 +47066,10 @@ public class ChatActivity extends BaseFragment implements
         }
         if (canForward && getDialogId() != getUserConfig().getClientUserId()) {
             paradoksInsertMenuItem(icons, items, options, items.size(), "Saqlangan xabarlarga uzatish", 9105, R.drawable.msg_saved);
+        }
+        final TLRPC.Document exifDoc = message.getDocument();
+        if (message.isPhoto() || exifDoc != null && exifDoc.mime_type != null && exifDoc.mime_type.startsWith("image/") && !message.isSticker()) {
+            paradoksInsertMenuItem(icons, items, options, items.size(), "Metadata (EXIF) ni ko'rish", 9113, R.drawable.msg_gallery);
         }
         paradoksInsertMenuItem(icons, items, options, items.size(), "Xabar xususiyatlari", 9107, R.drawable.msg_info);
         final int msgType = getMessageType(message);
