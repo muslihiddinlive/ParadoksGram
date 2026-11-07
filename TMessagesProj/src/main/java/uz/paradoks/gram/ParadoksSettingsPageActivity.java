@@ -230,17 +230,6 @@ public class ParadoksSettingsPageActivity extends BaseFragment {
                         adapter.notifyDataSetChanged();
                     }
                 }));
-                check("Barmoq izi / yuz bilan ochish", ParadoksConfig::lockBiometric, v -> {
-                    if (v && !ParadoksLock.hasPin()) {
-                        android.widget.Toast.makeText(getParentActivity(), "Avval PIN kod o'rnating", android.widget.Toast.LENGTH_LONG).show();
-                    } else if (v && !ParadoksLock.biometricAvailable()) {
-                        android.widget.Toast.makeText(getParentActivity(),
-                                "Bu telefonda barmoq izi yoki yuz bilan ochish sozlanmagan", android.widget.Toast.LENGTH_LONG).show();
-                    } else {
-                        ParadoksConfig.setLockBiometric(v);
-                    }
-                    refresh();
-                });
                 check("Qidiruvda yashirin chatlarni ko'rsatish", ParadoksConfig::showHiddenInSearch, ParadoksConfig::setShowHiddenInSearch);
                 check("Yuborilayotgan rasmlardan metadata (EXIF) ni tozalash", ParadoksConfig::stripMetadata, ParadoksConfig::setStripMetadata);
                 info("Chat menyusidagi \"Chat qulfi\" chatni qulflaydi va u har ochilganda PIN so'raydi. PIN faqat shifrlangan (hash) ko'rinishida saqlanadi. "
