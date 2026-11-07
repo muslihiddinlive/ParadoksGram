@@ -293,6 +293,13 @@ public class ParadoksSettingsPageActivity extends BaseFragment {
                 info("PDF, Word (.docx) va Excel (.xlsx, .xls) fayllari tashqi ilovasiz, shu yerning o'zida ochiladi. "
                         + "Ochilgan fayl Yuklashlar/Telegram papkasiga bir marta saqlanadi. Saqlash cheklangan chatlardagi fayllar ko'rsatiladi, lekin saqlanmaydi. "
                         + "Eski .doc, .ppt va parol bilan himoyalangan fayllar avvalgidek tashqi ilovada ochiladi; ko'rgichdagi ⋮ menyudan ham tashqi ilovani tanlash mumkin.");
+                header("Chat ko'rinishi");
+                value("Xabar orqa foni: liquid glass", () -> {
+                    int g = ParadoksConfig.glassBubbleLevel();
+                    return g == 1 ? "Yengil" : g == 2 ? "O'rtacha" : g == 3 ? "Kuchli" : "O'chiq";
+                }, this::showGlassDialog);
+                info("Yuborgan xabarlaringizning orqa foni shishaday yarim shaffof bo'ladi, yorug' chekka va yaltirash qo'shiladi. "
+                        + "Chat foni rasmli yoki rangli bo'lsa chiroyliroq ko'rinadi.");
                 header("Yuklash");
                 value("Yuklash rejimi", () -> {
                     int m = ParadoksConfig.downloadMode();
@@ -521,6 +528,20 @@ public class ParadoksSettingsPageActivity extends BaseFragment {
             return (maxMb / 1024) + " GB gacha";
         }
         return "o'chirilmaydi";
+    }
+
+    private void showGlassDialog() {
+        if (getParentActivity() == null) {
+            return;
+        }
+        AlertDialog.Builder builder = new AlertDialog.Builder(getParentActivity());
+        builder.setTitle("Xabar orqa foni: liquid glass");
+        builder.setItems(new CharSequence[]{"O'chiq (oddiy moviy)", "Yengil", "O'rtacha", "Kuchli (eng shaffof)"}, (d, which) -> {
+            ParadoksConfig.setGlassBubbleLevel(which);
+            refresh();
+        });
+        builder.setNegativeButton("Bekor qilish", null);
+        showDialog(builder.create());
     }
 
     private void showDownloadModeDialog() {

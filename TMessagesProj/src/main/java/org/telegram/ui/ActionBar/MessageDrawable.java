@@ -557,9 +557,53 @@ public class MessageDrawable extends Drawable {
         }
     }
 
+    // ---- ParadoksGram: liquid glass look for outgoing bubbles (translucent fill, bright edge, top sheen) ----
+    private Paint glassFill;
+    private Paint glassSheen;
+    private Paint glassEdge;
+    private LinearGradient glassSheenShader;
+    private final Matrix glassMatrix = new Matrix();
+
+    private boolean glassActive(Paint paintToUse) {
+        return isOut && paintToUse == null && currentType != TYPE_PREVIEW && uz.paradoks.gram.ParadoksConfig.glassBubbleLevel() > 0;
+    }
+
+    private void drawGlass(Canvas canvas, Path path, Paint source, Rect bounds) {
+        int level = uz.paradoks.gram.ParadoksConfig.glassBubbleLevel();
+        // light / medium / strong: how see-through the bubble is
+        float fillAlpha = level == 1 ? 0.80f : level == 2 ? 0.62f : 0.46f;
+        if (glassFill == null) {
+            glassFill = new Paint(Paint.ANTI_ALIAS_FLAG);
+            glassSheen = new Paint(Paint.ANTI_ALIAS_FLAG);
+            glassEdge = new Paint(Paint.ANTI_ALIAS_FLAG);
+            glassEdge.setStyle(Paint.Style.STROKE);
+            glassEdge.setStrokeWidth(Math.max(1f, AndroidUtilities.dpf2(1f)));
+            glassSheenShader = new LinearGradient(0, 0, 0, 1, new int[]{0x55FFFFFF, 0x14FFFFFF, 0x00FFFFFF}, new float[]{0f, 0.35f, 1f}, Shader.TileMode.CLAMP);
+            glassSheen.setShader(glassSheenShader);
+        }
+        glassFill.set(source);
+        glassFill.setAlpha(Math.round(Math.min(255, glassFill.getAlpha() * fillAlpha * (alpha / 255f))));
+        canvas.drawPath(path, glassFill);
+
+        int save = canvas.save();
+        canvas.clipPath(path);
+        float height = Math.max(1, bounds.height());
+        glassMatrix.reset();
+        glassMatrix.setScale(1f, height * 0.55f);
+        glassMatrix.postTranslate(0, bounds.top);
+        glassSheenShader.setLocalMatrix(glassMatrix);
+        glassSheen.setAlpha(Math.round(255 * (alpha / 255f)));
+        canvas.drawRect(bounds, glassSheen);
+        // bright edge: strong at the top, softer at the bottom
+        glassEdge.setColor(0xFFFFFFFF);
+        glassEdge.setAlpha(Math.round(120 * (alpha / 255f)));
+        canvas.drawPath(path, glassEdge);
+        canvas.restoreToCount(save);
+    }
+
     public void draw(Canvas canvas, Paint paintToUse) {
         Rect bounds = getBounds();
-        if (paintToUse == null && paint.getStyle() == Paint.Style.FILL && gradientShader == null && overrideRoundRadius == 0 && overrideRounding <= 0) {
+        if (paintToUse == null && !glassActive(paintToUse) && paint.getStyle() == Paint.Style.FILL && gradientShader == null && overrideRoundRadius == 0 && overrideRounding <= 0) {
             Drawable background = getBackgroundDrawable();
             if (background != null) {
                 background.setBounds(bounds);
@@ -617,7 +661,11 @@ public class MessageDrawable extends Drawable {
             generatePath(path, bounds, padding, rad, smallRad, nearRad, top, drawFullBottom, drawFullTop, paintToUse != null);
         }
 
-        canvas.drawPath(path, p);
+        if (glassActive(paintToUse)) {
+            drawGlass(canvas, path, p, bounds);
+        } else {
+            canvas.drawPath(path, p);
+        }
         if (gradientShader != null && isSelected && paintToUse == null) {
             int color = getColor(Theme.key_chat_outBubbleGradientSelectedOverlay);
             selectedPaint.setColor(ColorUtils.setAlphaComponent(color, (int) (Color.alpha(color) * alpha / 255f)));

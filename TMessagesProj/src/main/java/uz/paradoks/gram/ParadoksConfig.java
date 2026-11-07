@@ -399,6 +399,15 @@ public final class ParadoksConfig {
         prefs().edit().putStringSet("hidden_chats", new java.util.HashSet<>(set)).apply();
     }
 
+    /** Liquid glass look of outgoing message bubbles: 0 off, 1 light, 2 medium, 3 strong. */
+    public static int glassBubbleLevel() {
+        return prefs().getInt("glass_bubbles", 2);
+    }
+
+    public static void setGlassBubbleLevel(int level) {
+        prefs().edit().putInt("glass_bubbles", level).apply();
+    }
+
     /** 0 standard, 1 weak internet, 2 auto. */
     public static int downloadMode() {
         return prefs().getInt("download_mode", 0);
