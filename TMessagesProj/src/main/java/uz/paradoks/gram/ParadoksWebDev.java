@@ -24,6 +24,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import org.json.JSONObject;
+import java.util.Random;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.SharedConfig;
 
@@ -106,6 +107,117 @@ public final class ParadoksWebDev {
         if (view != null) {
             lastView = new WeakReference<>(view);
         }
+    }
+
+    // ---- clone: real / fake initData ----
+
+    private static final Random RANDOM = new Random();
+
+    /** The literal tgWebAppData value from url's fragment, unchanged, ready to embed as-is. */
+    private static String rawInitDataFragmentValue() {
+        String current = url;
+        if (current == null) {
+            return "";
+        }
+        int hash = current.indexOf('#');
+        if (hash < 0) {
+            return "";
+        }
+        for (String pair : current.substring(hash + 1).split("&")) {
+            int eq = pair.indexOf('=');
+            if (eq > 0 && pair.substring(0, eq).equals("tgWebAppData")) {
+                return pair.substring(eq + 1);
+            }
+        }
+        return "";
+    }
+
+    /** tgWebAppData decoded exactly one level: "key=value&key=value", with user/receiver still JSON-encoded. */
+    private static String decodedInitDataQuery() {
+        String current = url;
+        if (current == null || current.isEmpty()) {
+            return "";
+        }
+        Uri uri = Uri.parse(current);
+        String fragment = uri.getEncodedFragment();
+        if (fragment == null || !fragment.contains("tgWebAppData=")) {
+            return "";
+        }
+        String raw = Uri.parse("http://x/?" + fragment).getQueryParameter("tgWebAppData");
+        return raw == null ? "" : raw;
+    }
+
+    private static String randomToken(int length) {
+        String chars = "abcdefghijklmnopqrstuvwxyz0123456789";
+        StringBuilder sb = new StringBuilder(length);
+        for (int i = 0; i < length; i++) {
+            sb.append(chars.charAt(RANDOM.nextInt(chars.length())));
+        }
+        return sb.toString();
+    }
+
+    private static long fakeUserId() {
+        return 100000000L + (long) (RANDOM.nextDouble() * 1900000000L);
+    }
+
+    /** Same JSON shape, but id/username/first_name no longer point to the real account. */
+    private static String fakeIdentityJson(String json) {
+        if (json == null) {
+            return null;
+        }
+        try {
+            JSONObject obj = new JSONObject(json);
+            if (obj.has("id")) {
+                obj.put("id", fakeUserId());
+            }
+            if (obj.has("username")) {
+                obj.put("username", "user_" + randomToken(7));
+            }
+            if (obj.has("first_name")) {
+                obj.put("first_name", "Foydalanuvchi");
+            }
+            obj.remove("last_name");
+            obj.remove("photo_url");
+            return obj.toString();
+        } catch (Exception e) {
+            return json;
+        }
+    }
+
+    /**
+     * Same shape as rawInitDataFragmentValue(), but with the identifying fields replaced. The hash/signature no
+     * longer validate against the bot's secret, so a backend that checks them will reject it: for trying out the
+     * mini-app's own screens under a different identity, not for impersonating anyone with the real server.
+     */
+    private static String fakeInitDataFragmentValue() {
+        String raw = decodedInitDataQuery();
+        if (raw.isEmpty()) {
+            return "";
+        }
+        Uri parsed = Uri.parse("http://x/?" + raw);
+        StringBuilder inner = new StringBuilder();
+        for (String name : parsed.getQueryParameterNames()) {
+            String value = parsed.getQueryParameter(name);
+            String newValue;
+            if (name.equals("user") || name.equals("receiver")) {
+                newValue = fakeIdentityJson(value);
+            } else if (name.equals("hash") || name.equals("signature")) {
+                newValue = randomToken(64);
+            } else if (name.equals("query_id")) {
+                newValue = "AAFAKE" + randomToken(16);
+            } else if (name.equals("chat_instance")) {
+                newValue = randomToken(16);
+            } else if (name.equals("auth_date")) {
+                newValue = String.valueOf(System.currentTimeMillis() / 1000L);
+            } else {
+                newValue = value;
+            }
+            if (inner.length() > 0) {
+                inner.append('&');
+            }
+            inner.append(name).append('=').append(Uri.encode(newValue == null ? "" : newValue));
+        }
+        return Uri.encode(inner.toString());
     }
 
     // ---- views ----
@@ -215,17 +327,40 @@ public final class ParadoksWebDev {
             new android.app.AlertDialog.Builder(context)
                     .setTitle("Mini-appni klonlash")
                     .setItems(new CharSequence[]{"ZIP (papka tuzilmasi bilan)", "Bitta HTML (hammasi ichida, offline)"},
-                            (d, which) -> copyPage(context, which == 1))
+                            (d, which) -> askCloneDataMode(context, which == 1))
                     .setNegativeButton("Bekor qilish", null)
                     .show();
         } catch (Exception e) {
-            copyPage(context, false);
+            askCloneDataMode(context, false);
         }
     }
 
-    private static void copyPage(Context context, boolean single) {
+    /** Second step: whether (and how) to bake initData into the copy. */
+    private static void askCloneDataMode(Context context, boolean single) {
+        try {
+            new android.app.AlertDialog.Builder(context)
+                    .setTitle("initData bilanmi?")
+                    .setItems(new CharSequence[]{"Yo'q (faqat sahifa)", "Mening initData'm bilan",
+                                    "Soxta initData bilan (ID, username almashtiriladi)"},
+                            (d, which) -> {
+                                String initData = which == 1 ? rawInitDataFragmentValue()
+                                        : which == 2 ? fakeInitDataFragmentValue() : "";
+                                if (which != 0 && initData.isEmpty()) {
+                                    toast(context, "initData topilmadi, bu mini-app shunsiz ochilgan.");
+                                    return;
+                                }
+                                copyPage(context, single, initData);
+                            })
+                    .setNegativeButton("Bekor qilish", null)
+                    .show();
+        } catch (Exception e) {
+            copyPage(context, single, "");
+        }
+    }
+
+    private static void copyPage(Context context, boolean single, String initData) {
         toast(context, "Sahifa saqlanmoqda, tayyor bo'lgach Saved Messages ga yuboriladi...");
-        ParadoksWebCopy.start(url, single, new ParadoksWebCopy.Callback() {
+        ParadoksWebCopy.start(url, single, initData, new ParadoksWebCopy.Callback() {
             @Override
             public void log(String line) {
             }

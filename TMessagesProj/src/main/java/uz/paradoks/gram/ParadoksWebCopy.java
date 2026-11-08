@@ -24,7 +24,10 @@ import java.util.zip.ZipOutputStream;
 
 /**
  * Mini-app developer tools: saves the public files of the open mini-app page (HTML, CSS, scripts, images) into a ZIP
- * with the links rewritten, so index.html opens offline. Plain requests: no cookies, no initData (the fragment is dropped).
+ * with the links rewritten, so index.html opens offline. The network request itself is plain: no cookies, no initData
+ * (the fragment is dropped before fetching). An initData value can still be baked into the saved copy on request (see
+ * {@link #start(String, boolean, String, Callback)}): it never leaves the device, it only lets the saved copy run
+ * with that identity when it is later reopened outside Telegram.
  */
 public final class ParadoksWebCopy {
 
@@ -57,6 +60,7 @@ public final class ParadoksWebCopy {
     private long total;
 
     private final boolean single;
+    private final String initData; // raw tgWebAppData value to bake in, or empty for none.
     private final ArrayList<String> placeholderLocals = new ArrayList<>();
     private final Map<String, Integer> placeholderIndex = new LinkedHashMap<>();
     private final Map<String, File> savedFiles = new LinkedHashMap<>();
@@ -65,18 +69,30 @@ public final class ParadoksWebCopy {
     private static final int INLINE_IN_CSS_MAX = 8 * 1024 * 1024;
     private static final Pattern PLACEHOLDER = Pattern.compile("\uE000(\\d+)\uE001");
 
-    private ParadoksWebCopy(URL root, Callback callback, boolean single) {
+    private ParadoksWebCopy(URL root, Callback callback, boolean single, String initData) {
         this.root = root;
         this.callback = callback;
         this.single = single;
+        this.initData = initData == null ? "" : initData;
     }
 
     public static void start(String pageUrl, Callback callback) {
-        start(pageUrl, false, callback);
+        start(pageUrl, false, "", callback);
     }
 
     /** single = one self-contained .html file (everything inlined as data: URIs), otherwise a ZIP. */
     public static void start(String pageUrl, boolean single, Callback callback) {
+        start(pageUrl, single, "", callback);
+    }
+
+    /**
+     * initData: the raw (percent-encoded) value of tgWebAppData to bake into the saved copy as a script that sets
+     * location.hash before anything else on the page runs — the same way #tgWebAppData=... normally reaches a
+     * mini-app, so the saved copy keeps "seeing" that identity when reopened outside Telegram. Pass the person's own
+     * captured value (the clone keeps working, hash included) or a value with id/username replaced (the clone still
+     * runs, but its hash/signature no longer validate, so a backend that checks them will reject it). Empty = none.
+     */
+    public static void start(String pageUrl, boolean single, String initData, Callback callback) {
         final URL root;
         try {
             String clean = pageUrl;
@@ -93,7 +109,7 @@ public final class ParadoksWebCopy {
             AndroidUtilities.runOnUIThread(() -> callback.done(null));
             return;
         }
-        new Thread(() -> new ParadoksWebCopy(root, callback, single).run(), "ParadoksWebCopy").start();
+        new Thread(() -> new ParadoksWebCopy(root, callback, single, initData).run(), "ParadoksWebCopy").start();
     }
 
     private void log(String line) {
@@ -114,7 +130,7 @@ public final class ParadoksWebCopy {
             out = new ZipOutputStream(new FileOutputStream(zip));
             log("Sahifa yuklanmoqda...");
             byte[] html = fetch(root);
-            put(out, "index.html", rewriteHtml(new String(html, StandardCharsets.UTF_8)).getBytes(StandardCharsets.UTF_8));
+            put(out, "index.html", injectInitData(rewriteHtml(new String(html, StandardCharsets.UTF_8))).getBytes(StandardCharsets.UTF_8));
             while (!queue.isEmpty() && total <= MAX_TOTAL) {
                 Item item = queue.poll();
                 log("Yuklanmoqda: " + item.url);
@@ -204,7 +220,7 @@ public final class ParadoksWebCopy {
             tmp.mkdirs();
             log("Sahifa yuklanmoqda...");
             byte[] html = fetch(root);
-            String page = rewriteHtml(new String(html, StandardCharsets.UTF_8));
+            String page = injectInitData(rewriteHtml(new String(html, StandardCharsets.UTF_8)));
             int n = 0;
             while (!queue.isEmpty() && total <= MAX_TOTAL) {
                 Item item = queue.poll();
@@ -504,6 +520,30 @@ public final class ParadoksWebCopy {
             return "\uE000" + index + "\uE001";
         }
         return relative(fromLocal, local);
+    }
+
+    /**
+     * Runs before anything else on the page (including the mini-app SDK script), so
+     * Telegram.WebApp.initData / initDataUnsafe read the value we set here as if the page had really been opened
+     * with it.
+     */
+    private String injectInitData(String html) {
+        if (initData.isEmpty()) {
+            return html;
+        }
+        String script = "<script>(function(){try{"
+                + "var h=(location.hash&&location.hash.length>1)?location.hash.slice(1):'';"
+                + "var p=h?h.split('&').filter(function(x){return x.indexOf('tgWebAppData=')!==0;}):[];"
+                + "p.unshift('tgWebAppData=" + initData + "');"
+                + "if(h.indexOf('tgWebAppVersion=')===-1){p.push('tgWebAppVersion=7.10');}"
+                + "if(h.indexOf('tgWebAppPlatform=')===-1){p.push('tgWebAppPlatform=android');}"
+                + "location.hash='#'+p.join('&');"
+                + "}catch(e){}})();</script>";
+        Matcher head = Pattern.compile("<head[^>]*>", Pattern.CASE_INSENSITIVE).matcher(html);
+        if (head.find()) {
+            return html.substring(0, head.end()) + script + html.substring(head.end());
+        }
+        return script + html;
     }
 
     private String rewriteHtml(String html) {
