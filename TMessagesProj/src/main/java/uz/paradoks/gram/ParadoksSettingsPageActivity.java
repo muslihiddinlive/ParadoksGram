@@ -55,6 +55,7 @@ public class ParadoksSettingsPageActivity extends BaseFragment {
     private static final int T_CHECK = 1;
     private static final int T_VALUE = 2;
     private static final int T_INFO = 3;
+    private static final int T_PREVIEW = 4;
 
     private static final String[] VOICE_EFFECT_NAMES = {"O'chiq", "Robot", "G'or (cave)", "Minecraft villager"};
 
@@ -71,6 +72,7 @@ public class ParadoksSettingsPageActivity extends BaseFragment {
     private final int page;
     private final ArrayList<Row> rows = new ArrayList<>();
     private RecyclerListView listView;
+    private ParadoksGlassPreview glassPreview;
     private Adapter adapter;
 
     public ParadoksSettingsPageActivity(int page) {
@@ -90,6 +92,12 @@ public class ParadoksSettingsPageActivity extends BaseFragment {
         Row row = new Row();
         row.type = T_INFO;
         row.title = text;
+        rows.add(row);
+    }
+
+    private void preview() {
+        Row row = new Row();
+        row.type = T_PREVIEW;
         rows.add(row);
     }
 
@@ -302,6 +310,7 @@ public class ParadoksSettingsPageActivity extends BaseFragment {
                         + "Ochilgan fayl Yuklashlar/Telegram papkasiga bir marta saqlanadi. Saqlash cheklangan chatlardagi fayllar ko'rsatiladi, lekin saqlanmaydi. "
                         + "Eski .doc, .ppt va parol bilan himoyalangan fayllar avvalgidek tashqi ilovada ochiladi; ko'rgichdagi ⋮ menyudan ham tashqi ilovani tanlash mumkin.");
                 header("Chat ko'rinishi");
+                preview();
                 value("Xabar orqa foni: liquid glass", () -> {
                     int g = ParadoksConfig.glassBubbleLevel();
                     return g == 1 ? "Yengil" : g == 2 ? "O'rtacha" : g == 3 ? "Kuchli" : "O'chiq";
@@ -314,7 +323,8 @@ public class ParadoksSettingsPageActivity extends BaseFragment {
                 check("Kelgan xabarlarga ham liquid glass", ParadoksConfig::glassIncoming, ParadoksConfig::setGlassIncoming);
                 check("Sinish effekti (chekkada rangli nur)", ParadoksConfig::glassRefract, ParadoksConfig::setGlassRefract);
                 info("Yuborgan xabarlaringizning orqa foni shishaday yarim shaffof bo'ladi. \"Kuchli\" eng shaffof. "
-                        + "Haqiqiy xiralashtirish yo'q: chat foni rasmli yoki rangli bo'lsa chiroyliroq ko'rinadi.");
+                        + "Tepadagi sinov maydoni o'zgarishlarni darrov ko'rsatadi. Sinov maydonida sinish effekti haqiqiy xiralashtirish va linza bilan chiziladi (fon ma'lum). "
+                        + "Haqiqiy chatda xabar ortidagi fon ilovaga ma'lum emas, shuning uchun sinish chekkadagi rangli nur va ichki yorug'lik ko'rinishida taqlid qilinadi. Chat foni rasmli yoki rangli bo'lsa chiroyliroq ko'rinadi.");
                 header("Yuklash");
                 value("Yuklash rejimi", () -> {
                     int m = ParadoksConfig.downloadMode();
@@ -507,6 +517,9 @@ public class ParadoksSettingsPageActivity extends BaseFragment {
                     row.set.set(newValue);
                     if (view instanceof TextCheckCell) {
                         ((TextCheckCell) view).setChecked(newValue);
+                    }
+                    if (glassPreview != null) {
+                        glassPreview.invalidate();
                     }
                 };
                 if (newValue && row.warn) {
@@ -947,6 +960,9 @@ public class ParadoksSettingsPageActivity extends BaseFragment {
             } else if (viewType == T_VALUE) {
                 view = new TextSettingsCell(context);
                 view.setBackgroundColor(Theme.getColor(Theme.key_windowBackgroundWhite));
+            } else if (viewType == T_PREVIEW) {
+                glassPreview = new ParadoksGlassPreview(context);
+                view = glassPreview;
             } else {
                 view = new TextInfoPrivacyCell(context);
             }
@@ -968,6 +984,9 @@ public class ParadoksSettingsPageActivity extends BaseFragment {
                 case T_VALUE:
                     String value = row.value == null ? "" : row.value.get();
                     ((TextSettingsCell) holder.itemView).setTextAndValue(row.title, value, divider);
+                    break;
+                case T_PREVIEW:
+                    holder.itemView.invalidate();
                     break;
                 default:
                     TextInfoPrivacyCell cell = (TextInfoPrivacyCell) holder.itemView;

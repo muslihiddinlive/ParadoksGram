@@ -557,88 +557,18 @@ public class MessageDrawable extends Drawable {
         }
     }
 
-    // ---- ParadoksGram: liquid glass look for outgoing bubbles (translucent fill, bright edge, top sheen) ----
-    private Paint glassFill;
-    private Paint glassSheen;
-    private Paint glassEdge;
-    private LinearGradient glassSheenShader;
-    private final Matrix glassMatrix = new Matrix();
+    // ---- ParadoksGram: liquid glass look of bubbles (drawing lives in uz.paradoks.gram.ParadoksGlass, shared with the settings preview) ----
+    private uz.paradoks.gram.ParadoksGlass glass;
 
     private boolean glassActive(Paint paintToUse) {
         return (isOut || uz.paradoks.gram.ParadoksConfig.glassIncoming()) && paintToUse == null && currentType != TYPE_PREVIEW && uz.paradoks.gram.ParadoksConfig.glassBubbleLevel() > 0;
     }
 
-    private static final int[] GLASS_TINTS = {
-            0xFFFFFFFF, // colorless
-            0xFF5AA7FF, // blue
-            0xFFAA78FF, // purple
-            0xFF3CDC96, // green
-            0xFFFF6EAA, // pink
-            0xFFFFBE46  // gold
-    };
-
     private void drawGlass(Canvas canvas, Path path, Paint source, Rect bounds) {
-        int level = uz.paradoks.gram.ParadoksConfig.glassBubbleLevel();
-        int tintIndex = Math.max(0, Math.min(GLASS_TINTS.length - 1, uz.paradoks.gram.ParadoksConfig.glassTint()));
-        int edgeLevel = uz.paradoks.gram.ParadoksConfig.glassEdge();
-        boolean refract = uz.paradoks.gram.ParadoksConfig.glassRefract();
-        // light / medium / strong: how see-through the bubble is (strong = most transparent)
-        float fillAlpha;
-        if (tintIndex == 0) {
-            fillAlpha = level == 1 ? 0.34f : level == 2 ? 0.22f : 0.12f;
-        } else {
-            fillAlpha = level == 1 ? 0.62f : level == 2 ? 0.46f : 0.30f;
+        if (glass == null) {
+            glass = new uz.paradoks.gram.ParadoksGlass();
         }
-        float edge = edgeLevel == 0 ? 0f : edgeLevel == 1 ? 0.6f : edgeLevel == 2 ? 1f : 1.4f;
-        if (glassFill == null) {
-            glassFill = new Paint(Paint.ANTI_ALIAS_FLAG);
-            glassSheen = new Paint(Paint.ANTI_ALIAS_FLAG);
-            glassEdge = new Paint(Paint.ANTI_ALIAS_FLAG);
-            glassEdge.setStyle(Paint.Style.STROKE);
-            glassEdge.setStrokeWidth(Math.max(1f, AndroidUtilities.dpf2(1f)));
-            glassSheenShader = new LinearGradient(0, 0, 0, 1, new int[]{0x55FFFFFF, 0x14FFFFFF, 0x00FFFFFF}, new float[]{0f, 0.35f, 1f}, Shader.TileMode.CLAMP);
-            glassSheen.setShader(glassSheenShader);
-        }
-        float a = alpha / 255f;
-        glassFill.setShader(null);
-        glassFill.setColor(ColorUtils.setAlphaComponent(GLASS_TINTS[tintIndex], Math.round(255 * fillAlpha * a)));
-        canvas.drawPath(path, glassFill);
-
-        int save = canvas.save();
-        canvas.clipPath(path);
-        float height = Math.max(1, bounds.height());
-        if (edge > 0) {
-            glassMatrix.reset();
-            glassMatrix.setScale(1f, height * 0.55f);
-            glassMatrix.postTranslate(0, bounds.top);
-            glassSheenShader.setLocalMatrix(glassMatrix);
-            glassSheen.setAlpha(Math.round(Math.min(255, 255 * a * edge)));
-            canvas.drawRect(bounds, glassSheen);
-        }
-        if (refract) {
-            // Imitation of light bending at the rim: coloured fringes on both sides of the edge.
-            float shift = AndroidUtilities.dpf2(0.8f);
-            glassEdge.setStrokeWidth(Math.max(1f, AndroidUtilities.dpf2(1.5f)));
-            int s = canvas.save();
-            canvas.translate(-shift, -shift);
-            glassEdge.setColor(0xFF50D8FF);
-            glassEdge.setAlpha(Math.round(90 * a));
-            canvas.drawPath(path, glassEdge);
-            canvas.restoreToCount(s);
-            s = canvas.save();
-            canvas.translate(shift, shift);
-            glassEdge.setColor(0xFFFF80B0);
-            glassEdge.setAlpha(Math.round(90 * a));
-            canvas.drawPath(path, glassEdge);
-            canvas.restoreToCount(s);
-            glassEdge.setStrokeWidth(Math.max(1f, AndroidUtilities.dpf2(1f)));
-        }
-        if (edge > 0) {
-            glassEdge.setColor(0xFFFFFFFF);
-            glassEdge.setAlpha(Math.round(Math.min(255, 120 * a * edge)));
-            canvas.drawPath(path, glassEdge);
-        }
-        canvas.restoreToCount(save);
+        glass.draw(canvas, path, bounds, alpha / 255f, null);
     }
 
     public void draw(Canvas canvas, Paint paintToUse) {
