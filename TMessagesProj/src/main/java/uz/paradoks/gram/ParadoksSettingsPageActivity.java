@@ -321,10 +321,12 @@ public class ParadoksSettingsPageActivity extends BaseFragment {
                     return e == 0 ? "Yo'q" : e == 1 ? "Yumshoq" : e == 3 ? "Yorqin" : "Oddiy";
                 }, this::showGlassEdgeDialog);
                 check("Kelgan xabarlarga ham liquid glass", ParadoksConfig::glassIncoming, ParadoksConfig::setGlassIncoming);
-                check("Sinish effekti (chekkada rangli nur)", ParadoksConfig::glassRefract, ParadoksConfig::setGlassRefract);
-                info("Yuborgan xabarlaringizning orqa foni shishaday yarim shaffof bo'ladi. \"Kuchli\" eng shaffof. "
-                        + "Tepadagi sinov maydoni o'zgarishlarni darrov ko'rsatadi. Sinov maydonida sinish effekti haqiqiy xiralashtirish va linza bilan chiziladi (fon ma'lum). "
-                        + "Haqiqiy chatda xabar ortidagi fon ilovaga ma'lum emas, shuning uchun sinish chekkadagi rangli nur va ichki yorug'lik ko'rinishida taqlid qilinadi. Chat foni rasmli yoki rangli bo'lsa chiroyliroq ko'rinadi.");
+                check("Sinish effekti (suv quyilgandek)", ParadoksConfig::glassRefract, ParadoksConfig::setGlassRefract);
+                check("Tugmalar uchun liquid glass", ParadoksConfig::glassButtons, ParadoksConfig::setGlassButtons);
+                info("Yuborgan xabaringiz tanlangan rangli shisha, kelgan xabar rangsiz tiniq shisha, o'chirilgan xabar qizil shisha bo'ladi. \"Kuchli\" eng shaffof. "
+                        + "Tepadagi sinov maydoni o'zgarishlarni darrov ko'rsatadi. Sinish effekti sinov maydonida haqiqiy: orqa fon xiralashadi va suv tomchisidek egiladi. "
+                        + "Haqiqiy chatda xabar ortidagi fon ilovaga ma'lum emas, shuning uchun u yerda faqat oq yorug'lik bilan taqlid qilinadi. "
+                        + "Tugmalar uchun shisha hozircha chat ro'yxatidagi asosiy yumaloq tugmaga qo'llanadi; ilovani qayta ochganda ko'rinadi.");
                 header("Yuklash");
                 value("Yuklash rejimi", () -> {
                     int m = ParadoksConfig.downloadMode();

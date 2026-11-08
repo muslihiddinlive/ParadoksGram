@@ -486,6 +486,15 @@ public final class ParadoksConfig {
         prefs().edit().putInt("glass_edge", value).apply();
     }
 
+    /** Liquid glass look of the round floating buttons (default: off). */
+    public static boolean glassButtons() {
+        return prefs().getBoolean("glass_buttons", false);
+    }
+
+    public static void setGlassButtons(boolean value) {
+        prefs().edit().putBoolean("glass_buttons", value).apply();
+    }
+
     public static boolean glassRefract() {
         return prefs().getBoolean("glass_refract", false);
     }

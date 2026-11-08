@@ -163,10 +163,14 @@ public class FragmentFloatingButton extends FrameLayout implements FactorAnimato
         } else {
             imageView.setColorFilter(Theme.getColor(Theme.key_chats_actionIcon, resourcesProvider), PorterDuff.Mode.SRC_IN);
             progressView.setProgressColor(Theme.getColor(Theme.key_chats_actionIcon, resourcesProvider));
-            setBackground(Theme.createSimpleSelectorCircleDrawable(dp(48),
-                Theme.getColor(Theme.key_featuredStickers_addButton, resourcesProvider),
-                Theme.getColor(Theme.key_featuredStickers_addButtonPressed, resourcesProvider)
-            ));
+            if (uz.paradoks.gram.ParadoksConfig.glassButtons()) {
+                setBackground(new uz.paradoks.gram.ParadoksGlassButton()); // ParadoksGram: liquid glass button
+            } else {
+                setBackground(Theme.createSimpleSelectorCircleDrawable(dp(48),
+                    Theme.getColor(Theme.key_featuredStickers_addButton, resourcesProvider),
+                    Theme.getColor(Theme.key_featuredStickers_addButtonPressed, resourcesProvider)
+                ));
+            }
         }
     }
 

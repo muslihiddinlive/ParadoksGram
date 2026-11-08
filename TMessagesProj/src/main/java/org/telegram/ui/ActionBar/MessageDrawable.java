@@ -561,14 +561,14 @@ public class MessageDrawable extends Drawable {
     private uz.paradoks.gram.ParadoksGlass glass;
 
     private boolean glassActive(Paint paintToUse) {
-        return (isOut || uz.paradoks.gram.ParadoksConfig.glassIncoming()) && paintToUse == null && currentType != TYPE_PREVIEW && uz.paradoks.gram.ParadoksConfig.glassBubbleLevel() > 0;
+        return (isOut || uz.paradoks.gram.ParadoksConfig.glassIncoming() || uz.paradoks.gram.ParadoksGlass.drawingDeleted) && paintToUse == null && currentType != TYPE_PREVIEW && uz.paradoks.gram.ParadoksConfig.glassBubbleLevel() > 0;
     }
 
     private void drawGlass(Canvas canvas, Path path, Paint source, Rect bounds) {
         if (glass == null) {
             glass = new uz.paradoks.gram.ParadoksGlass();
         }
-        glass.draw(canvas, path, bounds, alpha / 255f, null);
+        glass.draw(canvas, path, bounds, alpha / 255f, uz.paradoks.gram.ParadoksGlass.drawingDeleted ? uz.paradoks.gram.ParadoksGlass.ROLE_DELETED : (isOut ? uz.paradoks.gram.ParadoksGlass.ROLE_OUT : uz.paradoks.gram.ParadoksGlass.ROLE_IN), null);
     }
 
     public void draw(Canvas canvas, Paint paintToUse) {

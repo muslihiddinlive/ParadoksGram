@@ -21,7 +21,7 @@ import org.telegram.messenger.AndroidUtilities;
  *
  * When a blurred copy of what is behind the bubble is available (only in the settings preview, where the wallpaper is
  * known) it is drawn through a lens-shaped mesh: a real blur + displacement like the web sample. In the real chat the
- * wallpaper behind a cell is not available, so the bending is imitated with coloured fringes on the rim.
+ * wallpaper behind a cell is not available, so the water effect is imitated with neutral light on the rim (never coloured).
  */
 public final class ParadoksGlass {
 
@@ -55,24 +55,69 @@ public final class ParadoksGlass {
         lens.setColorFilter(new ColorMatrixColorFilter(cm));
     }
 
+    public static final int ROLE_OUT = 0;
+    public static final int ROLE_IN = 1;
+    public static final int ROLE_DELETED = 2;
+
+    /** Set by ChatMessageCell right before it draws a bubble: the message was deleted by its sender (UI thread only). */
+    public static boolean drawingDeleted;
+
+    private static final int DELETED_TINT = 0xFFFF4D4D;
+
+    private final Paint inner = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private LinearGradient rimShader;
+    private int rimShaderColor = 1;
+    private final Matrix rimMatrix = new Matrix();
+
+    private void ensureRimShader(int rgb) {
+        if (rimShader != null && rimShaderColor == rgb) {
+            return;
+        }
+        rimShaderColor = rgb;
+        int c = rgb & 0x00FFFFFF;
+        // bright on the top-left and bottom-right corners, faint along the straight sides (like the reference glass)
+        rimShader = new LinearGradient(0, 0, 1, 1,
+                new int[]{0xFF000000 | c, 0x38000000 | c, 0x38000000 | c, 0xB0000000 | c},
+                new float[]{0f, 0.32f, 0.68f, 1f}, Shader.TileMode.CLAMP);
+    }
+
     /** Draws the glass with the current settings from ParadoksConfig. */
     public void draw(Canvas canvas, Path path, Rect bounds, float a, Bitmap blurredBackdrop) {
-        draw(canvas, path, bounds, a, ParadoksConfig.glassBubbleLevel(), ParadoksConfig.glassTint(), ParadoksConfig.glassEdge(), ParadoksConfig.glassRefract(), blurredBackdrop);
+        draw(canvas, path, bounds, a, ROLE_OUT, blurredBackdrop);
+    }
+
+    public void draw(Canvas canvas, Path path, Rect bounds, float a, int role, Bitmap blurredBackdrop) {
+        draw(canvas, path, bounds, a, role, ParadoksConfig.glassBubbleLevel(), ParadoksConfig.glassTint(), ParadoksConfig.glassEdge(), ParadoksConfig.glassRefract(), blurredBackdrop);
     }
 
     /**
      * @param a               overall opacity 0..1
+     * @param role            ROLE_OUT (tinted with the chosen colour), ROLE_IN (clear, colourless) or ROLE_DELETED (red)
      * @param blurredBackdrop a small blurred copy of what is behind the bubble (stretched over {@code bounds}), or null
      */
-    public void draw(Canvas canvas, Path path, Rect bounds, float a, int level, int tint, int edgeLevel, boolean refract, Bitmap blurredBackdrop) {
+    public void draw(Canvas canvas, Path path, Rect bounds, float a, int role, int level, int tint, int edgeLevel, boolean refract, Bitmap blurredBackdrop) {
         int tintIndex = Math.max(0, Math.min(TINTS.length - 1, tint));
-        float fillAlpha;
-        if (tintIndex == 0) {
-            fillAlpha = level == 1 ? 0.34f : level == 2 ? 0.22f : 0.12f;
+        int tintColor;
+        if (role == ROLE_DELETED) {
+            tintColor = DELETED_TINT;
+        } else if (role == ROLE_IN) {
+            tintColor = TINTS[0];
         } else {
-            fillAlpha = level == 1 ? 0.62f : level == 2 ? 0.46f : 0.30f;
+            tintColor = TINTS[tintIndex];
+        }
+        boolean colored = tintColor != TINTS[0];
+        float fillAlpha;
+        if (!colored) {
+            fillAlpha = level == 1 ? 0.30f : level == 2 ? 0.18f : 0.09f;
+        } else {
+            fillAlpha = level == 1 ? 0.58f : level == 2 ? 0.42f : 0.26f;
         }
         float rim = edgeLevel == 0 ? 0f : edgeLevel == 1 ? 0.6f : edgeLevel == 2 ? 1f : 1.4f;
+        if (role == ROLE_IN) {
+            rim *= 0.8f; // incoming glass: a lighter, thinner rim
+        }
+        // rim colour: white, slightly pulled towards the tint (outgoing / deleted); never a rainbow
+        int rimRgb = colored ? ColorUtils.blendARGB(0xFFFFFFFF, tintColor, 0.35f) : 0xFFFFFFFF;
 
         boolean real = refract && blurredBackdrop != null && !blurredBackdrop.isRecycled();
         if (real) {
@@ -82,48 +127,59 @@ public final class ParadoksGlass {
             canvas.restoreToCount(s);
         }
 
-        fill.setColor(ColorUtils.setAlphaComponent(TINTS[tintIndex], Math.round(255 * fillAlpha * a)));
+        fill.setColor(ColorUtils.setAlphaComponent(tintColor, Math.round(255 * fillAlpha * a)));
         canvas.drawPath(path, fill);
 
         int save = canvas.save();
         canvas.clipPath(path);
         float height = Math.max(1, bounds.height());
+        float width = Math.max(1, bounds.width());
         if (rim > 0) {
+            // soft sheen across the top
             matrix.reset();
             matrix.setScale(1f, height * 0.55f);
             matrix.postTranslate(0, bounds.top);
             sheenShader.setLocalMatrix(matrix);
-            sheen.setAlpha(Math.round(Math.min(255, 255 * a * rim)));
+            sheen.setAlpha(Math.round(Math.min(255, 200 * a * rim)));
             canvas.drawRect(bounds, sheen);
+
+            // soft inner shadow just inside the rim (two strokes, the wider one fainter)
+            inner.setStyle(Paint.Style.STROKE);
+            inner.setColor(0xFF000000);
+            inner.setStrokeWidth(Math.max(3f, AndroidUtilities.dpf2(5f)));
+            inner.setAlpha(Math.round(16 * a * rim));
+            canvas.drawPath(path, inner);
+            inner.setStrokeWidth(Math.max(2f, AndroidUtilities.dpf2(2.5f)));
+            inner.setAlpha(Math.round(22 * a * rim));
+            canvas.drawPath(path, inner);
         }
         if (refract) {
-            // Light bending at the rim: coloured fringes on both sides of the edge (plus an inner glow).
-            float shift = AndroidUtilities.dpf2(real ? 0.9f : 1.2f);
-            edge.setStrokeWidth(Math.max(1f, AndroidUtilities.dpf2(real ? 1.5f : 2f)));
+            // Water over the picture, imitated with neutral light only: a soft glow inside the rim and a displaced
+            // second highlight (no colours). With a known backdrop the lens above does the real work.
+            edge.setShader(null);
+            edge.setColor(0xFFFFFFFF);
+            edge.setStrokeWidth(Math.max(3f, AndroidUtilities.dpf2(real ? 3f : 4f)));
+            edge.setAlpha(Math.round((real ? 26 : 38) * a));
+            canvas.drawPath(path, edge);
+            float shift = AndroidUtilities.dpf2(real ? 1.5f : 2f);
+            edge.setStrokeWidth(Math.max(1f, AndroidUtilities.dpf2(1.2f)));
             int s = canvas.save();
-            canvas.translate(-shift, -shift);
-            edge.setColor(0xFF50D8FF);
-            edge.setAlpha(Math.round((real ? 90 : 120) * a));
-            canvas.drawPath(path, edge);
-            canvas.restoreToCount(s);
-            s = canvas.save();
             canvas.translate(shift, shift);
-            edge.setColor(0xFFFF80B0);
-            edge.setAlpha(Math.round((real ? 90 : 120) * a));
+            edge.setAlpha(Math.round(70 * a));
             canvas.drawPath(path, edge);
             canvas.restoreToCount(s);
-            if (!real) {
-                edge.setStrokeWidth(Math.max(2f, AndroidUtilities.dpf2(3f)));
-                edge.setColor(0xFFFFFFFF);
-                edge.setAlpha(Math.round(40 * a));
-                canvas.drawPath(path, edge);
-            }
         }
         if (rim > 0) {
-            edge.setStrokeWidth(Math.max(1f, AndroidUtilities.dpf2(1f)));
-            edge.setColor(0xFFFFFFFF);
-            edge.setAlpha(Math.round(Math.min(255, 120 * a * rim)));
+            ensureRimShader(rimRgb);
+            rimMatrix.reset();
+            rimMatrix.setScale(width, height);
+            rimMatrix.postTranslate(bounds.left, bounds.top);
+            rimShader.setLocalMatrix(rimMatrix);
+            edge.setShader(rimShader);
+            edge.setStrokeWidth(Math.max(1f, AndroidUtilities.dpf2(1.4f)));
+            edge.setAlpha(Math.round(Math.min(255, 235 * a * Math.min(1f, rim))));
             canvas.drawPath(path, edge);
+            edge.setShader(null);
         }
         canvas.restoreToCount(save);
     }
@@ -144,8 +200,9 @@ public final class ParadoksGlass {
                 float ny = (sy - cy) / hh;
                 float r = Math.min(1f, Math.max(Math.abs(nx), Math.abs(ny)));
                 float f = 1f + k * (1f - r * r * r);
-                verts[index++] = cx + (sx - cx) * f;
-                verts[index++] = cy + (sy - cy) * f;
+                float ripple = AndroidUtilities.dpf2(1.3f) * (1f - r * r) * (float) Math.sin(nx * 4.2 + ny * 2.6);
+                verts[index++] = cx + (sx - cx) * f + ripple;
+                verts[index++] = cy + (sy - cy) * f - ripple;
             }
         }
         lens.setAlpha(Math.round(255 * a));

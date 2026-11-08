@@ -6772,6 +6772,7 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
 
     private void setMessageContent(MessageObject messageObject, MessageObject.GroupedMessages groupedMessages, boolean bottomNear, boolean topNear, boolean firstInChat, boolean lastInChatList) {
         uz.paradoks.gram.ParadoksMediaRestore.onBind(this, currentAccount, messageObject); // ParadoksGram: backed-up media of deleted messages
+        paradoksGlassDeleted = uz.paradoks.gram.ParadoksConfig.glassBubbleLevel() > 0 && uz.paradoks.gram.ParadoksDeleted.isDeleted(currentAccount, messageObject); // ParadoksGram: red glass
         if (messageObject.checkLayout() || currentPosition != null && lastHeight != AndroidUtilities.displaySize.y) {
             currentMessageObject = null;
         }
@@ -20409,7 +20410,18 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
         canvas.restoreToCount(restore);
     }
 
+    private boolean paradoksGlassDeleted;
+
     public void drawBackgroundInternal(Canvas canvas, boolean fromParent) {
+        uz.paradoks.gram.ParadoksGlass.drawingDeleted = paradoksGlassDeleted;
+        try {
+            drawBackgroundInternalParadoks(canvas, fromParent);
+        } finally {
+            uz.paradoks.gram.ParadoksGlass.drawingDeleted = false;
+        }
+    }
+
+    private void drawBackgroundInternalParadoks(Canvas canvas, boolean fromParent) {
         drawBackgroundInternal(canvas, fromParent, false);
     }
 

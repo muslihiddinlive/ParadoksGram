@@ -75,6 +75,7 @@ public final class ParadoksBackup {
         SCHEMA.put("pre_save_max_mb", T_INT);
         SCHEMA.put("glass_edge", T_INT);
         SCHEMA.put("glass_refract", T_BOOL);
+        SCHEMA.put("glass_buttons", T_BOOL);
         SCHEMA.put("lock_hash", T_STRING);
         SCHEMA.put("lock_salt", T_STRING);
         SCHEMA.put("lock_chats", T_STRING_SET);

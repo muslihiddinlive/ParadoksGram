@@ -25,7 +25,7 @@ import org.telegram.messenger.R;
 /**
  * Live test field for the liquid glass settings: a small chat on a colourful wallpaper. Every option is read from
  * ParadoksConfig while drawing, so calling invalidate() after a change shows the result at once. The bubbles are
- * drawn by the same ParadoksGlass code the real chat uses. Refraction is shown with a really blurred and lens-bent
+ * drawn by the same ParadoksGlass code the real chat uses (sent = tinted, received = clear, deleted = red). Refraction is shown with a really blurred and lens-bent
  * copy of the wallpaper (it is known here); the real chat has no access to the wallpaper and imitates it.
  */
 public class ParadoksGlassPreview extends View {
@@ -35,9 +35,11 @@ public class ParadoksGlassPreview extends View {
             "Rostmi? Menga ham ko'rsatchi",
             "Xabarlar shishadek yaltirab turibdi, chekkasida nur o'ynayapti",
             "Sinish effekti-chi, bormi?",
-            "Bor! Sozlamani o'zgartir, natija shu yerda darrov ko'rinadi"
+            "Bor! Sozlamani o'zgartir, natija shu yerda darrov ko'rinadi",
+            "Bu xabarni men o'chirib yuborgan edim..."
     };
-    private static final boolean[] OUT = {false, true, false, true, false};
+    private static final boolean[] OUT = {false, true, false, true, false, false};
+    private static final boolean[] DELETED = {false, false, false, false, false, true};
     private static final String SENDER = "Muslihiddin";
 
     private final ParadoksGlass glass = new ParadoksGlass();
@@ -229,7 +231,7 @@ public class ParadoksGlassPreview extends View {
             path.reset();
             path.addRoundRect(rectF, radii, Path.Direction.CW);
 
-            boolean glassOn = level > 0 && (OUT[i] || incomingGlass);
+            boolean glassOn = level > 0 && (OUT[i] || incomingGlass || DELETED[i]);
             if (glassOn) {
                 Bitmap backdrop = null;
                 if (refract) {
@@ -238,7 +240,7 @@ public class ParadoksGlassPreview extends View {
                     }
                     backdrop = blurred[i];
                 }
-                glass.draw(canvas, path, r, 1f, backdrop);
+                glass.draw(canvas, path, r, 1f, DELETED[i] ? ParadoksGlass.ROLE_DELETED : (OUT[i] ? ParadoksGlass.ROLE_OUT : ParadoksGlass.ROLE_IN), backdrop);
             } else {
                 solid.setColor(OUT[i] ? 0xFF3E8DE3 : 0xFF2B3544);
                 canvas.drawPath(path, solid);
