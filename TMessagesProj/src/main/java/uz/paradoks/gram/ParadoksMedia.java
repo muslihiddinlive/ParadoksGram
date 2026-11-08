@@ -152,6 +152,29 @@ final class ParadoksMedia {
         AndroidUtilities.runOnUIThread(() -> startDownload(account, message, FileLoader.PRIORITY_NORMAL));
     }
 
+    /**
+     * The stock download of the deleted message is already running and will fail (the server dropped the file),
+     * and a second request for the same file id would just join it. So the stock one is cancelled first and
+     * the copy from the media database chat is started afterwards (both calls run on the same queue, in order).
+     */
+    static void downloadCopy(int account, TLRPC.Message original, TLRPC.Message copy) {
+        AndroidUtilities.runOnUIThread(() -> {
+            try {
+                if (original != null && original.media != null) {
+                    if (original.media.document != null) {
+                        FileLoader.getInstance(account).cancelLoadFile(original.media.document);
+                    } else if (original.media.photo != null) {
+                        for (TLRPC.PhotoSize size : original.media.photo.sizes) {
+                            FileLoader.getInstance(account).cancelLoadFile(size);
+                        }
+                    }
+                }
+            } catch (Throwable ignore) {
+            }
+            startDownload(account, copy, FileLoader.PRIORITY_NORMAL);
+        });
+    }
+
     /** Manual retry from the radar: loads the kept message again and tries to download/copy it. */
     static void retryNow(int account, long dialogKey, int mid) {
         MessagesStorage.getInstance(account).getStorageQueue().postRunnable(() -> {

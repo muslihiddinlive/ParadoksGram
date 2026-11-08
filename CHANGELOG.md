@@ -8,6 +8,9 @@ Versiya formati Telegram kabi: `MAJOR.MINOR.PATCH`, qavs ichida build raqami (ma
 
 Versiya raqami `VERSION` faylida turadi. Har versiya uchun foydalanuvchiga ko'rinadigan matn `changelog/<versiya>.md` fayliga yoziladi: CI shuni reliz matniga qo'yadi, ilova yangilanish oynasida shuni ko'rsatadi. Commit xabari reliz matniga tushmaydi.
 
+## 3.31.1 (8-noyabr)
+O'chirilgan media: baza nusxasidan yuklash tuzatildi, oldindan saqlash endi standart o'chiq
+
 ## 3.31.0 (7-noyabr)
 Rasm metadatasini (EXIF) ko'rish
 Yangi:

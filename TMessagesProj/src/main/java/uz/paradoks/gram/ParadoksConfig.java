@@ -38,7 +38,7 @@ public final class ParadoksConfig {
 
     /** Silently pre-downloads incoming media (Wi-Fi only) so it can be kept if the message is deleted. */
     public static boolean preSaveMedia() {
-        return prefs().getBoolean("pre_save_media", true);
+        return prefs().getBoolean("pre_save_media", false);
     }
 
     public static void setPreSaveMedia(boolean value) {

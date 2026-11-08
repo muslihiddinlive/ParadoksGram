@@ -132,7 +132,7 @@ public final class ParadoksMediaRestore {
             if (copyMessage == null || copyMessage.media == null || (copyMessage.media.photo == null && copyMessage.media.document == null)) {
                 return;
             }
-            ParadoksMedia.downloadFor(account, copyMessage); // its own file reference is valid
+            ParadoksMedia.downloadCopy(account, object.messageOwner, copyMessage); // its own file reference is valid
             for (int i = 0; i < WAIT_SECONDS; i++) {
                 Thread.sleep(1000);
                 if (target.exists()) {
