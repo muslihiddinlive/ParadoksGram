@@ -127,9 +127,56 @@ public final class ParadoksTextFormats {
             s = new String(b, Charset.forName(cs));
             t.charset = cs;
         }
-        t.text = s.replace("\r\n", "\n").replace('\r', '\n');
+        s = s.replace("\r\n", "\n").replace('\r', '\n');
+        String name = file.getName();
+        int dot = name.lastIndexOf('.');
+        String ext = dot >= 0 ? name.substring(dot + 1).toLowerCase(Locale.ROOT) : "";
+        // minified HTML / JS / JSON is often ONE multi-megabyte line: a single TextView cannot lay that out (the app freezes)
+        t.text = isTable(ext) ? s : wrapLongLines(s);
         count(t);
         return t;
+    }
+
+    /** Lines longer than this are broken into shorter ones when a text file is opened in the viewer. */
+    static final int MAX_LINE = 1200;
+    private static final int WRAP_AT = 1000;
+
+    /**
+     * Breaks lines longer than {@link #MAX_LINE} into pieces of about {@link #WRAP_AT} characters, preferably after
+     * '>', whitespace, ',', ';' or '}'. Shorter lines (all normal text and code) are left untouched.
+     */
+    static String wrapLongLines(String s) {
+        final int n = s.length();
+        StringBuilder sb = new StringBuilder(n + n / 500 + 16);
+        int i = 0;
+        while (i < n) {
+            int nl = s.indexOf('\n', i);
+            int end = nl < 0 ? n : nl;
+            int p = i;
+            while (end - p > MAX_LINE) {
+                int limit = p + WRAP_AT;
+                int cut = limit;
+                for (int k = limit; k > limit - 250; k--) {
+                    char c = s.charAt(k - 1);
+                    if (c == '>' || c == ' ' || c == '\t' || c == ',' || c == ';' || c == '}') {
+                        cut = k;
+                        break;
+                    }
+                }
+                if (Character.isHighSurrogate(s.charAt(cut - 1))) {
+                    cut--;
+                }
+                sb.append(s, p, cut).append('\n');
+                p = cut;
+            }
+            sb.append(s, p, end);
+            if (nl < 0) {
+                break;
+            }
+            sb.append('\n');
+            i = nl + 1;
+        }
+        return sb.toString();
     }
 
     private static void count(Text t) {
