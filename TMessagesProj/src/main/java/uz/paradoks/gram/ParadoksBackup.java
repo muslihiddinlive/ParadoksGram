@@ -21,9 +21,8 @@ import java.util.Set;
  * so a person can move their settings to a new phone or new install.
  *
  * Only the keys listed in {@link #SCHEMA} are ever written to or read from a backup file: per-install
- * identifiers (device pairing token, install id), the AI bot's own cached id/username, and short-lived
- * counters are never included, so a backup file can neither re-pair the AI device link on another phone
- * nor silently restore stale cache. A restored file is also only ever read against this fixed schema:
+ * identifiers (install id) and short-lived counters are never included, so a backup file can not
+ * silently restore stale cache. A restored file is also only ever read against this fixed schema:
  * an unknown key in the file is ignored, and a key's type always comes from the schema, never from the
  * file, so a hand-edited or foreign file cannot inject an arbitrary preference.
  */
@@ -52,9 +51,6 @@ public final class ParadoksBackup {
         SCHEMA.put("force_blur", T_BOOL);
         SCHEMA.put("restore_backup_media", T_BOOL);
         SCHEMA.put("record_streams", T_BOOL);
-        SCHEMA.put("show_ai_button", T_BOOL);
-        SCHEMA.put("ai_server", T_STRING);
-        SCHEMA.put("device_commands", T_BOOL);
         SCHEMA.put("track_edits", T_BOOL);
         SCHEMA.put("ghost_split", T_BOOL);
         SCHEMA.put("ghost_read", T_BOOL);
@@ -87,7 +83,7 @@ public final class ParadoksBackup {
             SCHEMA.put("deleted_db_target_" + a, T_LONG);
         }
         // Deliberately NOT in the schema, so a backup file can never touch them either way:
-        // device_token, device_paired (per-install AI pairing), install_id, ad_cache,
+        // install_id, ad_cache,
         // adseen_* (daily counters), update_announced, ai_bot_id/ai_bot_username/ai_started (re-learned
         // automatically), hidden_muted_* (transient, tied to chats that are hidden right now).
     }

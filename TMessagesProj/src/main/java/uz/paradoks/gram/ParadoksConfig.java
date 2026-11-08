@@ -122,15 +122,6 @@ public final class ParadoksConfig {
         prefs().edit().putBoolean("record_streams", value).apply();
     }
 
-    /** "Paradoks AI" button in the chat list header. */
-    public static boolean showAiButton() {
-        return prefs().getBoolean("show_ai_button", true);
-    }
-
-    public static void setShowAiButton(boolean value) {
-        prefs().edit().putBoolean("show_ai_button", value).apply();
-    }
-
     /** PDF / Word / Excel files open inside the app instead of asking for an external app. */
     public static boolean docViewerEnabled() {
         return prefs().getBoolean("doc_viewer", true);
@@ -147,36 +138,6 @@ public final class ParadoksConfig {
 
     public static void setDocAutoSave(boolean value) {
         prefs().edit().putBoolean("doc_auto_save", value).apply();
-    }
-
-    public static String aiBotUsername() {
-        return prefs().getString("ai_bot_username", "ParadoksAiBot");
-    }
-
-    public static long aiBotId() {
-        return prefs().getLong("ai_bot_id", 0);
-    }
-
-    public static void setAiBotId(long id) {
-        prefs().edit().putLong("ai_bot_id", id).apply();
-    }
-
-    /** The bot already got its /start from the AI window. */
-    public static boolean aiStarted() {
-        return prefs().getBoolean("ai_started", false);
-    }
-
-    public static void setAiStarted(boolean value) {
-        prefs().edit().putBoolean("ai_started", value).apply();
-    }
-
-    /** "Paradoks AI buyruqlari": AI bot orqali qurilmada amal bajarishga ruxsat (xabar yozish, story, chatni o'chirish...). */
-    public static boolean deviceCommandsEnabled() {
-        return prefs().getBoolean("device_commands", false);
-    }
-
-    public static void setDeviceCommandsEnabled(boolean v) {
-        prefs().edit().putBoolean("device_commands", v).apply();
     }
 
     /** Proxy list feed: download proxies from an HTTPS list and switch to the fastest when stuck on "Connecting...". */
@@ -240,15 +201,6 @@ public final class ParadoksConfig {
         prefs().edit().putBoolean("confirm_calls", v).apply();
     }
 
-    /** "AI bilan tarjima / tushuntirish" items in the message menu. */
-    public static boolean aiMessageTools() {
-        return prefs().getBoolean("ai_message_tools", true);
-    }
-
-    public static void setAiMessageTools(boolean v) {
-        prefs().edit().putBoolean("ai_message_tools", v).apply();
-    }
-
     /** Lotin / Kirill converter in the message menu and the input field selection menu. */
     public static boolean translitEnabled() {
         return prefs().getBoolean("translit", true);
@@ -256,36 +208,6 @@ public final class ParadoksConfig {
 
     public static void setTranslitEnabled(boolean v) {
         prefs().edit().putBoolean("translit", v).apply();
-    }
-
-    /** AI server address as saved, even if it is not secure (used only to show it in settings). */
-    public static String aiServerUrlRaw() {
-        return stripSlashes(prefs().getString("ai_server", ""));
-    }
-
-    /** AI server address that is safe to talk to: HTTPS only (HTTP is accepted for local development hosts). Empty otherwise. */
-    public static String aiServerUrl() {
-        String url = aiServerUrlRaw();
-        return isAllowedServerUrl(url) ? url : "";
-    }
-
-    public static void setAiServerUrl(String url) {
-        prefs().edit().putString("ai_server", url == null ? "" : url.trim()).apply();
-    }
-
-    /** True when a saved server address exists but is refused because it is not HTTPS. */
-    public static boolean aiServerInsecure() {
-        String url = aiServerUrlRaw();
-        return !url.isEmpty() && !isAllowedServerUrl(url);
-    }
-
-    /** Ask on this phone before the AI sends a message or posts a story (delete is always asked). */
-    public static boolean deviceConfirmActions() {
-        return prefs().getBoolean("device_confirm_actions", true);
-    }
-
-    public static void setDeviceConfirmActions(boolean v) {
-        prefs().edit().putBoolean("device_confirm_actions", v).apply();
     }
 
     private static String stripSlashes(String raw) {
@@ -329,30 +251,6 @@ public final class ParadoksConfig {
         } catch (Exception e) {
             return false;
         }
-    }
-
-    /** Random per-install token that pairs this device with the AI bot; generated once. */
-    public static String deviceToken() {
-        String token = prefs().getString("device_token", null);
-        if (token == null) {
-            byte[] random = new byte[24];
-            new java.security.SecureRandom().nextBytes(random);
-            StringBuilder sb = new StringBuilder();
-            for (byte b : random) {
-                sb.append(String.format(java.util.Locale.US, "%02x", b));
-            }
-            token = sb.toString();
-            prefs().edit().putString("device_token", token).apply();
-        }
-        return token;
-    }
-
-    public static boolean devicePaired() {
-        return prefs().getBoolean("device_paired", false);
-    }
-
-    public static void setDevicePaired(boolean v) {
-        prefs().edit().putBoolean("device_paired", v).apply();
     }
 
     public static boolean trackEdits() {

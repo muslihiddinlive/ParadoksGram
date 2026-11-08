@@ -1698,7 +1698,6 @@ public class ChatActivity extends BaseFragment implements
     private final static int paradoks_export = 9204;
     private final static int paradoks_clone = 9205;
     private final static int paradoks_ghost = 9206;
-    private final static int paradoks_ai_summary = 9207;
     private final static int scheduled = 63;
     private final static int edit_quick_reply = 64;
 
@@ -4041,8 +4040,6 @@ public class ChatActivity extends BaseFragment implements
                             android.widget.Toast.LENGTH_SHORT).show();
                 } else if (id == paradoks_clone) {
                     uz.paradoks.gram.ParadoksClone.start(ChatActivity.this, currentAccount, dialog_id);
-                } else if (id == paradoks_ai_summary) {
-                    uz.paradoks.gram.ParadoksAiTools.summarizeChat(ChatActivity.this, getChatTitleForParadoks(), messages);
                 } else if (id == translate) {
                     getMessagesController().getTranslateController().setHideTranslateDialog(getDialogId(), false, true);
                     if (!getMessagesController().getTranslateController().toggleTranslatingDialog(getDialogId(), true)) {
@@ -4519,7 +4516,6 @@ public class ChatActivity extends BaseFragment implements
             if (uz.paradoks.gram.ParadoksClone.canClone(currentChat, currentUser, currentEncryptedChat)) {
                 headerItem.lazilyAddSubItem(paradoks_clone, R.drawable.msg_clone, "Chatni klon qilish");
             }
-            headerItem.lazilyAddSubItem(paradoks_ai_summary, R.drawable.msg_text_check, "AI bilan qisqartirish");
             if (currentChat != null && !currentChat.creator && !ChatObject.hasAdminRights(currentChat)) {
                 headerItem.lazilyAddSubItem(report, R.drawable.msg_report, LocaleController.getString(R.string.ReportChat));
             }
@@ -33879,14 +33875,6 @@ public class ChatActivity extends BaseFragment implements
                 uz.paradoks.gram.ParadoksTranslit.showForMessage(getParentActivity(), selectedObject);
                 break;
             }
-            case 9005: {
-                uz.paradoks.gram.ParadoksAiTools.translateMessage(this, selectedObject);
-                break;
-            }
-            case 9006: {
-                uz.paradoks.gram.ParadoksAiTools.explainMessage(this, selectedObject);
-                break;
-            }
             case OPTION_COPY: {
                 final TL_iv.RichMessage copyRichMessage = selectedObject.messageOwner != null ? selectedObject.messageOwner.rich_message : null;
                 if (selectedObject.isDice()) {
@@ -46847,14 +46835,6 @@ public class ChatActivity extends BaseFragment implements
                     items.add("Lotin \u2194 Kirill");
                     options.add(9004);
                     icons.add(R.drawable.msg_language);
-                }
-                if (uz.paradoks.gram.ParadoksConfig.aiMessageTools() && selectedObject.messageOwner != null && !TextUtils.isEmpty(selectedObject.messageOwner.message)) { // ParadoksGram: Paradoks AI
-                    items.add("AI bilan tarjima");
-                    options.add(9005);
-                    icons.add(R.drawable.msg_translate);
-                    items.add("AI bilan tushuntirish");
-                    options.add(9006);
-                    icons.add(R.drawable.msg_info);
                 }
                 MessageObject msg = selectedObjectGroup != null ? selectedObjectGroup.findPrimaryMessageObject() : selectedObject;
                 if (msg != null && msg.isFactCheckable() && getMessagesController().canEditFactcheck && ChatObject.isChannelAndNotMegaGroup(currentChat) && chatMode == MODE_DEFAULT) {

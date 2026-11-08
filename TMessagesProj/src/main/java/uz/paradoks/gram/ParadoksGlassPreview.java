@@ -4,7 +4,10 @@ import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.LinearGradient;
+import android.graphics.BitmapFactory;
 import android.graphics.Paint;
+import android.graphics.PorterDuff;
+import android.graphics.PorterDuffXfermode;
 import android.graphics.Path;
 import android.graphics.RadialGradient;
 import android.graphics.Rect;
@@ -17,6 +20,7 @@ import android.text.TextPaint;
 import android.view.View;
 
 import org.telegram.messenger.AndroidUtilities;
+import org.telegram.messenger.R;
 
 /**
  * Live test field for the liquid glass settings: a small chat on a colourful wallpaper. Every option is read from
@@ -149,6 +153,7 @@ public class ParadoksGlassPreview extends View {
             canvas.drawCircle(cx, cy, r, p);
         }
         p.setShader(null);
+        drawLogoPattern(canvas, w, h);
         p.setStyle(Paint.Style.STROKE);
         p.setStrokeWidth(AndroidUtilities.dp(2));
         p.setColor(0x38FFFFFF);
@@ -157,6 +162,37 @@ public class ParadoksGlassPreview extends View {
             canvas.drawLine(x, h, x + h, 0, p);
         }
         return bitmap;
+    }
+
+    /** The ParadoksGram ghost, tiled in staggered rows. Its dark square is dropped by the SCREEN blend. */
+    private void drawLogoPattern(Canvas canvas, int w, int h) {
+        try {
+            Bitmap logo = BitmapFactory.decodeResource(getResources(), R.drawable.paradoks_foreground);
+            if (logo == null) {
+                return;
+            }
+            // the ghost occupies roughly the middle 42% of the picture
+            int cx = logo.getWidth() * 30 / 100;
+            int cy = logo.getHeight() * 29 / 100;
+            Rect src = new Rect(cx, cy, logo.getWidth() - cx, logo.getHeight() - cy);
+            Paint lp = new Paint(Paint.FILTER_BITMAP_FLAG | Paint.ANTI_ALIAS_FLAG);
+            lp.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.SCREEN));
+            lp.setAlpha(120);
+            int size = AndroidUtilities.dp(64);
+            int gap = AndroidUtilities.dp(34);
+            int step = size + gap;
+            Rect dst = new Rect();
+            int row = 0;
+            for (int y = gap / 2; y < h; y += step * 3 / 4, row++) {
+                int offset = (row % 2 == 0) ? 0 : step / 2;
+                for (int x = -offset; x < w; x += step) {
+                    dst.set(x, y, x + size, y + size);
+                    canvas.drawBitmap(logo, src, dst, lp);
+                }
+            }
+            logo.recycle();
+        } catch (Throwable ignore) {
+        }
     }
 
     @Override
