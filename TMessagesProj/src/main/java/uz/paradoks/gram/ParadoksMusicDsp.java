@@ -44,12 +44,49 @@ public final class ParadoksMusicDsp {
         void onProgress(float fraction);
     }
 
-    /** Decodes any audio file Android can play into 16 bit stereo PCM. Blocking; call from a worker thread. */
+    /** Opens the file through its descriptor first (works with any file name), then by path. */
+    private static MediaExtractor openExtractor(String path) throws IOException {
+        java.io.FileInputStream fis = null;
+        MediaExtractor ex = new MediaExtractor();
+        try {
+            fis = new java.io.FileInputStream(path);
+            ex.setDataSource(fis.getFD());
+            return ex;
+        } catch (Throwable first) {
+            try {
+                ex.release();
+            } catch (Throwable ignore) {
+            }
+            MediaExtractor second = new MediaExtractor();
+            try {
+                second.setDataSource(path);
+                return second;
+            } catch (Throwable e) {
+                try {
+                    second.release();
+                } catch (Throwable ignore) {
+                }
+                throw new IOException("Faylni ochib bo'lmadi (" + (e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName()) + ")");
+            }
+        } finally {
+            if (fis != null) {
+                try {
+                    fis.close();
+                } catch (Throwable ignore) {
+                }
+            }
+        }
+    }
+
     public static Pcm decode(String path, Progress progress) throws IOException {
-        MediaExtractor extractor = new MediaExtractor();
+        return decode(path, progress, null);
+    }
+
+    /** Decodes any audio file Android can play into 16 bit stereo PCM. Blocking; call from a worker thread. */
+    public static Pcm decode(String path, Progress progress, Cancel cancel) throws IOException {
+        MediaExtractor extractor = openExtractor(path);
         MediaCodec codec = null;
         try {
-            extractor.setDataSource(path);
             int track = -1;
             MediaFormat format = null;
             for (int i = 0; i < extractor.getTrackCount(); i++) {
@@ -73,9 +110,15 @@ public final class ParadoksMusicDsp {
 
             int sampleRate = format.containsKey(MediaFormat.KEY_SAMPLE_RATE) ? format.getInteger(MediaFormat.KEY_SAMPLE_RATE) : 44100;
             int channels = format.containsKey(MediaFormat.KEY_CHANNEL_COUNT) ? format.getInteger(MediaFormat.KEY_CHANNEL_COUNT) : 2;
+            boolean floatPcm = false;
 
             int expected = durationUs > 0 ? (int) Math.min((long) MAX_SECONDS * sampleRate, durationUs * sampleRate / 1_000_000L + sampleRate) : sampleRate * 60;
-            short[] out = new short[Math.max(expected, sampleRate) * 2];
+            short[] out;
+            try {
+                out = new short[Math.max(expected, sampleRate) * 2];
+            } catch (OutOfMemoryError oom) {
+                throw new IOException("Xotira yetarli emas (trek juda uzun)");
+            }
             int frames = 0;
             final int maxFrames = MAX_SECONDS * sampleRate;
 
@@ -83,7 +126,12 @@ public final class ParadoksMusicDsp {
             boolean inputDone = false;
             boolean outputDone = false;
             long lastReport = 0;
+            int idle = 0;
             while (!outputDone && frames < maxFrames) {
+                if (cancel != null && cancel.isCancelled()) {
+                    throw new IOException("Bekor qilindi");
+                }
+                boolean moved = false;
                 if (!inputDone) {
                     int inIndex = codec.dequeueInputBuffer(10_000);
                     if (inIndex >= 0) {
@@ -96,6 +144,7 @@ public final class ParadoksMusicDsp {
                             codec.queueInputBuffer(inIndex, 0, size, extractor.getSampleTime(), 0);
                             extractor.advance();
                         }
+                        moved = true;
                     }
                 }
                 int outIndex = codec.dequeueOutputBuffer(info, 10_000);
@@ -107,36 +156,58 @@ public final class ParadoksMusicDsp {
                     if (nf.containsKey(MediaFormat.KEY_CHANNEL_COUNT)) {
                         channels = nf.getInteger(MediaFormat.KEY_CHANNEL_COUNT);
                     }
+                    if (android.os.Build.VERSION.SDK_INT >= 24 && nf.containsKey(MediaFormat.KEY_PCM_ENCODING)) {
+                        floatPcm = nf.getInteger(MediaFormat.KEY_PCM_ENCODING) == android.media.AudioFormat.ENCODING_PCM_FLOAT;
+                    }
+                    moved = true;
                 } else if (outIndex >= 0) {
+                    moved = true;
                     ByteBuffer buf = codec.getOutputBuffer(outIndex);
                     if (buf != null && info.size > 0) {
                         buf.position(info.offset);
                         buf.limit(info.offset + info.size);
                         buf.order(ByteOrder.LITTLE_ENDIAN);
                         int ch = Math.max(1, channels);
-                        int n = info.size / 2 / ch;
+                        int bytesPer = floatPcm ? 4 : 2;
+                        int n = info.size / bytesPer / ch;
                         if ((frames + n) * 2 > out.length) {
                             int newLen = Math.max(out.length * 3 / 2, (frames + n) * 2 + 4096);
                             newLen = Math.min(newLen, (maxFrames + 4096) * 2);
-                            short[] bigger = new short[newLen];
-                            System.arraycopy(out, 0, bigger, 0, frames * 2);
-                            out = bigger;
+                            try {
+                                short[] bigger = new short[newLen];
+                                System.arraycopy(out, 0, bigger, 0, frames * 2);
+                                out = bigger;
+                            } catch (OutOfMemoryError oom) {
+                                throw new IOException("Xotira yetarli emas (trek juda uzun)");
+                            }
                         }
                         n = Math.min(n, (out.length / 2) - frames);
                         for (int i = 0; i < n; i++) {
-                            short l = buf.getShort();
-                            short r = l;
-                            if (ch >= 2) {
-                                r = buf.getShort();
-                                for (int k = 2; k < ch; k++) {
-                                    buf.getShort();
+                            short l, r;
+                            if (floatPcm) {
+                                l = floatToShort(buf.getFloat());
+                                r = l;
+                                if (ch >= 2) {
+                                    r = floatToShort(buf.getFloat());
+                                    for (int k = 2; k < ch; k++) {
+                                        buf.getFloat();
+                                    }
+                                }
+                            } else {
+                                l = buf.getShort();
+                                r = l;
+                                if (ch >= 2) {
+                                    r = buf.getShort();
+                                    for (int k = 2; k < ch; k++) {
+                                        buf.getShort();
+                                    }
                                 }
                             }
                             out[(frames + i) * 2] = l;
                             out[(frames + i) * 2 + 1] = r;
                         }
                         frames += n;
-                        if (progress != null && durationUs > 0 && info.presentationTimeUs - lastReport > 500_000) {
+                        if (progress != null && durationUs > 0 && info.presentationTimeUs - lastReport > 250_000) {
                             lastReport = info.presentationTimeUs;
                             progress.onProgress(Math.min(1f, info.presentationTimeUs / (float) durationUs));
                         }
@@ -145,6 +216,11 @@ public final class ParadoksMusicDsp {
                     if ((info.flags & MediaCodec.BUFFER_FLAG_END_OF_STREAM) != 0) {
                         outputDone = true;
                     }
+                }
+                // some decoders never raise END_OF_STREAM: stop after ~5 s without any activity once the input is exhausted
+                idle = moved ? 0 : idle + 1;
+                if (inputDone && idle > 500) {
+                    break;
                 }
             }
             if (frames <= 0) {
@@ -165,6 +241,11 @@ public final class ParadoksMusicDsp {
             }
             extractor.release();
         }
+    }
+
+    private static short floatToShort(float v) {
+        int s = Math.round(v * 32767f);
+        return (short) Math.max(-32768, Math.min(32767, s));
     }
 
     // ------------------------------------------------------------------------------------------
@@ -444,6 +525,8 @@ public final class ParadoksMusicDsp {
         public final Params params;
         public final Chain chain;
         public volatile double pos; // source frame
+        /** When true the original sound is played (no effects, normal speed) - quick A/B comparison. */
+        public volatile boolean bypass;
 
         public Engine(Pcm pcm, Params params) {
             this.pcm = pcm;
@@ -453,7 +536,7 @@ public final class ParadoksMusicDsp {
 
         /** Fills up to n frames; returns the number of frames produced (0 at the end of the track). */
         public int fill(float[] l, float[] r, int n) {
-            final float speed = params.speed();
+            final float speed = bypass ? 1f : params.speed();
             final short[] d = pcm.data;
             final int last = pcm.frames - 1;
             double p = pos;
@@ -468,7 +551,7 @@ public final class ParadoksMusicDsp {
                 p += speed;
             }
             pos = p;
-            if (count > 0) chain.process(l, r, count, params);
+            if (count > 0 && !bypass) chain.process(l, r, count, params);
             return count;
         }
 
