@@ -21,22 +21,6 @@ jobs:
       RELEASES_TOKEN: ${{ secrets.RELEASES_TOKEN }}
 
     steps:
-      - name: Notify Telegram that the build started.
-        if: github.event_name != 'schedule'
-        shell: bash
-        continue-on-error: true
-        env:
-          NAME: ParadoksGram Android
-          BOT_TOKEN: ${{ secrets.TG_BOT_TOKEN }}
-          CHAT_ID: ${{ secrets.TG_CHAT_ID }}
-          COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
-        run: |
-          if [ -z "$BOT_TOKEN" ] || [ -z "$CHAT_ID" ]; then exit 0; fi
-          title=$(printf '%s' "$COMMIT_MESSAGE" | head -n 1)
-          run_url="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
-          text=$(printf '🔨 %s #%s: build boshlandi\nCommit %s %s\n%s' "$NAME" "$GITHUB_RUN_NUMBER" "${GITHUB_SHA::7}" "$title" "$run_url")
-          curl -sS -o /dev/null "https://api.telegram.org/bot$BOT_TOKEN/sendMessage" -d chat_id="$CHAT_ID" --data-urlencode text="$text" || true
-
       - name: Free disk space
         run: |
           df -h /
