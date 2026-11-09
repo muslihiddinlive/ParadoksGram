@@ -139,30 +139,10 @@ public class ParadoksGlassPreview extends View {
         Bitmap bitmap = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
         Canvas canvas = new Canvas(bitmap);
         Paint p = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.DITHER_FLAG);
-        p.setShader(new LinearGradient(0, 0, w, h, 0xFF1C2B52, 0xFF4A2160, Shader.TileMode.CLAMP));
+        p.setShader(new LinearGradient(0, 0, w, h, 0xFF0E121C, 0xFF181E2E, Shader.TileMode.CLAMP));
         canvas.drawRect(0, 0, w, h, p);
-        float[][] spots = {
-                {0.12f, 0.22f, 0.55f}, {0.88f, 0.18f, 0.50f}, {0.50f, 0.50f, 0.45f},
-                {0.14f, 0.82f, 0.50f}, {0.86f, 0.78f, 0.55f}
-        };
-        int[] colors = {0xFFFF6B6B, 0xFF4ECDC4, 0xFFFFE66D, 0xFF5B8DEF, 0xFFB65CFF};
-        float base = Math.max(w, h);
-        for (int i = 0; i < spots.length; i++) {
-            float cx = w * spots[i][0];
-            float cy = h * spots[i][1];
-            float r = base * spots[i][2];
-            p.setShader(new RadialGradient(cx, cy, r, colors[i], colors[i] & 0x00FFFFFF, Shader.TileMode.CLAMP));
-            canvas.drawCircle(cx, cy, r, p);
-        }
         p.setShader(null);
         drawLogoPattern(canvas, w, h);
-        p.setStyle(Paint.Style.STROKE);
-        p.setStrokeWidth(AndroidUtilities.dp(2));
-        p.setColor(0x38FFFFFF);
-        int step = AndroidUtilities.dp(34);
-        for (int x = -h; x < w; x += step) {
-            canvas.drawLine(x, h, x + h, 0, p);
-        }
         return bitmap;
     }
 
@@ -179,7 +159,7 @@ public class ParadoksGlassPreview extends View {
             Rect src = new Rect(cx, cy, logo.getWidth() - cx, logo.getHeight() - cy);
             Paint lp = new Paint(Paint.FILTER_BITMAP_FLAG | Paint.ANTI_ALIAS_FLAG);
             lp.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.SCREEN));
-            lp.setAlpha(120);
+            lp.setAlpha(190);
             int size = AndroidUtilities.dp(64);
             int gap = AndroidUtilities.dp(34);
             int step = size + gap;
