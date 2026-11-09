@@ -291,7 +291,9 @@ public class ApplicationLoader extends Application {
 
         super.onCreate();
         Utilities.globalQueue.postRunnable(uz.paradoks.gram.ParadoksDeleted::resumePendingMedia, 20000);
-        Utilities.globalQueue.postRunnable(uz.paradoks.gram.ParadoksUpdater::checkIfDue, 15000);
+        // Update check moved to LaunchActivity.onResume(): fires as soon as the person actually opens the
+        // app's UI, instead of waiting here, and runs again on every later resume (still gated by
+        // ParadoksUpdater's own interval, so it does not re-check on every single app switch).
 
         // AndroidUtilities must be initialized before FileLog
         final String helloWorld = AndroidUtilities.getHelloWorld();

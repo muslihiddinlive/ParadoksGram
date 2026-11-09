@@ -71,7 +71,11 @@ public final class ParadoksUpdater {
      * site's /app/latest and /app/apk instead of GitHub, so users never see the release repository.
      */
     private static final String SITE_URL = "https://paradoksgram.pages.dev";
-    private static final long CHECK_INTERVAL_MS = 30L * 60 * 1000;
+    // How often a real check actually runs. checkIfDue() is called on every app open/resume (see
+    // LaunchActivity.onResume()); this interval only throttles how often that turns into a real
+    // network request, so a freshly published release is still picked up within a few minutes of
+    // reopening the app, without re-checking GitHub on every single app switch.
+    private static final long CHECK_INTERVAL_MS = 3L * 60 * 1000;
 
     private static volatile int state = IDLE;
     private static volatile float progress;

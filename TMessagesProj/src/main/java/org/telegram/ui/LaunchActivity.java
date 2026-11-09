@@ -7088,6 +7088,7 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
     protected void onResume() {
         super.onResume();
         uz.paradoks.gram.ParadoksAdsRemote.refreshIfNeeded(); // ParadoksGram: own ads list
+        uz.paradoks.gram.ParadoksUpdater.checkIfDue(); // ParadoksGram: update check, on every app open/resume
         isResumed = true;
         pipActivityHandler.onResume();
         if (onResumeStaticCallback != null) {
