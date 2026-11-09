@@ -70,6 +70,9 @@ class BotButton {
         this.invalidateRunnable = invalidateRunnable;
     }
 
+    private uz.paradoks.gram.ParadoksGlass paradoksGlass;
+    private final android.graphics.Rect paradoksGlassRect = new android.graphics.Rect();
+
     public boolean draw(
         Canvas canvas,
         RectF rect,
@@ -94,13 +97,39 @@ class BotButton {
 
         path.rewind();
         path.addRoundRect(rect, radii, Path.Direction.CW);
-        canvas.drawPath(path, Theme.getThemePaint(Theme.key_paint_chatActionBackground, resourcesProvider));
 
         final BotInlineKeyboard.BackgroundColor bgColor =
             buttonImpl != null ? buttonImpl.getColor() :
             BotInlineKeyboard.BackgroundColor.NONE;
 
-        if (bgColor != BotInlineKeyboard.BackgroundColor.NONE) {
+        // ParadoksGram: liquid glass inline buttons (setting "Tugmalar uchun liquid glass"); the primary button uses our tint colour
+        boolean paradoksGlassDrawn = false;
+        try {
+            if (uz.paradoks.gram.ParadoksConfig.glassButtons()) {
+                if (paradoksGlass == null) {
+                    paradoksGlass = new uz.paradoks.gram.ParadoksGlass();
+                }
+                paradoksGlassRect.set((int) rect.left, (int) rect.top, (int) rect.right, (int) rect.bottom);
+                final boolean primary = bgColor == BotInlineKeyboard.BackgroundColor.PRIMARY;
+                int tint = uz.paradoks.gram.ParadoksConfig.glassTint();
+                if (primary && tint == 0) {
+                    tint = 1;
+                }
+                int level = uz.paradoks.gram.ParadoksConfig.glassBubbleLevel();
+                if (level == 0) {
+                    level = 2;
+                }
+                paradoksGlass.draw(canvas, path, paradoksGlassRect, 1f, primary ? uz.paradoks.gram.ParadoksGlass.ROLE_OUT : uz.paradoks.gram.ParadoksGlass.ROLE_IN, level, primary ? tint : 0, Math.max(1, uz.paradoks.gram.ParadoksConfig.glassEdge()), false, null);
+                paradoksGlassDrawn = true;
+            }
+        } catch (Throwable ignore) {
+            paradoksGlassDrawn = false;
+        }
+        if (!paradoksGlassDrawn) {
+            canvas.drawPath(path, Theme.getThemePaint(Theme.key_paint_chatActionBackground, resourcesProvider));
+        }
+
+        if (bgColor != BotInlineKeyboard.BackgroundColor.NONE && !(paradoksGlassDrawn && bgColor == BotInlineKeyboard.BackgroundColor.PRIMARY)) {
             switch (bgColor) {
                 case DANGER:
                     paint.setColor(Theme.multAlpha(Theme.getColor(Theme.key_botKeyboard_button_danger, resourcesProvider), 0.7f));
@@ -115,7 +144,7 @@ class BotButton {
             canvas.drawPath(path, paint);
         }
         final boolean hasGradientService = resourcesProvider != null ? resourcesProvider.hasGradientService() : Theme.hasGradientService();
-        if (hasGradientService && (bgColor == BotInlineKeyboard.BackgroundColor.NONE || resourcesProvider != null && resourcesProvider.isDark())) {
+        if (!paradoksGlassDrawn && hasGradientService && (bgColor == BotInlineKeyboard.BackgroundColor.NONE || resourcesProvider != null && resourcesProvider.isDark())) {
             canvas.drawPath(path, Theme.chat_actionBackgroundGradientDarkenPaint);
         }
 
