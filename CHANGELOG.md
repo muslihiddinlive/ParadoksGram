@@ -8,6 +8,19 @@ Versiya formati Telegram kabi: `MAJOR.MINOR.PATCH`, qavs ichida build raqami (ma
 
 Versiya raqami `VERSION` faylida turadi. Har versiya uchun foydalanuvchiga ko'rinadigan matn `changelog/<versiya>.md` fayliga yoziladi: CI shuni reliz matniga qo'yadi, ilova yangilanish oynasida shuni ko'rsatadi. Commit xabari reliz matniga tushmaydi.
 
+## 3.38.0 (10-noyabr)
+Musiqiy ijodxonadan chiqqanda musiqa to'xtamaydi
+Musiqiy ijodxona fonda ishlashda davom etadi
+
+Tuzatildi:
+- Ijodxonadan chiqishingiz bilanoq musiqa to'xtab qolardi. Endi musiqa ijro bo'layotgan bo'lsa, chiqqaningizda ham davom etadi (effektlar saqlanadi, keyingi qo'shiqqa o'tish ham ishlaydi).
+
+Yangi:
+- Chatlar tepasidagi pleyer panelida ijodxona ko'rinadi: aylanib turgan disk ijodxona ishlayotganini bildiradi, pauza qilinsa disk to'xtaydi.
+- Paneldagi tugma bilan pauza/davom ettirish, panelga bosib ijodxonaga qaytish, yopish tugmasi bilan butunlay to'xtatish mumkin.
+- Chatda ovozli xabar yoki qo'shiq boshlansa, ijodxona o'zi pauzaga o'tadi, ikkalasi birga chalmaydi.
+- Fonda pauzada qolib ketgan ijodxona 15 daqiqadan keyin o'zi yopiladi (xotira bo'shaydi).
+
 ## 3.37.0 (8-noyabr)
 Yangilanishni tekshirish tezlashtirildi: har ochilishda darhol
 

@@ -111,7 +111,8 @@ public class FragmentContextView extends FrameLayout implements NotificationCent
             STYLE_ACTIVE_GROUP_CALL = 3,
             STYLE_INACTIVE_GROUP_CALL = 4,
             STYLE_IMPORTING_MESSAGES = 5,
-            STYLE_LIVE_STORY = 6;
+            STYLE_LIVE_STORY = 6,
+            STYLE_MUSIC_STUDIO = 7;
 
     @Retention(RetentionPolicy.SOURCE)
     @IntDef({
@@ -122,7 +123,8 @@ public class FragmentContextView extends FrameLayout implements NotificationCent
             STYLE_ACTIVE_GROUP_CALL,
             STYLE_INACTIVE_GROUP_CALL,
             STYLE_IMPORTING_MESSAGES,
-            STYLE_LIVE_STORY
+            STYLE_LIVE_STORY,
+            STYLE_MUSIC_STUDIO
     })
     public @interface Style {}
 
@@ -162,6 +164,12 @@ public class FragmentContextView extends FrameLayout implements NotificationCent
     private boolean visible;
     @Style
     private int currentStyle = STYLE_NOT_SET;
+    private uz.paradoks.gram.ParadoksDiscView studioDisc;
+    private final uz.paradoks.gram.ParadoksMusicBg.Listener studioListener = () -> {
+        if (MediaController.getInstance().getPlayingMessageObject() == null) {
+            checkPlayer(false);
+        }
+    };
     private String lastString;
     private boolean isMusic;
     private boolean supportsCalls = true;
@@ -419,6 +427,8 @@ public class FragmentContextView extends FrameLayout implements NotificationCent
                 } else {
                     MediaController.getInstance().pauseMessage(MediaController.getInstance().getPlayingMessageObject());
                 }
+            } else if (currentStyle == STYLE_MUSIC_STUDIO) {
+                uz.paradoks.gram.ParadoksMusicBg.toggle();
             }
         });
 
@@ -732,6 +742,8 @@ public class FragmentContextView extends FrameLayout implements NotificationCent
                 if (button != null) {
                     button.setTextColor(getThemedColor(Theme.key_text_RedBold));
                 }
+            } else if (currentStyle == STYLE_MUSIC_STUDIO) {
+                uz.paradoks.gram.ParadoksMusicBg.stop();
             } else {
                 MediaController.getInstance().cleanupPlayer(true, true);
             }
@@ -746,7 +758,9 @@ public class FragmentContextView extends FrameLayout implements NotificationCent
         addView(groupCallMessagesContainer, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, Gravity.TOP, 96, 3, 96, 0));
 
         setOnClickListener(v -> {
-            if (currentStyle == STYLE_LIVE_STORY) {
+            if (currentStyle == STYLE_MUSIC_STUDIO) {
+                uz.paradoks.gram.ParadoksMusicBg.open(fragment);
+            } else if (currentStyle == STYLE_LIVE_STORY) {
                 final LivePlayer player = LivePlayer.recording;
                 if (player == null) return;
                 if (player.currentAccount != UserConfig.selectedAccount) {
@@ -1172,6 +1186,16 @@ public class FragmentContextView extends FrameLayout implements NotificationCent
             }
         }
         currentStyle = style;
+        if (style == STYLE_MUSIC_STUDIO) {
+            if (studioDisc == null) {
+                studioDisc = new uz.paradoks.gram.ParadoksDiscView(getContext());
+                addView(studioDisc, LayoutHelper.createFrame(30, 30, Gravity.TOP | Gravity.LEFT, 40, 3, 0, 0));
+            }
+            studioDisc.setVisibility(VISIBLE);
+        } else if (studioDisc != null) {
+            studioDisc.setSpinning(false);
+            studioDisc.setVisibility(GONE);
+        }
         frameLayout.setWillNotDraw(currentStyle != STYLE_INACTIVE_GROUP_CALL);
         if (style != STYLE_INACTIVE_GROUP_CALL) {
             notifyButtonEnabled = false;
@@ -1241,7 +1265,7 @@ public class FragmentContextView extends FrameLayout implements NotificationCent
                 playbackSpeedButton.setTag(null);
             }
             titleTextView.setLayoutParams(LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, 36, Gravity.LEFT | Gravity.TOP, 35, 0, (isSideMenued ? 64 : 0) + 36, 0));
-        } else if (style == STYLE_AUDIO_PLAYER || style == STYLE_LIVE_LOCATION) {
+        } else if (style == STYLE_AUDIO_PLAYER || style == STYLE_LIVE_LOCATION || style == STYLE_MUSIC_STUDIO) {
             selector.setBackground(Theme.getSelectorDrawable(false));
             frameLayout.setBackgroundColor(0);
             frameLayout.setTag(Theme.key_inappPlayerBackground);
@@ -1278,6 +1302,15 @@ public class FragmentContextView extends FrameLayout implements NotificationCent
                     playbackSpeedButton.setTag(1);
                 }
                 closeButton.setContentDescription(getString(R.string.AccDescrClosePlayer));
+            } else if (style == STYLE_MUSIC_STUDIO) {
+                playButton.setLayoutParams(LayoutHelper.createFrame(36, 36, Gravity.TOP | Gravity.LEFT, 3, 0, 0, 0));
+                titleTextView.setLayoutParams(LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, 36, Gravity.LEFT | Gravity.TOP, 37 + 34, 0, (isSideMenued ? 64 : 0) + 36, 0));
+                titleTextView.setPadding(0, 0, 0, 0);
+                if (playbackSpeedButton != null) {
+                    playbackSpeedButton.setVisibility(GONE);
+                    playbackSpeedButton.setTag(null);
+                }
+                closeButton.setContentDescription("Musiqiy ijodxonani yopish");
             } else {
                 playButton.setLayoutParams(LayoutHelper.createFrame(36, 36, Gravity.TOP | Gravity.LEFT, 8, 0, 0, 0));
                 titleTextView.setLayoutParams(LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, 36, Gravity.LEFT | Gravity.TOP, 35 + 16, 0, (isSideMenued ? 64 : 0) + 36, 0));
@@ -1384,6 +1417,7 @@ public class FragmentContextView extends FrameLayout implements NotificationCent
     @Override
     protected void onDetachedFromWindow() {
         super.onDetachedFromWindow();
+        uz.paradoks.gram.ParadoksMusicBg.removeListener(studioListener);
         if (animatorSet != null) {
             animatorSet.cancel();
             animatorSet = null;
@@ -1465,6 +1499,7 @@ public class FragmentContextView extends FrameLayout implements NotificationCent
                 .add(NotificationCenter.webRtcMicAmplitudeEvent)
                 .add(NotificationCenter.groupCallVisibilityChanged);
 
+            uz.paradoks.gram.ParadoksMusicBg.addListener(studioListener);
             if (LivePlayer.recording != null) {
                 checkLiveStory(true);
             } else if (VoIPService.getSharedInstance() != null && !VoIPService.getSharedInstance().isHangingUp() && VoIPService.getSharedInstance().getCallState() != VoIPService.STATE_WAITING_INCOMING && !GroupCallPip.isShowing()) {
@@ -1515,6 +1550,10 @@ public class FragmentContextView extends FrameLayout implements NotificationCent
 
     @Override
     public void didReceivedNotification(int id, int account, Object... args) {
+        if (id == NotificationCenter.messagePlayingDidStart && uz.paradoks.gram.ParadoksMusicBg.isPlaying()) {
+            // a voice message or a song started: the studio must not play over it
+            uz.paradoks.gram.ParadoksMusicBg.pausePlayback();
+        }
         if (id == NotificationCenter.liveLocationsChanged) {
             checkLiveLocation(false);
         } else if (id == NotificationCenter.liveStoryUpdated) {
@@ -1841,6 +1880,10 @@ public class FragmentContextView extends FrameLayout implements NotificationCent
                 checkCall(false);
                 return;
             }
+            if (uz.paradoks.gram.ParadoksMusicBg.isActive()) {
+                showStudio(create);
+                return;
+            }
             if (visible) {
                 if (playbackSpeedButton != null && playbackSpeedButton.isSubMenuShowing()) {
                     playbackSpeedButton.toggleSubMenu();
@@ -2010,6 +2053,84 @@ public class FragmentContextView extends FrameLayout implements NotificationCent
                 titleTextView.setText(stringBuilder, !create && wasVisible && isMusic);
             }
         }
+    }
+
+    /** The music studio keeps playing after its screen is closed: show it in the player bar with a spinning disc. */
+    private void showStudio(boolean create) {
+        checkCreateView();
+        if (currentStyle != STYLE_MUSIC_STUDIO && animatorSet != null && !create) {
+            checkPlayerAfterAnimation = true;
+            return;
+        }
+        updateStyle(STYLE_MUSIC_STUDIO);
+        if (create && topPadding == 0) {
+            setTopPadding(AndroidUtilities.dp2(getStyleHeight()));
+            if (delegate != null) {
+                delegate.onAnimation(true, true);
+                delegate.onAnimation(false, true);
+            }
+        }
+        if (!visible) {
+            if (!create) {
+                if (animatorSet != null) {
+                    animatorSet.cancel();
+                    animatorSet = null;
+                }
+                notificationsLocker.lock();
+                animatorSet = new AnimatorSet();
+                if (delegate != null) {
+                    delegate.onAnimation(true, true);
+                }
+                animatorSet.playTogether(ObjectAnimator.ofFloat(this, "topPadding", AndroidUtilities.dp2(getStyleHeight())));
+                animatorSet.setDuration(200);
+                animatorSet.addListener(new AnimatorListenerAdapter() {
+                    @Override
+                    public void onAnimationEnd(Animator animation) {
+                        notificationsLocker.unlock();
+                        if (animatorSet != null && animatorSet.equals(animation)) {
+                            if (delegate != null) {
+                                delegate.onAnimation(false, true);
+                            }
+                            animatorSet = null;
+                            if (checkLiveStoryAfterAnimation) {
+                                checkLiveStory(false);
+                            } else if (checkCallAfterAnimation) {
+                                checkCall(false);
+                            } else if (checkPlayerAfterAnimation) {
+                                checkPlayer(false);
+                            } else if (checkImportAfterAnimation) {
+                                checkImport(false);
+                            }
+                            checkLiveStoryAfterAnimation = false;
+                            checkCallAfterAnimation = false;
+                            checkPlayerAfterAnimation = false;
+                            checkImportAfterAnimation = false;
+                        }
+                    }
+                });
+                animatorSet.start();
+            }
+            visible = true;
+            setVisibility(VISIBLE);
+        }
+        final boolean playing = uz.paradoks.gram.ParadoksMusicBg.isPlaying();
+        playPauseDrawable.setPause(playing, !create);
+        playButton.setContentDescription(playing ? "Pauza" : "Ijro");
+        if (studioDisc != null) {
+            studioDisc.setSpinning(playing);
+        }
+        isMusic = true;
+        final String track = uz.paradoks.gram.ParadoksMusicBg.title();
+        final String label = "Musiqiy ijodxona";
+        final SpannableStringBuilder text = new SpannableStringBuilder(track.length() > 0 ? label + " - " + track : label);
+        text.setSpan(new TypefaceSpan(AndroidUtilities.bold(), 0, getThemedColor(Theme.key_inappPlayerPerformer)), 0, label.length(), Spanned.SPAN_INCLUSIVE_INCLUSIVE);
+        for (int i = 0; i < 2; i++) {
+            TextView textView = i == 0 ? titleTextView.getTextView() : titleTextView.getNextTextView();
+            if (textView != null) {
+                textView.setEllipsize(TextUtils.TruncateAt.END);
+            }
+        }
+        titleTextView.setText(text, false);
     }
 
     public void checkImport(boolean create) {
