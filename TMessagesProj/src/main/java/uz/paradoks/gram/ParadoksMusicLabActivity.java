@@ -2540,13 +2540,40 @@ public class ParadoksMusicLabActivity extends BaseFragment {
         if (getParentActivity() == null) return;
         MediaController.saveFile(file.getAbsolutePath(), getParentActivity(), type, file.getName(), mime, uri -> {
             lastSavedUri = uri;
-            exportFinished("Tayyor! " + (type == 1 ? "Movies/Telegram" : "Music/Telegram") + " papkasiga saqlandi");
+            exportFinished("Tayyor! " + (type == 1 ? "Movies/Telegram" : "Music/Telegram") + " papkasiga va Saved Messages'ga saqlandi");
             flash("Saqlandi ✅");
+            sendToSavedMessages(file, type, mime);
             if (shareButton != null) {
                 shareButton.setTag(mime);
                 shareButton.setVisibility(View.VISIBLE);
             }
         });
+    }
+
+    /** Every finished export also goes to the user's Saved Messages (a video as a video, audio as a file). */
+    private void sendToSavedMessages(File file, int type, String mime) {
+        try {
+            final int account = org.telegram.messenger.UserConfig.selectedAccount;
+            final org.telegram.messenger.AccountInstance instance = org.telegram.messenger.AccountInstance.getInstance(account);
+            final long self = org.telegram.messenger.UserConfig.getInstance(account).getClientUserId();
+            if (self == 0 || file == null || !file.exists()) return;
+            Track t = cur >= 0 && cur < list.size() ? list.get(cur) : null;
+            final String caption = "🎧 Musiqiy ijodxona" + (t != null && t.name != null ? ": " + t.name : "");
+            final String path = file.getAbsolutePath();
+            if (type == 1) {
+                org.telegram.messenger.SendMessagesHelper.SendingMediaInfo info = new org.telegram.messenger.SendMessagesHelper.SendingMediaInfo();
+                info.path = path;
+                info.caption = caption;
+                info.isVideo = true;
+                ArrayList<org.telegram.messenger.SendMessagesHelper.SendingMediaInfo> infos = new ArrayList<>();
+                infos.add(info);
+                org.telegram.messenger.SendMessagesHelper.prepareSendingMedia(instance, infos, self, null, null, null, null, false, false, null, true, 0, 0, 0, false, null, null, 0L, false, 0L, 0L, null);
+            } else {
+                org.telegram.messenger.SendMessagesHelper.prepareSendingDocument(instance, path, path, null, caption, mime, self, null, null, null, null, null, true, 0, null, null, false);
+            }
+        } catch (Throwable e) {
+            org.telegram.messenger.FileLog.e(e);
+        }
     }
 
     private void shareLast() {
