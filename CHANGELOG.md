@@ -8,6 +8,9 @@ Versiya formati Telegram kabi: `MAJOR.MINOR.PATCH`, qavs ichida build raqami (ma
 
 Versiya raqami `VERSION` faylida turadi. Har versiya uchun foydalanuvchiga ko'rinadigan matn `changelog/<versiya>.md` fayliga yoziladi: CI shuni reliz matniga qo'yadi, ilova yangilanish oynasida shuni ko'rsatadi. Commit xabari reliz matniga tushmaydi.
 
+## 3.39.0 (8-noyabr)
+Liquid glass pastki navigatsiya paneli, 6 ta ko'rinish
+
 ## 3.38.0 (10-noyabr)
 Musiqiy ijodxonadan chiqqanda musiqa to'xtamaydi
 Musiqiy ijodxona fonda ishlashda davom etadi

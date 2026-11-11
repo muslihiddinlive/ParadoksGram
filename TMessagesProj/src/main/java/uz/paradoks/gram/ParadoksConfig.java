@@ -507,6 +507,24 @@ public final class ParadoksConfig {
         prefs().edit().putInt("glass_bubbles", level).apply();
     }
 
+    /** Floating "liquid glass" bottom navigation pill, on the chat list and in the mini-app window (default: off). */
+    public static boolean glassNavEnabled() {
+        return prefs().getBoolean("glass_nav_enabled", false);
+    }
+
+    public static void setGlassNavEnabled(boolean value) {
+        prefs().edit().putBoolean("glass_nav_enabled", value).apply();
+    }
+
+    /** 0 lens, 1 neon lens, 2 bounce, 3 wave, 4 spotlight, 5 floating button. See ParadoksGlassNav.STYLE_*. */
+    public static int glassNavStyle() {
+        return prefs().getInt("glass_nav_style", 0);
+    }
+
+    public static void setGlassNavStyle(int style) {
+        prefs().edit().putInt("glass_nav_style", style).apply();
+    }
+
     /** 0 standard, 1 weak internet, 2 auto. */
     public static int downloadMode() {
         return prefs().getInt("download_mode", 0);
