@@ -205,6 +205,11 @@ public class ParadoksMusicLabActivity extends BaseFragment {
 
     @Override
     public boolean onFragmentCreate() {
+        if (!released && audioThread != null && audioThread.isAlive()) {
+            // the studio that kept playing in the background is opened again: nothing to rebuild
+            return super.onFragmentCreate();
+        }
+        ParadoksMusicBg.stopOthers(this);
         prefs = ApplicationLoader.applicationContext.getSharedPreferences("paradoks_musiclab", Context.MODE_PRIVATE);
         loadPrefs();
         if (initialPath != null) {
@@ -242,12 +247,91 @@ public class ParadoksMusicLabActivity extends BaseFragment {
 
     @Override
     public void onFragmentDestroy() {
+        if (!released && playing) {
+            // the screen is closed, but the music goes on; the player bar on top of the chats shows it
+            detached = true;
+            cancelExport = true;
+            AndroidUtilities.cancelRunOnUIThread(ticker);
+            AndroidUtilities.cancelRunOnUIThread(hidePill);
+            ParadoksMusicBg.register(this);
+            applyState();
+        } else {
+            fullRelease();
+        }
+        super.onFragmentDestroy();
+    }
+
+    // ---- background mode: the studio keeps playing after its screen is closed
+
+    private boolean detached;
+    private final Runnable idleStop = () -> {
+        if (detached && !playing && !released) {
+            fullRelease();
+        }
+    };
+
+    boolean isBackgroundAlive() {
+        return detached && !released;
+    }
+
+    boolean isBackgroundPlaying() {
+        return detached && !released && playing;
+    }
+
+    String backgroundTitle() {
+        Track t = cur >= 0 && cur < list.size() ? list.get(cur) : null;
+        return t != null ? t.name : "";
+    }
+
+    void toggleFromBar() {
+        if (!isBackgroundAlive()) return;
+        if (state == ST_READY) {
+            setPlaying(!playing);
+        } else if (state == ST_LOADING) {
+            pendingPlay = !pendingPlay;
+            applyState();
+        }
+    }
+
+    void stopBackground() {
+        fullRelease();
+    }
+
+    boolean revive(BaseFragment from) {
+        if (!isBackgroundAlive()) return false;
+        AndroidUtilities.cancelRunOnUIThread(idleStop);
+        detached = false;
+        miniShown = false;
+        resetFragment();
+        if (!from.presentFragment(this)) {
+            detached = true;
+            return false;
+        }
+        ParadoksMusicBg.notifyChanged();
+        return true;
+    }
+
+    /** Called from {@link #applyState()}: keeps the player bar in sync and frees a forgotten, paused studio. */
+    private void syncBackground() {
+        if (detached) {
+            AndroidUtilities.cancelRunOnUIThread(idleStop);
+            if (!playing && !released) {
+                AndroidUtilities.runOnUIThread(idleStop, 15 * 60 * 1000L);
+            }
+        }
+        ParadoksMusicBg.notifyChanged();
+    }
+
+    private void fullRelease() {
+        if (released) return;
+        detached = false;
         released = true;
         playing = false;
         loadToken++;
         cancelExport = true;
         AndroidUtilities.cancelRunOnUIThread(ticker);
         AndroidUtilities.cancelRunOnUIThread(hidePill);
+        AndroidUtilities.cancelRunOnUIThread(idleStop);
         unregisterNoisy();
         abandonFocus();
         if (audioThread != null) {
@@ -259,7 +343,7 @@ public class ParadoksMusicLabActivity extends BaseFragment {
                 new File(t.path).delete();
             }
         }
-        super.onFragmentDestroy();
+        ParadoksMusicBg.unregister(this);
     }
 
     @Override
@@ -321,6 +405,7 @@ public class ParadoksMusicLabActivity extends BaseFragment {
         refreshAB();
         updateExportInfo();
         applyState();
+        if (coverBitmap != null) setCover(coverBitmap);
         AndroidUtilities.runOnUIThread(ticker, 100);
         if (!list.isEmpty() && cur < 0) {
             loadTrack(0, handoffActive ? handoffWasPlaying : true, initialFraction);
@@ -2077,6 +2162,7 @@ public class ParadoksMusicLabActivity extends BaseFragment {
 
     /** Central refresh: header, overlay on the visualizer, buttons. */
     private void applyState() {
+        syncBackground();
         if (heroTitle == null) return;
         Track t = cur >= 0 && cur < list.size() ? list.get(cur) : null;
         String title = t != null ? t.name : "Musiqiy ijodxona";
@@ -2114,8 +2200,8 @@ public class ParadoksMusicLabActivity extends BaseFragment {
         }
         seekBar.setEnabled(state == ST_READY);
         updatePlayButton();
-        if (fragmentView != null) fragmentView.setKeepScreenOn(playing);
-        updateMini();
+        if (fragmentView != null && !detached) fragmentView.setKeepScreenOn(playing);
+        if (!detached) updateMini();
     }
 
     private final Runnable ticker = new Runnable() {

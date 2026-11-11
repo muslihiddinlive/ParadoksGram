@@ -8,6 +8,11 @@ Versiya formati Telegram kabi: `MAJOR.MINOR.PATCH`, qavs ichida build raqami (ma
 
 Versiya raqami `VERSION` faylida turadi. Har versiya uchun foydalanuvchiga ko'rinadigan matn `changelog/<versiya>.md` fayliga yoziladi: CI shuni reliz matniga qo'yadi, ilova yangilanish oynasida shuni ko'rsatadi. Commit xabari reliz matniga tushmaydi.
 
+## 3.39.1 (11-noyabr)
+Tuzatildi:
+- 3.39.0 dan beri build yiqilardi. Musiqiy ijodxona kodi yangilanganda ijodxonadan chiqqanda musiqa fonda davom etish qismi (va yuqoridagi pleyer panelidagi aylanuvchi disk) yo'qolib qolgan edi, shu sababli kompilyatsiya xato berardi. Qayta tiklandi: ijodxonadan chiqsangiz ham musiqa davom etadi.
+- Sozlamalardagi "Panel ko'rinishi" tanlovi kompilyatsiya xatosi berardi (ro'yxatni yangilash chaqiruvi noto'g'ri edi). Tuzatildi.
+
 ## 3.39.0 (8-noyabr)
 Liquid glass pastki navigatsiya paneli, 6 ta ko'rinish
 

@@ -644,7 +644,7 @@ public class ParadoksSettingsPageActivity extends BaseFragment {
         builder.setTitle("Panel ko'rinishi");
         builder.setItems(GLASS_NAV_STYLE_NAMES, (d, which) -> {
             ParadoksConfig.setGlassNavStyle(which);
-            listAdapter.notifyDataSetChanged();
+            refresh();
         });
         showDialog(builder.create());
     }
