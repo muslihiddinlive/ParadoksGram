@@ -39,16 +39,41 @@ saqlaydi.
 
 ## API
 
+Foydalanuvchi ilovada allaqachon login qilgan — backend qayta login,
+SMS kod yoki boshqa tasdiqlash so'ramaydi. Ilova sozlamalardan "media
+bazasi"ni yoqqanda, o'zining mavjud MTProto sessiyasidan kerakli
+qiymatlarni (`dc_id`, `auth_key`) olib, bir marta shu endpoint'ga
+jo'natadi:
+
 - `GET /` — health check (UptimeRobot shu yerga ping qiladi)
-- `POST /sessions/start` `{"phone": "+998901234567"}` — login kodini
-  yuboradi, javobda `phone_code_hash` qaytadi
-- `POST /sessions/verify` `{"phone", "code", "phone_code_hash", "password"?, "target_chat_id"?}`
-  — kodni tasdiqlaydi, sessiyani saqlaydi va forward'ni ishga tushiradi
-- `POST /sessions/{phone}/target` `{"target_chat_id": -100...}` — forward
-  manzilini o'zgartiradi
-- `GET /sessions/{phone}/status` — ulanganmi yo'qmi
-- `POST /sessions/{phone}/disconnect` — forward'ni to'xtatadi va
+- `POST /sessions/register`
+  ```json
+  {
+    "user_key": "<telegram user_id>",
+    "dc_id": 2,
+    "auth_key": "<256 baytli auth_key, base64>",
+    "server_address": "<ilova ulangan DC manzili, ixtiyoriy>",
+    "port": 443,
+    "target_chat_id": -100123456789
+  }
+  ```
+  — mavjud sessiyadan Telethon session yasaydi, saqlaydi va forward'ni
+  ishga tushiradi. `server_address`/`port` berilmasa, standart ommaviy
+  DC manzillaridan foydalaniladi (`telethon_session.py`ga qarang) —
+  lekin ilova o'zi ulangan manzilni yuborishi tavsiya etiladi, bu eng
+  ishonchli variant.
+- `POST /sessions/{user_key}/target` `{"target_chat_id": -100...}` —
+  forward manzilini o'zgartiradi
+- `GET /sessions/{user_key}/status` — ulanganmi yo'qmi
+- `POST /sessions/{user_key}/disconnect` — forward'ni to'xtatadi va
   sessiyani o'chiradi (ilovadagi toggle o'chirilganda chaqiriladi)
+
+### Android (client) tomonida nima kerak
+
+Ilova `auth_key`ni (va `dc_id`ni) MTProto ulanishidan olib, base64'ga
+o'girib, HTTPS orqali shu endpoint'ga yuborishi kerak. Bu qism
+TMessagesProj'ning native/MTProto qatlamiga tegadi — xohlasangiz shu
+qismni alohida ko'rib chiqamiz.
 
 ## Muhim cheklov: sessiyalar saqlanishi
 
