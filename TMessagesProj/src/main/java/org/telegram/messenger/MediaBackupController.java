@@ -28,8 +28,7 @@ public class MediaBackupController {
         void onError(String message);
     }
 
-    // TODO: Render'ga deploy qilingan asl backend manzilingizga almashtiring
-    private static final String BACKEND_URL = "https://sizning-app.onrender.com";
+    private static final String BACKEND_URL = "https://paradoksgram.onrender.com";
 
     private static final String PREFS_NAME = "mediabackup";
     private static final String KEY_ENABLED = "enabled";
