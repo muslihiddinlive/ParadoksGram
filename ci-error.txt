@@ -1,0 +1,105 @@
+run: 43000709952  sha: 23b2ad3c21b0e3f766de72843517256d555216b1
+3040:* What went wrong:
+3041-Execution failed for task ':TMessagesProj:compileReleaseJavaWithJavac'.
+3042-> Compilation failed; see the compiler output below.
+3043-  /home/runner/work/ParadoksGram/ParadoksGram/TMessagesProj/src/main/java/uz/paradoks/gram/ParadoksMusicBg.java:43: error: cannot find symbol
+3044-              other.stopBackground();
+3045-                   ^
+3046-    symbol:   method stopBackground()
+3047-    location: variable other of type ParadoksMusicLabActivity
+3048-  /home/runner/work/ParadoksGram/ParadoksGram/TMessagesProj/src/main/java/uz/paradoks/gram/ParadoksMusicBg.java:65: error: cannot find symbol
+3049-          return studio != null && studio.isBackgroundAlive();
+3050-                                         ^
+3051-    symbol:   method isBackgroundAlive()
+3052-    location: variable studio of type ParadoksMusicLabActivity
+2978:/home/runner/work/ParadoksGram/ParadoksGram/TMessagesProj/src/main/java/uz/paradoks/gram/ParadoksMusicBg.java:43: error: cannot find symbol
+2983:/home/runner/work/ParadoksGram/ParadoksGram/TMessagesProj/src/main/java/uz/paradoks/gram/ParadoksMusicBg.java:65: error: cannot find symbol
+2988:/home/runner/work/ParadoksGram/ParadoksGram/TMessagesProj/src/main/java/uz/paradoks/gram/ParadoksMusicBg.java:70: error: cannot find symbol
+2993:/home/runner/work/ParadoksGram/ParadoksGram/TMessagesProj/src/main/java/uz/paradoks/gram/ParadoksMusicBg.java:75: error: cannot find symbol
+2998:/home/runner/work/ParadoksGram/ParadoksGram/TMessagesProj/src/main/java/uz/paradoks/gram/ParadoksMusicBg.java:81: error: cannot find symbol
+3003:/home/runner/work/ParadoksGram/ParadoksGram/TMessagesProj/src/main/java/uz/paradoks/gram/ParadoksMusicBg.java:88: error: cannot find symbol
+3008:/home/runner/work/ParadoksGram/ParadoksGram/TMessagesProj/src/main/java/uz/paradoks/gram/ParadoksMusicBg.java:89: error: cannot find symbol
+3013:/home/runner/work/ParadoksGram/ParadoksGram/TMessagesProj/src/main/java/uz/paradoks/gram/ParadoksMusicBg.java:96: error: cannot find symbol
+3018:/home/runner/work/ParadoksGram/ParadoksGram/TMessagesProj/src/main/java/uz/paradoks/gram/ParadoksMusicBg.java:103: error: cannot find symbol
+3023:/home/runner/work/ParadoksGram/ParadoksGram/TMessagesProj/src/main/java/uz/paradoks/gram/ParadoksSettingsPageActivity.java:647: error: cannot find symbol
+3043:  /home/runner/work/ParadoksGram/ParadoksGram/TMessagesProj/src/main/java/uz/paradoks/gram/ParadoksMusicBg.java:43: error: cannot find symbol
+3048:  /home/runner/work/ParadoksGram/ParadoksGram/TMessagesProj/src/main/java/uz/paradoks/gram/ParadoksMusicBg.java:65: error: cannot find symbol
+3053:  /home/runner/work/ParadoksGram/ParadoksGram/TMessagesProj/src/main/java/uz/paradoks/gram/ParadoksMusicBg.java:70: error: cannot find symbol
+3058:  /home/runner/work/ParadoksGram/ParadoksGram/TMessagesProj/src/main/java/uz/paradoks/gram/ParadoksMusicBg.java:75: error: cannot find symbol
+3063:  /home/runner/work/ParadoksGram/ParadoksGram/TMessagesProj/src/main/java/uz/paradoks/gram/ParadoksMusicBg.java:81: error: cannot find symbol
+3068:  /home/runner/work/ParadoksGram/ParadoksGram/TMessagesProj/src/main/java/uz/paradoks/gram/ParadoksMusicBg.java:88: error: cannot find symbol
+3073:  /home/runner/work/ParadoksGram/ParadoksGram/TMessagesProj/src/main/java/uz/paradoks/gram/ParadoksMusicBg.java:89: error: cannot find symbol
+3078:  /home/runner/work/ParadoksGram/ParadoksGram/TMessagesProj/src/main/java/uz/paradoks/gram/ParadoksMusicBg.java:96: error: cannot find symbol
+3083:  /home/runner/work/ParadoksGram/ParadoksGram/TMessagesProj/src/main/java/uz/paradoks/gram/ParadoksMusicBg.java:103: error: cannot find symbol
+3088:  /home/runner/work/ParadoksGram/ParadoksGram/TMessagesProj/src/main/java/uz/paradoks/gram/ParadoksSettingsPageActivity.java:647: error: cannot find symbol
+3106:/home/runner/work/ParadoksGram/ParadoksGram/TMessagesProj/src/main/java/uz/paradoks/gram/ParadoksMusicBg.java:43: error: cannot find symbol
+3111:/home/runner/work/ParadoksGram/ParadoksGram/TMessagesProj/src/main/java/uz/paradoks/gram/ParadoksMusicBg.java:65: error: cannot find symbol
+3116:/home/runner/work/ParadoksGram/ParadoksGram/TMessagesProj/src/main/java/uz/paradoks/gram/ParadoksMusicBg.java:70: error: cannot find symbol
+3121:/home/runner/work/ParadoksGram/ParadoksGram/TMessagesProj/src/main/java/uz/paradoks/gram/ParadoksMusicBg.java:75: error: cannot find symbol
+3126:/home/runner/work/ParadoksGram/ParadoksGram/TMessagesProj/src/main/java/uz/paradoks/gram/ParadoksMusicBg.java:81: error: cannot find symbol
+3131:/home/runner/work/ParadoksGram/ParadoksGram/TMessagesProj/src/main/java/uz/paradoks/gram/ParadoksMusicBg.java:88: error: cannot find symbol
+3136:/home/runner/work/ParadoksGram/ParadoksGram/TMessagesProj/src/main/java/uz/paradoks/gram/ParadoksMusicBg.java:89: error: cannot find symbol
+3141:/home/runner/work/ParadoksGram/ParadoksGram/TMessagesProj/src/main/java/uz/paradoks/gram/ParadoksMusicBg.java:96: error: cannot find symbol
+3146:/home/runner/work/ParadoksGram/ParadoksGram/TMessagesProj/src/main/java/uz/paradoks/gram/ParadoksMusicBg.java:103: error: cannot find symbol
+3151:/home/runner/work/ParadoksGram/ParadoksGram/TMessagesProj/src/main/java/uz/paradoks/gram/ParadoksSettingsPageActivity.java:647: error: cannot find symbol
+=== tail of cleaned log ===
+/home/runner/work/ParadoksGram/ParadoksGram/TMessagesProj/src/main/java/uz/paradoks/gram/ParadoksMusicBg.java:65: error: cannot find symbol
+        return studio != null && studio.isBackgroundAlive();
+                                       ^
+  symbol:   method isBackgroundAlive()
+  location: variable studio of type ParadoksMusicLabActivity
+/home/runner/work/ParadoksGram/ParadoksGram/TMessagesProj/src/main/java/uz/paradoks/gram/ParadoksMusicBg.java:70: error: cannot find symbol
+        return studio != null && studio.isBackgroundPlaying();
+                                       ^
+  symbol:   method isBackgroundPlaying()
+  location: variable studio of type ParadoksMusicLabActivity
+/home/runner/work/ParadoksGram/ParadoksGram/TMessagesProj/src/main/java/uz/paradoks/gram/ParadoksMusicBg.java:75: error: cannot find symbol
+        return studio != null ? studio.backgroundTitle() : "";
+                                      ^
+  symbol:   method backgroundTitle()
+  location: variable studio of type ParadoksMusicLabActivity
+/home/runner/work/ParadoksGram/ParadoksGram/TMessagesProj/src/main/java/uz/paradoks/gram/ParadoksMusicBg.java:81: error: cannot find symbol
+            studio.toggleFromBar();
+                  ^
+  symbol:   method toggleFromBar()
+  location: variable studio of type ParadoksMusicLabActivity
+/home/runner/work/ParadoksGram/ParadoksGram/TMessagesProj/src/main/java/uz/paradoks/gram/ParadoksMusicBg.java:88: error: cannot find symbol
+        if (studio != null && studio.isBackgroundPlaying()) {
+                                    ^
+  symbol:   method isBackgroundPlaying()
+  location: variable studio of type ParadoksMusicLabActivity
+/home/runner/work/ParadoksGram/ParadoksGram/TMessagesProj/src/main/java/uz/paradoks/gram/ParadoksMusicBg.java:89: error: cannot find symbol
+            studio.toggleFromBar();
+                  ^
+  symbol:   method toggleFromBar()
+  location: variable studio of type ParadoksMusicLabActivity
+/home/runner/work/ParadoksGram/ParadoksGram/TMessagesProj/src/main/java/uz/paradoks/gram/ParadoksMusicBg.java:96: error: cannot find symbol
+            studio.stopBackground();
+                  ^
+  symbol:   method stopBackground()
+  location: variable studio of type ParadoksMusicLabActivity
+/home/runner/work/ParadoksGram/ParadoksGram/TMessagesProj/src/main/java/uz/paradoks/gram/ParadoksMusicBg.java:103: error: cannot find symbol
+        return studio != null && from != null && studio.revive(from);
+                                                       ^
+  symbol:   method revive(BaseFragment)
+  location: variable studio of type ParadoksMusicLabActivity
+/home/runner/work/ParadoksGram/ParadoksGram/TMessagesProj/src/main/java/uz/paradoks/gram/ParadoksSettingsPageActivity.java:647: error: cannot find symbol
+            listAdapter.notifyDataSetChanged();
+            ^
+  symbol:   variable listAdapter
+  location: class ParadoksSettingsPageActivity
+Note: Some input files use or override a deprecated API.
+Note: Recompile with -Xlint:deprecation for details.
+Note: Some input files use unchecked or unsafe operations.
+Note: Recompile with -Xlint:unchecked for details.
+10 errors
+
+
+Deprecated Gradle features were used in this build, making it incompatible with Gradle 9.0.
+
+You can use '--warning-mode all' to show the individual deprecation warnings and determine if they come from your own scripts or plugins.
+
+For more on this, please refer to https://docs.gradle.org/8.13/userguide/command_line_interface.html#sec:command_line_warnings in the Gradle documentation.
+
+BUILD FAILED in 5m 13s
+326 actionable tasks: 326 executed
