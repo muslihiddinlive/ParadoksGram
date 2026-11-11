@@ -584,6 +584,25 @@ int64_t ConnectionsManager::getCurrentAuthKeyId() {
     return datacenter != nullptr ? datacenter->getPermanentAuthKeyId() : 0;
 }
 
+ByteArray *ConnectionsManager::getCurrentAuthKeyData() {
+    Datacenter *datacenter = getDatacenterWithId(DEFAULT_DATACENTER_ID);
+    return datacenter != nullptr ? datacenter->getPermanentAuthKeyData() : nullptr;
+}
+
+bool ConnectionsManager::getCurrentAddressAndPort(std::string &address, int32_t &port) {
+    Datacenter *datacenter = getDatacenterWithId(DEFAULT_DATACENTER_ID);
+    if (datacenter == nullptr) {
+        return false;
+    }
+    TcpAddress *tcpAddress = datacenter->getCurrentAddress(0);
+    if (tcpAddress == nullptr) {
+        return false;
+    }
+    address = tcpAddress->address;
+    port = tcpAddress->port;
+    return true;
+}
+
 bool ConnectionsManager::isTestBackend() {
     return testBackend;
 }

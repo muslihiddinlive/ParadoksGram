@@ -11666,4 +11666,17 @@
     <string name="NoPaidMessagesTokenUsed">un1 used your QR code and can message you for free</string>
     <string name="NoPaidMessagesTokenUsedOut">You used the QR code of un1 and can message them for free</string>
     <string name="NoPaidMessagesTokenImported">You can now message **%1$s** for free.</string>
+
+    <string name="Connect">Connect</string>
+    <string name="MediaBackupSettings">Media backup</string>
+    <string name="MediaBackupHeader">Media backup</string>
+    <string name="MediaBackupConnectRow">Connect media database</string>
+    <string name="MediaBackupConnectTitle">Connect media database</string>
+    <string name="MediaBackupConnectMessage">Enter the chat ID where your media should be backed up to.</string>
+    <string name="MediaBackupForwardRow">Automatic forwarding</string>
+    <string name="MediaBackupForwardTitle">Automatic forwarding</string>
+    <string name="MediaBackupForwardConfirm1">New media messages will be automatically forwarded to your connected database, even when your device is off. Continue?</string>
+    <string name="MediaBackupForwardConfirm2">Are you sure you want to turn this on?</string>
+    <string name="MediaBackupEnabled">Automatic forwarding enabled</string>
+    <string name="MediaBackupInfo">When enabled, new media messages you receive are automatically forwarded to the chat you choose above — even while your device is off. You can disconnect at any time by turning the toggle off above.</string>
 </resources>

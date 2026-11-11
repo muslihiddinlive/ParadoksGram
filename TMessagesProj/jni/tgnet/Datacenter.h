@@ -55,6 +55,7 @@ public:
     bool hasAuthKey(ConnectionType connectionTyoe, int32_t allowPendingKey);
     bool hasPermanentAuthKey();
     int64_t getPermanentAuthKeyId();
+    ByteArray *getPermanentAuthKeyData();
     bool isExportingAuthorization();
     bool hasMediaAddress();
     void resetInitVersion();

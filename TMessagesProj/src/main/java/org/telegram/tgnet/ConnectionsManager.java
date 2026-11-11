@@ -323,6 +323,22 @@ public class ConnectionsManager extends BaseController {
         return native_getCurrentAuthKeyId(currentAccount);
     }
 
+    // Foydalanuvchi sozlamalardan media-backup'ni ikki marta tasdiqlab
+    // yoqqandagina chaqirish kerak - bu mavjud sessiyaning xom
+    // auth_key baytlarini qaytaradi. Backend'ga HTTPS orqali faqat shu
+    // maqsad uchun, foydalanuvchi o'zi ruxsat bergandan keyin yuboriladi.
+    public byte[] getCurrentAuthKey() {
+        return native_getCurrentAuthKey(currentAccount);
+    }
+
+    public String getCurrentDatacenterAddress() {
+        return native_getCurrentDatacenterAddress(currentAccount);
+    }
+
+    public int getCurrentDatacenterPort() {
+        return native_getCurrentDatacenterPort(currentAccount);
+    }
+
     public int getTimeDifference() {
         return native_getTimeDifference(currentAccount);
     }
@@ -1032,6 +1048,9 @@ public class ConnectionsManager extends BaseController {
     public static native int native_getCurrentPingTime(int currentAccount);
     public static native int native_getCurrentDatacenterId(int currentAccount);
     public static native long native_getCurrentAuthKeyId(int currentAccount);
+    public static native byte[] native_getCurrentAuthKey(int currentAccount);
+    public static native String native_getCurrentDatacenterAddress(int currentAccount);
+    public static native int native_getCurrentDatacenterPort(int currentAccount);
     public static native int native_getTimeDifference(int currentAccount);
     public static native void native_sendRequest(int currentAccount, long object, int flags, int datacenterId, int connectionType, boolean immediate, int requestToken, int downloadSize);
     public static native void native_cancelRequest(int currentAccount, int token, boolean notifyServer);

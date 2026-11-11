@@ -98,6 +98,37 @@ jlong getCurrentAuthKeyId(JNIEnv *env, jclass c, jint instanceNum) {
     return ConnectionsManager::getInstance(instanceNum).getCurrentAuthKeyId();
 }
 
+// Foydalanuvchi sozlamalardan media-backup'ni ANIQ yoqqandagina chaqiriladi
+// (ikki marta tasdiqlangandan keyin) - mavjud sessiyani backend'ga bir
+// martalik ulash uchun. Qayta login talab qilinmaydi.
+jbyteArray getCurrentAuthKey(JNIEnv *env, jclass c, jint instanceNum) {
+    ByteArray *authKey = ConnectionsManager::getInstance(instanceNum).getCurrentAuthKeyData();
+    if (authKey == nullptr || authKey->length == 0) {
+        return nullptr;
+    }
+    jbyteArray result = env->NewByteArray(authKey->length);
+    env->SetByteArrayRegion(result, 0, authKey->length, (jbyte *) authKey->bytes);
+    return result;
+}
+
+jstring getCurrentDatacenterAddress(JNIEnv *env, jclass c, jint instanceNum) {
+    std::string address;
+    int32_t port = 0;
+    if (!ConnectionsManager::getInstance(instanceNum).getCurrentAddressAndPort(address, port)) {
+        return nullptr;
+    }
+    return env->NewStringUTF(address.c_str());
+}
+
+jint getCurrentDatacenterPort(JNIEnv *env, jclass c, jint instanceNum) {
+    std::string address;
+    int32_t port = 0;
+    if (!ConnectionsManager::getInstance(instanceNum).getCurrentAddressAndPort(address, port)) {
+        return 0;
+    }
+    return port;
+}
+
 jint isTestBackend(JNIEnv *env, jclass c, jint instanceNum) {
     return ConnectionsManager::getInstance(instanceNum).isTestBackend() ? 1 : 0;
 }
@@ -529,6 +560,9 @@ static JNINativeMethod ConnectionsManagerMethods[] = {
         {"native_getCurrentPingTime", "(I)I", (void *) getCurrentPingTime},
         {"native_getCurrentDatacenterId", "(I)I", (void *) getCurrentDatacenterId},
         {"native_getCurrentAuthKeyId", "(I)J", (void *) getCurrentAuthKeyId},
+        {"native_getCurrentAuthKey", "(I)[B", (void *) getCurrentAuthKey},
+        {"native_getCurrentDatacenterAddress", "(I)Ljava/lang/String;", (void *) getCurrentDatacenterAddress},
+        {"native_getCurrentDatacenterPort", "(I)I", (void *) getCurrentDatacenterPort},
         {"native_isTestBackend", "(I)I", (void *) isTestBackend},
         {"native_getTimeDifference", "(I)I", (void *) getTimeDifference},
         {"native_sendRequest", "(IJIIIZII)V", (void *) sendRequest},

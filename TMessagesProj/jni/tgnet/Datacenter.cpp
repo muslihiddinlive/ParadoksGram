@@ -1282,6 +1282,10 @@ int64_t Datacenter::getPermanentAuthKeyId() {
     return authKeyPermId;
 }
 
+ByteArray *Datacenter::getPermanentAuthKeyData() {
+    return authKeyPerm;
+}
+
 bool Datacenter::hasAuthKey(ConnectionType connectionType, int32_t allowPendingKey) {
     return getAuthKey(connectionType, false, nullptr, allowPendingKey) != nullptr;
 }
