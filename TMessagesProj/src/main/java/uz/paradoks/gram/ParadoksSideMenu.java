@@ -148,7 +148,7 @@ public class ParadoksSideMenu {
         addRow(column, context, R.drawable.msg_customize, "Dizayn",
                 () -> fragment.presentFragment(new ThemeActivity(ThemeActivity.THEME_TYPE_BASIC)));
         addRow(column, context, R.drawable.msg_theme, "Mavzularni yuklab olish",
-                () -> MessagesController.getInstance(account).openByUserName("themes", fragment, 1));
+                () -> MessagesController.getInstance(account).openByUserName("ParadoksThemes", fragment, 1));
         addRow(column, context, R.drawable.msg_stats, "Chat hisoblagichlari", () -> showCounters(account));
         addRow(column, context, R.drawable.msg_forward, "Ommaviy yuborish",
                 () -> fragment.presentFragment(new ParadoksBroadcastActivity()));
