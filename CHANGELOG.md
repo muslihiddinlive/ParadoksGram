@@ -8,6 +8,9 @@ Versiya formati Telegram kabi: `MAJOR.MINOR.PATCH`, qavs ichida build raqami (ma
 
 Versiya raqami `VERSION` faylida turadi. Har versiya uchun foydalanuvchiga ko'rinadigan matn `changelog/<versiya>.md` fayliga yoziladi: CI shuni reliz matniga qo'yadi, ilova yangilanish oynasida shuni ko'rsatadi. Commit xabari reliz matniga tushmaydi.
 
+## 3.39.3 (12-noyabr)
+3.39.0 dagi noto'g'ri pastki panel butunlay olib tashlandi
+
 ## 3.39.2 (11-noyabr)
 Yangi:
 - Musiqiy ijodxonada tayyorlangan audio va video endi Music/Movies papkasiga saqlanishi bilan bir vaqtda Saved Messages'ga ham yuboriladi (video video sifatida, audio fayl sifatida).

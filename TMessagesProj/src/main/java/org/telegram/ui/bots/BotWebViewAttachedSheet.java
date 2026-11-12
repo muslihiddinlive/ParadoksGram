@@ -344,7 +344,6 @@ public class BotWebViewAttachedSheet implements NotificationCenter.NotificationC
     private ActionBar actionBar;
     private Drawable actionBarShadow;
     private ActionBarMenuItem optionsItem;
-    private uz.paradoks.gram.ParadoksGlassNav paradoksGlassNav;
     private ActionBarMenuSubItem settingsItem;
     private TLRPC.BotApp currentWebApp;
 
@@ -711,28 +710,6 @@ public class BotWebViewAttachedSheet implements NotificationCenter.NotificationC
         });
         actionBar.setAlpha(0f);
         windowView.addView(actionBar, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, Gravity.TOP | Gravity.CENTER_HORIZONTAL));
-
-        if (uz.paradoks.gram.ParadoksConfig.glassNavEnabled()) {
-            // Additive: a small glass dock for Close/Reload/More, floating above whatever the bot's own
-            // Main/Secondary button shows. It never touches botButtons' own layout or click handling.
-            paradoksGlassNav = new uz.paradoks.gram.ParadoksGlassNav(getContext());
-            paradoksGlassNav.setStyle(uz.paradoks.gram.ParadoksConfig.glassNavStyle());
-            paradoksGlassNav.setItems(new uz.paradoks.gram.ParadoksGlassNav.Item[]{
-                    new uz.paradoks.gram.ParadoksGlassNav.Item(uz.paradoks.gram.ParadoksGlassNav.Icon.CLOSE,
-                            this::dismiss),
-                    new uz.paradoks.gram.ParadoksGlassNav.Item(uz.paradoks.gram.ParadoksGlassNav.Icon.REFRESH,
-                            () -> webViewContainer.reload()),
-                    new uz.paradoks.gram.ParadoksGlassNav.Item(uz.paradoks.gram.ParadoksGlassNav.Icon.MORE, () -> {
-                        if (optionsItem != null) {
-                            optionsItem.performClick();
-                        }
-                    }),
-            });
-            windowView.addView(paradoksGlassNav, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT,
-                    uz.paradoks.gram.ParadoksGlassNav.preferredHeightDp(uz.paradoks.gram.ParadoksConfig.glassNavStyle()),
-                    Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL));
-            paradoksGlassNav.select(1, false);
-        }
 
         windowView.addView(progressView = new ChatAttachAlertBotWebViewLayout.WebProgressView(getContext(), resourcesProvider), LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL, 0, 0, 0, 0));
         webViewContainer.setWebViewProgressListener(progress -> {

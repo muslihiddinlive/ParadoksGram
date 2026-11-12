@@ -517,7 +517,6 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
     private boolean storyHintShown;
     private FragmentFloatingButton floatingButton3;
     private FragmentFloatingButton floatingButtonStories;
-    private uz.paradoks.gram.ParadoksGlassNav paradoksGlassNav;
     private ButtonWithCounterView addChatsToCommunityButton;
     private ChatActivityFadeView communityBottomFadeView;
     private ChatAvatarContainer avatarContainer;
@@ -4839,40 +4838,6 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
                         .setOnHiddenListener(() -> MessagesController.getInstance(currentAccount).getMainSettings().edit().putBoolean("storyhint", false).commit());
                 contentView.addView(storyHint, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, 160, Gravity.BOTTOM | Gravity.FILL_HORIZONTAL, 0, 0, 80, 0));
             }
-        }
-
-        if (!isArchive() && initialDialogsType == DIALOGS_TYPE_DEFAULT && uz.paradoks.gram.ParadoksConfig.glassNavEnabled()) {
-            paradoksGlassNav = new uz.paradoks.gram.ParadoksGlassNav(context);
-            paradoksGlassNav.setStyle(uz.paradoks.gram.ParadoksConfig.glassNavStyle());
-            paradoksGlassNav.setItems(new uz.paradoks.gram.ParadoksGlassNav.Item[]{
-                    new uz.paradoks.gram.ParadoksGlassNav.Item(uz.paradoks.gram.ParadoksGlassNav.Icon.HOME, () -> {
-                        if (viewPages != null && viewPages[0] != null && viewPages[0].listView != null) {
-                            viewPages[0].listView.smoothScrollToPosition(0);
-                        }
-                    }),
-                    new uz.paradoks.gram.ParadoksGlassNav.Item(uz.paradoks.gram.ParadoksGlassNav.Icon.CALL,
-                            () -> presentFragment(new CallLogActivity())),
-                    new uz.paradoks.gram.ParadoksGlassNav.Item(uz.paradoks.gram.ParadoksGlassNav.Icon.PLUS, () -> {
-                        if (floatingButton3 != null) {
-                            floatingButton3.callOnClick();
-                        }
-                    }),
-                    new uz.paradoks.gram.ParadoksGlassNav.Item(uz.paradoks.gram.ParadoksGlassNav.Icon.PROFILE, () -> {
-                        Bundle args = new Bundle();
-                        args.putLong("user_id", getUserConfig().getClientUserId());
-                        args.putBoolean("my_profile", true);
-                        presentFragment(new ProfileActivity(args, null));
-                    }),
-                    new uz.paradoks.gram.ParadoksGlassNav.Item(uz.paradoks.gram.ParadoksGlassNav.Icon.SAVED, () -> {
-                        Bundle args = new Bundle();
-                        args.putLong("user_id", getUserConfig().getClientUserId());
-                        presentFragment(new ChatActivity(args));
-                    }),
-            });
-            contentView.addView(paradoksGlassNav, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT,
-                    uz.paradoks.gram.ParadoksGlassNav.preferredHeightDp(uz.paradoks.gram.ParadoksConfig.glassNavStyle()),
-                    Gravity.BOTTOM | Gravity.FILL_HORIZONTAL));
-            paradoksGlassNav.select(0, false);
         }
 
         updateStoriesPosting();
