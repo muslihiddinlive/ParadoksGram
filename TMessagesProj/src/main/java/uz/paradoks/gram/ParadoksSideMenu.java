@@ -195,6 +195,12 @@ public class ParadoksSideMenu {
         LinearLayout info = new LinearLayout(context);
         info.setOrientation(LinearLayout.VERTICAL);
         info.setPadding(dp(16), AndroidUtilities.statusBarHeight + dp(16), dp(64), dp(14));
+        info.setClickable(true);
+        info.setBackground(Theme.createSelectorDrawable(0x33ffffff, 2));
+        info.setOnClickListener(v -> {
+            boolean show = accountsBox.getVisibility() != View.VISIBLE;
+            accountsBox.setVisibility(show ? View.VISIBLE : View.GONE);
+        });
         header.addView(info, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
         TLRPC.User user = UserConfig.getInstance(account).getCurrentUser();
@@ -250,19 +256,6 @@ public class ParadoksSideMenu {
         savedParams.topMargin = AndroidUtilities.statusBarHeight + dp(56);
         header.addView(saved, savedParams);
 
-        // expand / collapse the account list
-        final TextView arrow = new TextView(context);
-        arrow.setGravity(Gravity.CENTER);
-        arrow.setText("\u25BE");
-        arrow.setTextColor(Color.WHITE);
-        arrow.setTextSize(TypedValue.COMPLEX_UNIT_SP, 22);
-        arrow.setOnClickListener(v -> {
-            boolean show = accountsBox.getVisibility() != View.VISIBLE;
-            accountsBox.setVisibility(show ? View.VISIBLE : View.GONE);
-            arrow.setText(show ? "\u25B4" : "\u25BE");
-        });
-        FrameLayout.LayoutParams arrowParams = new FrameLayout.LayoutParams(dp(48), dp(48), Gravity.END | Gravity.BOTTOM);
-        header.addView(arrow, arrowParams);
         return header;
     }
 
