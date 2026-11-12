@@ -47,6 +47,8 @@ import org.telegram.ui.Components.RLottieDrawable;
 import org.telegram.ui.Components.RLottieImageView;
 import org.telegram.ui.Components.ScaleStateListAnimator;
 import org.telegram.ui.MainTabsLayout;
+import uz.paradoks.gram.ParadoksConfig;
+import uz.paradoks.gram.ParadoksGlass;
 
 import me.vkryl.android.AnimatorUtils;
 import me.vkryl.android.animator.BoolAnimator;
@@ -58,6 +60,12 @@ public class GlassTabView extends FrameLayout implements MainTabsLayout.Tab, Fac
     private BackupImageView backupImageView;
     private Theme.ResourcesProvider resourcesProvider;
     private final Paint paintCounterBackground = new Paint(Paint.ANTI_ALIAS_FLAG);
+    // ParadoksGram: liquid-glass look for the selection highlight (6 selectable styles), on top of the
+    // existing per-tab selectedFactor/scale animation above — nothing about selection or its timing changes.
+    private final ParadoksGlass paradoksGlass = new ParadoksGlass();
+    private final android.graphics.Path paradoksPath = new android.graphics.Path();
+    private final android.graphics.Rect paradoksRect = new android.graphics.Rect();
+    private final Paint paradoksGlowPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final AnimatedTextView.AnimatedTextDrawable counter;
 
     private static final int ANIMATOR_ID_IS_SELECTED = 0;
@@ -151,17 +159,21 @@ public class GlassTabView extends FrameLayout implements MainTabsLayout.Tab, Fac
     protected void dispatchDraw(@NonNull Canvas canvas) {
         final float viewWidth = hasVisualWidth ? visualWidth : getWidth();
         final float selectedFactor = hasGestureSelectedOverride ? gestureSelectedOverride : isSelectedAnimator.getFloatValue();
+        final boolean paradoksGlassOn = ParadoksConfig.glassNavEnabled();
         if (selectedFactor > 0 && !skipDrawSelector) {
             final float alpha = AnimatorUtils.DECELERATE_INTERPOLATOR.getInterpolation(selectedFactor);
-
-            paintCounterBackground.setColor(Theme.multAlpha(colorSelected, 0.09f * alpha));
             tmpRectF.set(0, 0, viewWidth, getHeight());
-            final float r = Math.min(tmpRectF.width(), tmpRectF.height()) / 2f;
             final float s = lerp(0.6f, 1, selectedFactor) * MathUtils.clamp(attachScale, 0, 1);
-            canvas.save();
-            canvas.scale(s, s, tmpRectF.centerX(), tmpRectF.centerY());
-            canvas.drawRoundRect(tmpRectF, r, r, paintCounterBackground);
-            canvas.restore();
+            if (paradoksGlassOn) {
+                paradoksDrawHighlight(canvas, tmpRectF, s, alpha);
+            } else {
+                final float r = Math.min(tmpRectF.width(), tmpRectF.height()) / 2f;
+                paintCounterBackground.setColor(Theme.multAlpha(colorSelected, 0.09f * alpha));
+                canvas.save();
+                canvas.scale(s, s, tmpRectF.centerX(), tmpRectF.centerY());
+                canvas.drawRoundRect(tmpRectF, r, r, paintCounterBackground);
+                canvas.restore();
+            }
         }
 
         final float hasCounter = (usePremiumCounter ? 1f : isHasCounterAnimator.getFloatValue()) * attachScale;
@@ -170,7 +182,21 @@ public class GlassTabView extends FrameLayout implements MainTabsLayout.Tab, Fac
             canvas.saveLayer(0, 0, viewWidth, getHeight(), null);
         }
 
-        super.dispatchDraw(canvas);
+        final boolean paradoksLift = paradoksGlassOn && selectedFactor > 0
+                && !skipDrawSelector
+                && (ParadoksConfig.glassNavStyle() == 2 || ParadoksConfig.glassNavStyle() == 5);
+        if (paradoksLift) {
+            final float liftAlpha = AnimatorUtils.DECELERATE_INTERPOLATOR.getInterpolation(selectedFactor);
+            // A single sin(0..pi) hump over the existing 320ms selectedFactor animation: rises then settles
+            // back, piggy-backing on the tab's own selection animator instead of a second animation system.
+            final float lift = (float) Math.sin(Math.min(1f, liftAlpha) * Math.PI) * dp(ParadoksConfig.glassNavStyle() == 5 ? 10 : 7);
+            canvas.save();
+            canvas.translate(0, -lift);
+            super.dispatchDraw(canvas);
+            canvas.restore();
+        } else {
+            super.dispatchDraw(canvas);
+        }
 
         if (hasCounter > 0) {
             canvas.save();
@@ -216,6 +242,80 @@ public class GlassTabView extends FrameLayout implements MainTabsLayout.Tab, Fac
         if (saveLayer) {
             canvas.restore();
         }
+    }
+
+    /**
+     * Replaces the flat translucent rounded rect above with one of six liquid-glass looks, chosen in
+     * Settings → Liquid Glass va ko'rinish → Pastki navigatsiya paneli. {@code s}/{@code alpha} are the exact
+     * same scale/alpha the stock highlight already used, so the selection's own timing is unchanged — only
+     * what gets painted changes.
+     */
+    private void paradoksDrawHighlight(Canvas canvas, RectF bounds, float s, float alpha) {
+        final int style = ParadoksConfig.glassNavStyle();
+        final int tint = ParadoksConfig.glassTint();
+        canvas.save();
+        canvas.scale(s, s, bounds.centerX(), bounds.centerY());
+        switch (style) {
+            case 3: { // wave: a squircle-ish highlight instead of a perfect pill
+                final float r = Math.min(bounds.width(), bounds.height()) * 0.34f;
+                paradoksPath.reset();
+                paradoksPath.addRoundRect(bounds, r, r, android.graphics.Path.Direction.CW);
+                paradoksRect.set((int) bounds.left, (int) bounds.top, (int) bounds.right, (int) bounds.bottom);
+                paradoksGlass.draw(canvas, paradoksPath, paradoksRect, alpha, ParadoksGlass.ROLE_OUT, 2, tint, 2, false, null);
+                break;
+            }
+            case 4: { // spotlight: a soft beam from above, on top of a plain glass pill
+                final float r = Math.min(bounds.width(), bounds.height()) / 2f;
+                paradoksPath.reset();
+                paradoksPath.addRoundRect(bounds, r, r, android.graphics.Path.Direction.CW);
+                paradoksRect.set((int) bounds.left, (int) bounds.top, (int) bounds.right, (int) bounds.bottom);
+                paradoksGlass.draw(canvas, paradoksPath, paradoksRect, alpha, ParadoksGlass.ROLE_IN, 2, 0, 1, false, null);
+                final float cx = bounds.centerX();
+                final float coneHalf = bounds.width() * 0.3f;
+                android.graphics.LinearGradient gradient = new android.graphics.LinearGradient(
+                        cx, bounds.top - dp(16), cx, bounds.top,
+                        0x00FFFFFF, Theme.multAlpha(0xFFFFFFFF, 0.45f * alpha),
+                        android.graphics.Shader.TileMode.CLAMP);
+                paradoksGlowPaint.setShader(gradient);
+                paradoksGlowPaint.setStyle(Paint.Style.FILL);
+                canvas.drawRect(cx - coneHalf, bounds.top - dp(16), cx + coneHalf, bounds.top, paradoksGlowPaint);
+                paradoksGlowPaint.setShader(null);
+                break;
+            }
+            case 5: { // floating button: a circle instead of a pill (the icon itself lifts, drawn further below)
+                final float r = Math.min(bounds.width(), bounds.height()) * 0.46f;
+                paradoksPath.reset();
+                paradoksPath.addCircle(bounds.centerX(), bounds.centerY(), r, android.graphics.Path.Direction.CW);
+                paradoksRect.set((int) (bounds.centerX() - r), (int) (bounds.centerY() - r), (int) (bounds.centerX() + r), (int) (bounds.centerY() + r));
+                paradoksGlass.draw(canvas, paradoksPath, paradoksRect, alpha, ParadoksGlass.ROLE_OUT, 3, tint, 3, false, null);
+                break;
+            }
+            case 1: { // neon lens: glass pill + a bright tinted rim
+                final float r = Math.min(bounds.width(), bounds.height()) / 2f;
+                paradoksPath.reset();
+                paradoksPath.addRoundRect(bounds, r, r, android.graphics.Path.Direction.CW);
+                paradoksRect.set((int) bounds.left, (int) bounds.top, (int) bounds.right, (int) bounds.bottom);
+                paradoksGlass.draw(canvas, paradoksPath, paradoksRect, alpha, ParadoksGlass.ROLE_OUT, 2, tint, 3, false, null);
+                paradoksGlowPaint.setShader(null);
+                paradoksGlowPaint.setStyle(Paint.Style.STROKE);
+                paradoksGlowPaint.setStrokeWidth(dpf2(1.6f));
+                paradoksGlowPaint.setColor(ParadoksGlass.TINTS[Math.max(0, Math.min(ParadoksGlass.TINTS.length - 1, tint))]);
+                paradoksGlowPaint.setAlpha(Math.round(200 * alpha));
+                canvas.drawRoundRect(bounds, r, r, paradoksGlowPaint);
+                break;
+            }
+            case 2: // bounce: the icon itself lifts (see dispatchDraw); the pill stays a plain glass pill
+            case 0: // lens
+            default: {
+                final float r = Math.min(bounds.width(), bounds.height()) / 2f;
+                paradoksPath.reset();
+                paradoksPath.addRoundRect(bounds, r, r, android.graphics.Path.Direction.CW);
+                paradoksRect.set((int) bounds.left, (int) bounds.top, (int) bounds.right, (int) bounds.bottom);
+                paradoksGlass.draw(canvas, paradoksPath, paradoksRect, alpha, ParadoksGlass.ROLE_OUT, 2, tint, 1, false, null);
+                break;
+            }
+        }
+        canvas.restore();
     }
 
     private Drawable premiumStarDrawable;
