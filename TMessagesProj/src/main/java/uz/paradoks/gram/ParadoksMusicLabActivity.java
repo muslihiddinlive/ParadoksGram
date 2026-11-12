@@ -140,7 +140,11 @@ public class ParadoksMusicLabActivity extends BaseFragment {
     private Thread audioThread;
     private boolean telegramStopped, seeking, exporting, videoExporting, cancelExport;
     private Uri lastSavedUri;
-    private int format; // 0 = WAV, 1 = M4A (AAC)
+    private int format = ParadoksAudioFormats.MP3; // ParadoksAudioFormats.MP3 / ORIGINAL / WAV / M4A / OGG / FLAC
+    private int kbps = 256; // bitrate of the lossy formats
+    private final ArrayList<TextView> kbpsButtons = new ArrayList<>();
+    private static final int[] KBPS = {128, 192, 256, 320};
+    private LinearLayout kbpsBox;
     private int bpmValue;
     private int tab;
 
@@ -1024,6 +1028,7 @@ public class ParadoksMusicLabActivity extends BaseFragment {
         bassRow = new SliderRow("Bass kuchi", 0, 18, Math.round(params.bassDb), v -> v + " dB", v -> params.bassDb = v);
         fxPanels[FX_BASS] = panel("Bass boost", bassRow.view);
 
+        LinearLayout[] eqParts = new LinearLayout[7];
         Flow presets = flow();
         for (int p = 0; p < EQ_PRESETS.length; p++) {
             final int[] gains = EQ_PRESETS[p];
@@ -1226,13 +1231,15 @@ public class ParadoksMusicLabActivity extends BaseFragment {
         c.addView(sectionTitle("Format"));
         Flow f = flow();
         formatButtons.clear();
-        String[] names = {"WAV (sifatli)", "M4A (AAC, kichik)"};
-        for (int i = 0; i < names.length; i++) {
+        for (int i = 0; i < ParadoksAudioFormats.COUNT; i++) {
+            if (i == ParadoksAudioFormats.OGG && !ParadoksAudioFormats.oggSupported()) continue;
             final int idx = i;
-            TextView b = button(names[i], null);
+            TextView b = button(formatLabel(i), null);
+            b.setTag(idx);
             b.setOnClickListener(v -> {
                 format = idx;
                 updateFormatButtons();
+                updateExportInfo();
                 savePrefs();
             });
             formatButtons.add(b);
@@ -1240,6 +1247,26 @@ public class ParadoksMusicLabActivity extends BaseFragment {
         }
         updateFormatButtons();
         c.addView(f);
+        kbpsBox = vbox();
+        kbpsBox.addView(sectionTitle("Sifat (bitrate)"));
+        Flow kf = flow();
+        kbpsButtons.clear();
+        for (int i = 0; i < KBPS.length; i++) {
+            final int v = KBPS[i];
+            TextView b = button(v + " kbps", null);
+            b.setTag(v);
+            b.setOnClickListener(x -> {
+                kbps = v;
+                updateFormatButtons();
+                updateExportInfo();
+                savePrefs();
+            });
+            kbpsButtons.add(b);
+            kf.addView(b);
+        }
+        kbpsBox.addView(kf);
+        c.addView(kbpsBox);
+        updateFormatButtons();
         expInfo = caption("");
         c.addView(expInfo, ll(MATCH, WRAP));
 
@@ -1260,10 +1287,51 @@ public class ParadoksMusicLabActivity extends BaseFragment {
         attach(tabLayout, c);
     }
 
-    private void updateFormatButtons() {
-        for (int i = 0; i < formatButtons.size(); i++) {
-            setSel(formatButtons.get(i), i == format);
+    private String srcExt() {
+        return cur >= 0 && cur < list.size() ? ParadoksAudioFormats.extOf(list.get(cur).path) : ".mp3";
+    }
+
+    private String formatLabel(int f) {
+        switch (f) {
+            case ParadoksAudioFormats.MP3:
+                return "MP3 (tavsiya)";
+            case ParadoksAudioFormats.ORIGINAL:
+                return "Asl (" + srcExt() + ")";
+            case ParadoksAudioFormats.WAV:
+                return "WAV (siqilmagan)";
+            case ParadoksAudioFormats.M4A:
+                return "M4A (AAC)";
+            case ParadoksAudioFormats.OGG:
+                return "OGG (Opus)";
+            default:
+                return "FLAC (yo'qotishsiz)";
         }
+    }
+
+    /** The concrete format that will be written for the current selection. */
+    private int effectiveFormat() {
+        return format == ParadoksAudioFormats.ORIGINAL ? ParadoksAudioFormats.resolveOriginal(srcExt()) : format;
+    }
+
+    private void updateFormatButtons() {
+        for (TextView b : formatButtons) {
+            int idx = (Integer) b.getTag();
+            if (idx == ParadoksAudioFormats.ORIGINAL) b.setText(formatLabel(idx));
+            setSel(b, idx == format);
+        }
+        for (TextView b : kbpsButtons) {
+            setSel(b, (Integer) b.getTag() == kbps);
+        }
+        if (kbpsBox != null) {
+            boolean show = ParadoksAudioFormats.lossy(effectiveFormat()) && !sameAsSource();
+            kbpsBox.setVisibility(show ? View.VISIBLE : View.GONE);
+        }
+    }
+
+    /** True when nothing has to be re-encoded: no effects and the target is the source file's own format. */
+    private boolean sameAsSource() {
+        return !params.anyEffect() && (format == ParadoksAudioFormats.ORIGINAL
+                || ParadoksAudioFormats.extFor(format).equals(srcExt()));
     }
 
     private void updateExportInfo() {
@@ -1275,7 +1343,16 @@ public class ParadoksMusicLabActivity extends BaseFragment {
                 sb.append(FX_NAMES[i]);
             }
         }
-        expInfo.setText(sb.length() == 0 ? "Effekt tanlanmagan — asl fayl o'zgarishsiz saqlanadi." : "Qo'llaniladigan effektlar: " + sb);
+        String text;
+        if (sameAsSource()) {
+            text = "Effekt tanlanmagan — asl fayl o'zgarishsiz saqlanadi.";
+        } else {
+            int eff = effectiveFormat();
+            text = (sb.length() == 0 ? "Effektsiz, " : "Effektlar: " + sb + ". ") + "Natija: " + ParadoksAudioFormats.nameFor(eff)
+                    + (ParadoksAudioFormats.lossy(eff) ? " · " + kbps + " kbps" : "") + ".";
+        }
+        expInfo.setText(text);
+        updateFormatButtons();
     }
 
     // ---- mini player + status pill
@@ -2340,10 +2417,10 @@ public class ParadoksMusicLabActivity extends BaseFragment {
         if (getParentActivity() == null) return;
         shareButton.setVisibility(View.GONE);
         expResult.setText("");
-        if (!params.anyEffect()) {
+        if (sameAsSource()) {
             exportProgress("Asl fayl saqlanmoqda...", -1f);
             final Track t = list.get(cur);
-            final String ext = t.path.contains(".") ? t.path.substring(t.path.lastIndexOf('.')) : ".mp3";
+            final String ext = ParadoksAudioFormats.extOf(t.path);
             final File copy = workFile(baseName() + ext);
             new Thread(() -> {
                 String error = null;
@@ -2366,15 +2443,18 @@ public class ParadoksMusicLabActivity extends BaseFragment {
         cancelExport = false;
         exportButton.setText("Bekor qilish");
         final ParadoksMusicDsp.Params snapshot = params.copy();
-        final boolean wav = format == 0;
-        final File file = workFile(baseName() + "_fx" + (wav ? ".wav" : ".m4a"));
+        final int outFormat = effectiveFormat();
+        final int outKbps = kbps;
+        final String outTitle = baseName();
+        final String outMime = ParadoksAudioFormats.mimeFor(outFormat);
+        final File file = workFile(outTitle + (snapshot.anyEffect() ? "_fx" : "") + ParadoksAudioFormats.extFor(outFormat));
         exportProgress("Tayyorlanmoqda...", 0f);
         new Thread(() -> {
             boolean ok = false;
             String error = null;
             ParadoksMusicDsp.Sink sink = null;
             try {
-                sink = wav ? new ParadoksMusicDsp.WavSink(file, data.sampleRate) : new ParadoksMusicDsp.M4aSink(file, data.sampleRate, 192000);
+                sink = ParadoksAudioFormats.open(outFormat, file, data.sampleRate, outKbps, outTitle);
                 ok = ParadoksMusicDsp.render(data, snapshot, sink, f -> AndroidUtilities.runOnUIThread(() -> {
                     if (exporting) exportProgress("Tayyorlanmoqda...", f);
                 }), () -> cancelExport || released);
@@ -2391,7 +2471,7 @@ public class ParadoksMusicLabActivity extends BaseFragment {
                 if (exportButton != null) exportButton.setText("Yuklab olish");
                 if (released) return;
                 if (done) {
-                    saveToDevice(file, 3, wav ? "audio/wav" : "audio/mp4");
+                    saveToDevice(file, 3, outMime);
                 } else {
                     //noinspection ResultOfMethodCallIgnored
                     file.delete();
@@ -2460,13 +2540,40 @@ public class ParadoksMusicLabActivity extends BaseFragment {
         if (getParentActivity() == null) return;
         MediaController.saveFile(file.getAbsolutePath(), getParentActivity(), type, file.getName(), mime, uri -> {
             lastSavedUri = uri;
-            exportFinished("Tayyor! " + (type == 1 ? "Movies/Telegram" : "Music/Telegram") + " papkasiga saqlandi");
+            exportFinished("Tayyor! " + (type == 1 ? "Movies/Telegram" : "Music/Telegram") + " papkasiga va Saved Messages'ga saqlandi");
             flash("Saqlandi ✅");
+            sendToSavedMessages(file, type, mime);
             if (shareButton != null) {
                 shareButton.setTag(mime);
                 shareButton.setVisibility(View.VISIBLE);
             }
         });
+    }
+
+    /** Every finished export also goes to the user's Saved Messages (a video as a video, audio as a file). */
+    private void sendToSavedMessages(File file, int type, String mime) {
+        try {
+            final int account = org.telegram.messenger.UserConfig.selectedAccount;
+            final org.telegram.messenger.AccountInstance instance = org.telegram.messenger.AccountInstance.getInstance(account);
+            final long self = org.telegram.messenger.UserConfig.getInstance(account).getClientUserId();
+            if (self == 0 || file == null || !file.exists()) return;
+            Track t = cur >= 0 && cur < list.size() ? list.get(cur) : null;
+            final String caption = "🎧 Musiqiy ijodxona" + (t != null && t.name != null ? ": " + t.name : "");
+            final String path = file.getAbsolutePath();
+            if (type == 1) {
+                org.telegram.messenger.SendMessagesHelper.SendingMediaInfo info = new org.telegram.messenger.SendMessagesHelper.SendingMediaInfo();
+                info.path = path;
+                info.caption = caption;
+                info.isVideo = true;
+                ArrayList<org.telegram.messenger.SendMessagesHelper.SendingMediaInfo> infos = new ArrayList<>();
+                infos.add(info);
+                org.telegram.messenger.SendMessagesHelper.prepareSendingMedia(instance, infos, self, null, null, null, null, false, false, null, true, 0, 0, 0, false, null, null, 0L, false, 0L, 0L, null);
+            } else {
+                org.telegram.messenger.SendMessagesHelper.prepareSendingDocument(instance, path, path, null, caption, mime, self, null, null, null, null, null, true, 0, null, null, false);
+            }
+        } catch (Throwable e) {
+            org.telegram.messenger.FileLog.e(e);
+        }
     }
 
     private void shareLast() {
@@ -2502,7 +2609,11 @@ public class ParadoksMusicLabActivity extends BaseFragment {
         params.echoTime = p.getInt("echoTime", 38) / 100f;
         params.reverbMix = p.getInt("reverbMix", 40) / 100f;
         for (int i = 0; i < 5; i++) params.eqGain[i] = p.getInt("eq" + i, 0);
-        format = p.getInt("format", 0);
+        format = p.getInt("fmt2", ParadoksAudioFormats.MP3);
+        if (format < 0 || format >= ParadoksAudioFormats.COUNT || (format == ParadoksAudioFormats.OGG && !ParadoksAudioFormats.oggSupported())) {
+            format = ParadoksAudioFormats.MP3;
+        }
+        kbps = p.getInt("kbps", 256);
         tab = p.getInt("tab", 0);
         viz.color1 = p.getInt("c1", 0xFF7C3AED);
         viz.color2 = p.getInt("c2", 0xFF22D3EE);
@@ -2527,7 +2638,7 @@ public class ParadoksMusicLabActivity extends BaseFragment {
                 .putInt("bassDb", Math.round(params.bassDb)).putInt("d8Speed", Math.round(params.d8Speed * 100))
                 .putInt("echoTime", Math.round(params.echoTime * 100)).putInt("reverbMix", Math.round(params.reverbMix * 100));
         for (int i = 0; i < 5; i++) e.putInt("eq" + i, Math.round(params.eqGain[i]));
-        e.putInt("format", format).putInt("tab", tab).putInt("c1", viz.color1).putInt("c2", viz.color2).putInt("style", viz.style).putInt("bars", viz.bars)
+        e.putInt("fmt2", format).putInt("kbps", kbps).putInt("tab", tab).putInt("c1", viz.color1).putInt("c2", viz.color2).putInt("style", viz.style).putInt("bars", viz.bars)
                 .putInt("height", viz.height).putBoolean("rainbow", viz.rainbow).putBoolean("glow", viz.glow).putBoolean("pulse", viz.pulse)
                 .putBoolean("particles", viz.particles).putInt("bgx", viz.bgX).putInt("bgy", viz.bgY)
                 .putInt("volume", Math.round(volume * 100)).putBoolean("loop", loop);

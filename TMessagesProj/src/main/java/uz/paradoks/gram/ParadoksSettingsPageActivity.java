@@ -327,6 +327,10 @@ public class ParadoksSettingsPageActivity extends BaseFragment {
                         + "Tepadagi sinov maydoni o'zgarishlarni darrov ko'rsatadi. Sinish effekti sinov maydonida haqiqiy: orqa fon xiralashadi va suv tomchisidek egiladi. "
                         + "Haqiqiy chatda xabar ortidagi fon ilovaga ma'lum emas, shuning uchun u yerda faqat oq yorug'lik bilan taqlid qilinadi. "
                         + "Tugmalar uchun shisha hozircha chat ro'yxatidagi asosiy yumaloq tugmaga qo'llanadi; ilovani qayta ochganda ko'rinadi.");
+                check("Pastki navigatsiya paneli", ParadoksConfig::glassNavEnabled, ParadoksConfig::setGlassNavEnabled);
+                value("Panel ko'rinishi", () -> GLASS_NAV_STYLE_NAMES[Math.max(0, Math.min(GLASS_NAV_STYLE_NAMES.length - 1, ParadoksConfig.glassNavStyle()))], this::showGlassNavStyleDialog);
+                info("Chat ro'yxati ostida va mini-app oynasida suzib turadigan shisha panel: bosh sahifa, qo'ng'iroqlar, yangi xabar, profil va saqlangan xabarlar "
+                        + "(mini-appda: yopish, qayta yuklash, menyu). Yoqish/o'chirish va ko'rinishni almashtirish shu ekranlarni qayta ochganda ko'rinadi.");
                 header("Yuklash");
                 value("Yuklash rejimi", () -> {
                     int m = ParadoksConfig.downloadMode();
@@ -630,6 +634,20 @@ public class ParadoksSettingsPageActivity extends BaseFragment {
     }
 
     private static final String[] GLASS_TINT_NAMES = {"Rangsiz", "Moviy", "Binafsha", "Yashil", "Pushti", "Oltin"};
+    private static final String[] GLASS_NAV_STYLE_NAMES = {"Linza", "Neon linza", "Sakrash", "To'lqin", "Projektor", "Suzuvchi tugma"};
+
+    private void showGlassNavStyleDialog() {
+        if (getParentActivity() == null) {
+            return;
+        }
+        android.app.AlertDialog.Builder builder = new android.app.AlertDialog.Builder(getParentActivity());
+        builder.setTitle("Panel ko'rinishi");
+        builder.setItems(GLASS_NAV_STYLE_NAMES, (d, which) -> {
+            ParadoksConfig.setGlassNavStyle(which);
+            refresh();
+        });
+        showDialog(builder.create());
+    }
 
     private void showGlassTintDialog() {
         if (getParentActivity() == null) {

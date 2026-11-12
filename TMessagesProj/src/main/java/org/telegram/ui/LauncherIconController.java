@@ -77,7 +77,27 @@ public class LauncherIconController {
         PIXEL("PixelIcon", R.mipmap.icon_pixel_bg, R.mipmap.icon_blank_fg, R.string.AppIconPixel),
         PIXELWIN("PixelWinIcon", R.mipmap.icon_pixel_bg, R.mipmap.icon_blank_fg, R.string.AppIconPixelWin),
         ORIGAMI("OrigamiIcon", R.mipmap.icon_origami_bg, R.mipmap.icon_blank_fg, R.string.AppIconOrigami),
-        ORIGAMIWIN("OrigamiWinIcon", R.mipmap.icon_origami_bg, R.mipmap.icon_blank_fg, R.string.AppIconOrigamiWin);
+        ORIGAMIWIN("OrigamiWinIcon", R.mipmap.icon_origami_bg, R.mipmap.icon_blank_fg, R.string.AppIconOrigamiWin),
+
+        // ParadoksGram: second ghost pack (9 designs x adaptive/Windows-style)
+        WIRE_WHITE("WireWhiteIcon", R.mipmap.icon_wire_white_bg, R.mipmap.icon_blank_fg, R.string.AppIconWireWhite),
+        WIRE_WHITEWIN("WireWhiteWinIcon", R.mipmap.icon_wire_white_bg, R.mipmap.icon_blank_fg, R.string.AppIconWireWhiteWin),
+        WIRE_GOLD("WireGoldIcon", R.mipmap.icon_wire_gold_bg, R.mipmap.icon_blank_fg, R.string.AppIconWireGold),
+        WIRE_GOLDWIN("WireGoldWinIcon", R.mipmap.icon_wire_gold_bg, R.mipmap.icon_blank_fg, R.string.AppIconWireGoldWin),
+        GOLD_GLOW("GoldGlowIcon", R.mipmap.icon_gold_glow_bg, R.mipmap.icon_blank_fg, R.string.AppIconGoldGlow),
+        GOLD_GLOWWIN("GoldGlowWinIcon", R.mipmap.icon_gold_glow_bg, R.mipmap.icon_blank_fg, R.string.AppIconGoldGlowWin),
+        EMERALD_GLOW("EmeraldGlowIcon", R.mipmap.icon_emerald_glow_bg, R.mipmap.icon_blank_fg, R.string.AppIconEmeraldGlow),
+        EMERALD_GLOWWIN("EmeraldGlowWinIcon", R.mipmap.icon_emerald_glow_bg, R.mipmap.icon_blank_fg, R.string.AppIconEmeraldGlowWin),
+        VIOLET_GLOW("VioletGlowIcon", R.mipmap.icon_violet_glow_bg, R.mipmap.icon_blank_fg, R.string.AppIconVioletGlow),
+        VIOLET_GLOWWIN("VioletGlowWinIcon", R.mipmap.icon_violet_glow_bg, R.mipmap.icon_blank_fg, R.string.AppIconVioletGlowWin),
+        FROST_GLOW("FrostGlowIcon", R.mipmap.icon_frost_glow_bg, R.mipmap.icon_blank_fg, R.string.AppIconFrostGlow),
+        FROST_GLOWWIN("FrostGlowWinIcon", R.mipmap.icon_frost_glow_bg, R.mipmap.icon_blank_fg, R.string.AppIconFrostGlowWin),
+        SCARLET_GLOW("ScarletGlowIcon", R.mipmap.icon_scarlet_glow_bg, R.mipmap.icon_blank_fg, R.string.AppIconScarletGlow),
+        SCARLET_GLOWWIN("ScarletGlowWinIcon", R.mipmap.icon_scarlet_glow_bg, R.mipmap.icon_blank_fg, R.string.AppIconScarletGlowWin),
+        OBSIDIAN("ObsidianIcon", R.mipmap.icon_obsidian_bg, R.mipmap.icon_blank_fg, R.string.AppIconObsidian),
+        OBSIDIANWIN("ObsidianWinIcon", R.mipmap.icon_obsidian_bg, R.mipmap.icon_blank_fg, R.string.AppIconObsidianWin),
+        CLASSIC3("Classic3Icon", R.mipmap.icon_classic3_bg, R.mipmap.icon_blank_fg, R.string.AppIconClassic3),
+        CLASSIC3WIN("Classic3WinIcon", R.mipmap.icon_classic3_bg, R.mipmap.icon_blank_fg, R.string.AppIconClassic3Win);
 
         public final String key;
         public final int background;
