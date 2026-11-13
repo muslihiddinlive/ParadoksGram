@@ -46,6 +46,7 @@ public class ParadoksSettingsActivity extends BaseFragment {
     private static final int ID_LOOK = 10;
     private static final int ID_CLONES = 11;
     private static final int ID_DOWNLOADS = 12;
+    private static final int ID_STICKERS = 13;
 
     private static final class Row {
         int type;
@@ -94,6 +95,7 @@ public class ParadoksSettingsActivity extends BaseFragment {
         cell(ID_DB, "O'chirilgan media bazasi", R.drawable.msg_saved);
         cell(ID_CLONES, "Klonlangan chatlar", R.drawable.msg_clone);
         cell(ID_DOWNLOADS, "Yuklashlar", R.drawable.msg_download);
+        cell(ID_STICKERS, "Stiker paketi yaratish", R.drawable.msg_sticker);
         simple(T_SHADOW, null);
         simple(T_HEADER, "Sozlamalar");
         detail(ID_GHOST, "Ghost mode", R.drawable.msg_secret);
@@ -194,6 +196,9 @@ public class ParadoksSettingsActivity extends BaseFragment {
                     ParadoksClone.showHistory(this);
                 case ID_DOWNLOADS:
                     presentFragment(new ParadoksDownloadsActivity());
+                    break;
+                case ID_STICKERS:
+                    presentFragment(new ParadoksStickerImportActivity());
                     break;
                 case ID_GHOST:
                     presentFragment(new ParadoksSettingsPageActivity(ParadoksSettingsPageActivity.PAGE_GHOST));
