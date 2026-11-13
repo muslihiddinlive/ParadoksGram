@@ -205,6 +205,12 @@ public class ParadoksSideMenu {
         };
         arrow.setOnClickListener(v -> toggleAccounts.run());
 
+        // whole header toggles too - covers the empty strip beside the arrow that
+        // info's own bounds don't reach (night/saved/arrow still get first dibs
+        // on their own exact spot since they're drawn on top)
+        header.setClickable(true);
+        header.setOnClickListener(v -> toggleAccounts.run());
+
         LinearLayout info = new LinearLayout(context);
         info.setOrientation(LinearLayout.VERTICAL);
         info.setPadding(dp(16), AndroidUtilities.statusBarHeight + dp(16), dp(64), dp(14));
