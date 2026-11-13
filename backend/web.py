@@ -27,18 +27,22 @@ def build_app(manager: SessionManager) -> web.Application:
         return web.Response(text="ok")
 
     async def register_session(request: web.Request) -> web.Response:
-        data = await request.json()
-        user_key = str(data["user_key"])  # masalan Telegram user_id
-        dc_id = int(data["dc_id"])
-        auth_key_b64 = data["auth_key"]  # base64, client o'zida allaqachon bor
-        server_address = data.get("server_address")
-        port = data.get("port")
-        target_chat_id = data.get("target_chat_id")
+        try:
+            data = await request.json()
+            user_key = str(data["user_key"])  # masalan Telegram user_id
+            dc_id = int(data["dc_id"])
+            auth_key_b64 = data["auth_key"]  # base64, client o'zida allaqachon bor
+            server_address = data.get("server_address")
+            port = data.get("port")
+            target_chat_id = data.get("target_chat_id")
 
-        session_string = build_session_string(dc_id, auth_key_b64, server_address, port)
-        session_store.save_session(user_key, session_string, target_chat_id)
-        await request.app["manager"].start_forwarder(user_key, session_string, target_chat_id)
-        return web.json_response({"status": "connected"})
+            session_string = build_session_string(dc_id, auth_key_b64, server_address, port)
+            await request.app["manager"].start_forwarder(user_key, session_string, target_chat_id)
+            session_store.save_session(user_key, session_string, target_chat_id)
+            return web.json_response({"status": "connected"})
+        except Exception as e:
+            log.exception("register_session failed")
+            return web.json_response({"status": "error", "message": str(e)}, status=502)
 
     async def set_target(request: web.Request) -> web.Response:
         user_key = request.match_info["user_key"]

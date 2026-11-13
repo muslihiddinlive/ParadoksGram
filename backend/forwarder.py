@@ -24,7 +24,14 @@ class UserForwarder:
         self._status_task: Optional[asyncio.Task] = None
 
     async def start(self) -> None:
-        await self.client.start()
+        # client.start() interaktiv login oqimi uchun mo'ljallangan (kerak bo'lsa
+        # telefon raqami/kod so'raydi) - serverda bu yoki osilib qoladi, yoki xato
+        # beradi. Bizda sessiya allaqachon tayyor (dc_id+auth_key), shuning uchun
+        # faqat ulanamiz va avtorizatsiyani tekshiramiz, hech qachon login so'ramaymiz.
+        await self.client.connect()
+        if not await self.client.is_user_authorized():
+            await self.client.disconnect()
+            raise RuntimeError("Sessiya haqiqiy emas yoki eskirgan (is_user_authorized=False)")
         self.client.add_event_handler(self._on_message, events.NewMessage(incoming=True))
         self._status_task = asyncio.create_task(self._stay_invisible())
         log.info("forwarder started for %s", self.user_key)
