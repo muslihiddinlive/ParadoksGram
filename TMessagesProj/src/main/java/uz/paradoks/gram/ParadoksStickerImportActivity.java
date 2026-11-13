@@ -4,7 +4,6 @@ import android.content.Context;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Build;
-import android.text.TextUtils;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
@@ -32,16 +31,19 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.util.ArrayList;
+import java.util.Locale;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
 /**
- * Ommaviy stiker qo'shish: foydalanuvchi .tgs fayllardan iborat ZIP tanlaydi,
- * biz uni ochib chiqamiz va Telegram'ning haqiqiy "stiker paketi yaratish"
- * oynasini (StickersAlert) ko'rsatamiz - u yerda har bir stikerga emoji
- * tanlanadi, paket nomi kiritiladi va "Yaratish" tugmasi bosilsa,
- * stickers.createStickerSet orqali to'g'ridan-to'g'ri API chaqirilib,
- * @Stickers botiga yozishmasdan paket chop etiladi.
+ * Ommaviy stiker qo'shish: foydalanuvchi .tgs/.webp/.png/.gif/.webm fayllardan
+ * iborat ZIP tanlaydi (yoki chatdagi ZIP xabarining uch nuqta menyusidan
+ * "Stikerlar yasash"ni bosadi), biz uni ochib chiqamiz va Telegram'ning
+ * haqiqiy "stiker paketi yaratish" oynasini (StickersAlert) ko'rsatamiz -
+ * u yerda har bir stikerga emoji tanlanadi, paket nomi kiritiladi va
+ * "Yaratish" tugmasi bosilsa, stickers.createStickerSet orqali
+ * to'g'ridan-to'g'ri API chaqirilib, @Stickers botiga yozishmasdan
+ * paket chop etiladi.
  */
 public class ParadoksStickerImportActivity extends BaseFragment {
 
@@ -107,9 +109,9 @@ public class ParadoksStickerImportActivity extends BaseFragment {
             @Override
             public void onBindViewHolder(RecyclerView.ViewHolder holder, int position) {
                 if (position == 0) {
-                    ((TextCell) holder.itemView).setTextAndIcon("ZIP fayl tanlash (.tgs stikerlar)", R.drawable.msg_folders, false);
+                    ((TextCell) holder.itemView).setTextAndIcon("ZIP fayl tanlash (.tgs, .webp, .png, .gif, .webm)", R.drawable.msg_folders, false);
                 } else {
-                    ((TextInfoPrivacyCell) holder.itemView).setText("ZIP ichida .tgs (animatsion stiker) fayllar bo'lishi kerak. Ularni tanlagach, har biriga emoji belgilaysiz, paket nomini kiritasiz va \"Yaratish\"ni bosasiz - paket @Stickers botiga yozishmasdan, to'g'ridan-to'g'ri hisobingizga qo'shiladi.");
+                    ((TextInfoPrivacyCell) holder.itemView).setText("ZIP ichida stiker qilsa bo'ladigan fayllar (.tgs, .webp, .png, .gif, .webm) bo'lishi kerak. Ularni tanlagach, har biriga emoji belgilaysiz, paket nomini kiritasiz va \"Yaratish\"ni bosasiz - paket @Stickers botiga yozishmasdan, to'g'ridan-to'g'ri hisobingizga qo'shiladi. Eslatma: Telegram faqat 512x512 statik rasm yoki to'g'ri animatsion formatni qabul qiladi, mos kelmagan fayllar avtomatik o'tkazib yuboriladi.");
                 }
             }
         });
@@ -144,10 +146,22 @@ public class ParadoksStickerImportActivity extends BaseFragment {
         }
         Uri uri = data.getData();
         String name = queryDisplayName(uri);
-        if (name != null && !name.toLowerCase().endsWith(".zip")) {
+        if (name != null && !name.toLowerCase(Locale.US).endsWith(".zip")) {
             showError("Bu ZIP fayl emasga o'xshaydi: " + name);
             return;
         }
+        importZip(uri);
+    }
+
+    /** Chatdagi ZIP xabarining "..." menyusidan "Stikerlar yasash" bosilganda chaqiriladi. */
+    public static void presentAndImport(BaseFragment from, Uri zipUri) {
+        ParadoksStickerImportActivity fragment = new ParadoksStickerImportActivity();
+        from.presentFragment(fragment);
+        AndroidUtilities.runOnUIThread(() -> fragment.importZip(zipUri), 300);
+    }
+
+    /** Called both from the picker above and from the chat message's "..." menu on an existing ZIP file. */
+    public void importZip(Uri zipUri) {
         loading = true;
         showProgress("ZIP ochilmoqda...");
         Utilities.globalQueue.postRunnable(() -> {
@@ -155,16 +169,17 @@ public class ParadoksStickerImportActivity extends BaseFragment {
             int skipped = 0;
             File outDir = new File(ApplicationLoader.applicationContext.getCacheDir(), "sticker_import_" + System.currentTimeMillis());
             outDir.mkdirs();
-            try (InputStream in = ApplicationLoader.applicationContext.getContentResolver().openInputStream(uri);
+            try (InputStream in = ApplicationLoader.applicationContext.getContentResolver().openInputStream(zipUri);
                  ZipInputStream zis = new ZipInputStream(in)) {
                 ZipEntry entry;
                 int index = 0;
                 while ((entry = zis.getNextEntry()) != null && extracted.size() < 120) {
                     String entryName = entry.getName();
-                    if (entry.isDirectory() || entryName == null || !entryName.toLowerCase().endsWith(".tgs")) {
+                    String ext = extensionOf(entryName);
+                    if (entry.isDirectory() || ext == null) {
                         continue;
                     }
-                    File out = new File(outDir, "sticker_" + (index++) + ".tgs");
+                    File out = new File(outDir, "sticker_" + (index++) + "." + ext);
                     long written = 0;
                     try (FileOutputStream fos = new FileOutputStream(out)) {
                         byte[] buffer = new byte[8192];
@@ -174,9 +189,11 @@ public class ParadoksStickerImportActivity extends BaseFragment {
                             written += len;
                         }
                     }
-                    // Telegram animatsion stikerlar uchun joriy limit ~64KB atrofida;
-                    // bo'sh yoki haddan katta fayllarni o'tkazib yuboramiz, qolganlari davom etadi.
-                    if (written <= 0 || written > 64 * 1024) {
+                    // .tgs uchun Telegram'ning animatsion stiker hajm limiti ~64KB atrofida,
+                    // statik/video formatlar uchun kattaroq limit qo'yamiz; bo'sh yoki haddan
+                    // katta fayllarni o'tkazib yuboramiz, qolganlari bilan davom etamiz.
+                    long maxSize = "tgs".equals(ext) ? 64 * 1024 : 512 * 1024;
+                    if (written <= 0 || written > maxSize) {
                         out.delete();
                         skipped++;
                     } else {
@@ -198,7 +215,7 @@ public class ParadoksStickerImportActivity extends BaseFragment {
                 hideProgress();
                 loading = false;
                 if (extracted.isEmpty()) {
-                    showError("ZIP ichidan to'g'ri .tgs fayl topilmadi" + (finalSkipped > 0 ? " (" + finalSkipped + " ta fayl hajmi noto'g'ri bo'lgani uchun o'tkazib yuborildi)" : "") + ".");
+                    showError("ZIP ichidan stiker qilsa bo'ladigan fayl topilmadi" + (finalSkipped > 0 ? " (" + finalSkipped + " ta fayl hajmi/formati noto'g'ri bo'lgani uchun o'tkazib yuborildi)" : "") + ".");
                     return;
                 }
                 ArrayList<android.os.Parcelable> uris = new ArrayList<>();
@@ -206,7 +223,7 @@ public class ParadoksStickerImportActivity extends BaseFragment {
                     uris.add(Uri.fromFile(f));
                 }
                 if (finalSkipped > 0) {
-                    showError(finalSkipped + " ta fayl o'tkazib yuborildi (hajmi noto'g'ri), qolgan " + extracted.size() + " ta bilan davom etamiz.");
+                    showError(finalSkipped + " ta fayl o'tkazib yuborildi (hajmi/formati mos emas), qolgan " + extracted.size() + " ta bilan davom etamiz.");
                 }
                 if (getParentActivity() == null) {
                     return;
@@ -216,11 +233,52 @@ public class ParadoksStickerImportActivity extends BaseFragment {
         });
     }
 
+    /** Qo'llab-quvvatlanadigan kengaytmalardan biri bo'lsa, o'shani qaytaradi; bo'lmasa null. */
+    @Nullable
+    private static String extensionOf(@Nullable String entryName) {
+        if (entryName == null) {
+            return null;
+        }
+        String lower = entryName.toLowerCase(Locale.US);
+        if (lower.endsWith(".tgs")) return "tgs";
+        if (lower.endsWith(".webp")) return "webp";
+        if (lower.endsWith(".png")) return "png";
+        if (lower.endsWith(".jpg") || lower.endsWith(".jpeg")) return "jpg";
+        if (lower.endsWith(".gif")) return "gif";
+        if (lower.endsWith(".webm")) return "webm";
+        return null;
+    }
+
+    /**
+     * Xabar menyusi uchun tezkor tekshiruv: ZIP ichida stiker qilsa bo'ladigan kamida
+     * bitta fayl bormi. Faqat nom/kengaytmaga qaraydi, hech narsani ochib yozmaydi -
+     * shuning uchun tez va menyu qurilayotganda chaqirsa bo'ladi.
+     */
+    public static boolean looksLikeStickerZip(@Nullable File zipFile) {
+        if (zipFile == null || !zipFile.exists() || !zipFile.getName().toLowerCase(Locale.US).endsWith(".zip")) {
+            return false;
+        }
+        try (InputStream in = new java.io.FileInputStream(zipFile);
+             ZipInputStream zis = new ZipInputStream(in)) {
+            ZipEntry entry;
+            int checked = 0;
+            while ((entry = zis.getNextEntry()) != null && checked < 500) {
+                checked++;
+                if (!entry.isDirectory() && extensionOf(entry.getName()) != null) {
+                    return true;
+                }
+                zis.closeEntry();
+            }
+        } catch (Exception e) {
+            FileLog.e(e);
+        }
+        return false;
+    }
+
     @Nullable
     private String queryDisplayName(Uri uri) {
         try {
-            String path = uri.getLastPathSegment();
-            return path;
+            return uri.getLastPathSegment();
         } catch (Exception e) {
             return null;
         }
