@@ -192,15 +192,25 @@ public class ParadoksSideMenu {
         FrameLayout header = new FrameLayout(context);
         header.setBackgroundColor(Theme.getColor(Theme.key_avatar_backgroundActionBarBlue));
 
+        // expand / collapse the account list - shared by the arrow and by tapping the info block
+        final TextView arrow = new TextView(context);
+        arrow.setGravity(Gravity.CENTER);
+        arrow.setText("▾");
+        arrow.setTextColor(Color.WHITE);
+        arrow.setTextSize(TypedValue.COMPLEX_UNIT_SP, 22);
+        final Runnable toggleAccounts = () -> {
+            boolean show = accountsBox.getVisibility() != View.VISIBLE;
+            accountsBox.setVisibility(show ? View.VISIBLE : View.GONE);
+            arrow.setText(show ? "▴" : "▾");
+        };
+        arrow.setOnClickListener(v -> toggleAccounts.run());
+
         LinearLayout info = new LinearLayout(context);
         info.setOrientation(LinearLayout.VERTICAL);
         info.setPadding(dp(16), AndroidUtilities.statusBarHeight + dp(16), dp(64), dp(14));
         info.setClickable(true);
         info.setBackground(Theme.createSelectorDrawable(0x33ffffff, 2));
-        info.setOnClickListener(v -> {
-            boolean show = accountsBox.getVisibility() != View.VISIBLE;
-            accountsBox.setVisibility(show ? View.VISIBLE : View.GONE);
-        });
+        info.setOnClickListener(v -> toggleAccounts.run());
         header.addView(info, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
         TLRPC.User user = UserConfig.getInstance(account).getCurrentUser();
@@ -255,6 +265,9 @@ public class ParadoksSideMenu {
         FrameLayout.LayoutParams savedParams = new FrameLayout.LayoutParams(dp(48), dp(48), Gravity.END | Gravity.TOP);
         savedParams.topMargin = AndroidUtilities.statusBarHeight + dp(56);
         header.addView(saved, savedParams);
+
+        FrameLayout.LayoutParams arrowParams = new FrameLayout.LayoutParams(dp(48), dp(48), Gravity.END | Gravity.BOTTOM);
+        header.addView(arrow, arrowParams);
 
         return header;
     }
