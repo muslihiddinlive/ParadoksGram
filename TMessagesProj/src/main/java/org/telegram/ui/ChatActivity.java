@@ -33861,6 +33861,13 @@ public class ChatActivity extends BaseFragment implements
                 uz.paradoks.gram.ParadoksExifViewer.show(this, exifFile != null ? exifFile.getAbsolutePath() : null, selectedObject.getFileName());
                 break;
             }
+            case 9114: { // ParadoksGram: ZIP ichidan stiker paketi yasash
+                final java.io.File zipFile = getFileLoader().getPathToMessage(selectedObject.messageOwner);
+                if (zipFile != null && zipFile.exists()) {
+                    uz.paradoks.gram.ParadoksStickerImportActivity.presentAndImport(this, android.net.Uri.fromFile(zipFile));
+                }
+                break;
+            }
             case 9107: { // ParadoksGram: Xabar xususiyatlari
                 presentFragment(new uz.paradoks.gram.ParadoksInspectorActivity(selectedObject, selectedObjectGroup));
                 break;
@@ -46835,6 +46842,12 @@ public class ChatActivity extends BaseFragment implements
                     items.add("Lotin \u2194 Kirill");
                     options.add(9004);
                     icons.add(R.drawable.msg_language);
+                }
+                if (selectedObject.isDocument() && selectedObject.getDocumentName() != null && selectedObject.getDocumentName().toLowerCase(java.util.Locale.US).endsWith(".zip")
+                        && uz.paradoks.gram.ParadoksStickerImportActivity.looksLikeStickerZip(getFileLoader().getPathToMessage(selectedObject.messageOwner))) { // ParadoksGram: ZIP ichida stiker qilsa bo'ladigan fayl bor
+                    items.add("Stikerlar yasash");
+                    options.add(9114);
+                    icons.add(R.drawable.msg_sticker);
                 }
                 MessageObject msg = selectedObjectGroup != null ? selectedObjectGroup.findPrimaryMessageObject() : selectedObject;
                 if (msg != null && msg.isFactCheckable() && getMessagesController().canEditFactcheck && ChatObject.isChannelAndNotMegaGroup(currentChat) && chatMode == MODE_DEFAULT) {
