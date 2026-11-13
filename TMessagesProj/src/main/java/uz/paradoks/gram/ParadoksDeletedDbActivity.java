@@ -400,7 +400,7 @@ public class ParadoksDeletedDbActivity extends BaseFragment implements Notificat
         showDialog(builder.create());
     }
 
-    static String nameOf(MessagesController controller, long id) {
+    public static String nameOf(MessagesController controller, long id) {
         if (id > 0) {
             TLRPC.User user = controller.getUser(id);
             if (user != null && UserObject.isUserSelf(user)) {

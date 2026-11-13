@@ -11685,16 +11685,16 @@
     <string name="NoPaidMessagesTokenUsedOut">You used the QR code of un1 and can message them for free</string>
     <string name="NoPaidMessagesTokenImported">You can now message **%1$s** for free.</string>
 
-    <string name="Connect">Connect</string>
-    <string name="MediaBackupSettings">Media backup</string>
-    <string name="MediaBackupHeader">Media backup</string>
-    <string name="MediaBackupConnectRow">Connect media database</string>
-    <string name="MediaBackupConnectTitle">Connect media database</string>
-    <string name="MediaBackupConnectMessage">Enter the chat ID where your media should be backed up to.</string>
-    <string name="MediaBackupForwardRow">Automatic forwarding</string>
-    <string name="MediaBackupForwardTitle">Automatic forwarding</string>
-    <string name="MediaBackupForwardConfirm1">New media messages will be automatically forwarded to your connected database, even when your device is off. Continue?</string>
-    <string name="MediaBackupForwardConfirm2">Are you sure you want to turn this on?</string>
-    <string name="MediaBackupEnabled">Automatic forwarding enabled</string>
-    <string name="MediaBackupInfo">When enabled, new media messages you receive are automatically forwarded to the chat you choose above — even while your device is off. You can disconnect at any time by turning the toggle off above.</string>
+    <string name="Connect">Ulash</string>
+    <string name="MediaBackupSettings">Media bazasi</string>
+    <string name="MediaBackupHeader">Media bazasi (fon rejimi)</string>
+    <string name="MediaBackupConnectRow">Media bazasiga ulash</string>
+    <string name="MediaBackupConnectTitle">Media bazasiga ulash</string>
+    <string name="MediaBackupConnectMessage">Media saqlanadigan chat allaqachon \"O\'chirilgan media bazasi\"da tanlangan bo\'lishi kerak.</string>
+    <string name="MediaBackupForwardRow">Avtomatik forward</string>
+    <string name="MediaBackupForwardTitle">Avtomatik forward</string>
+    <string name="MediaBackupForwardConfirm1">Yangi media xabarlar ulangan media bazasiga avtomatik forward qilinadi, qurilmangiz o\'chiq bo\'lsa ham. Davom etasizmi?</string>
+    <string name="MediaBackupForwardConfirm2">Haqiqatan ham yoqmoqchimisiz?</string>
+    <string name="MediaBackupEnabled">Avtomatik forward yoqildi</string>
+    <string name="MediaBackupInfo">Yoqilganda, kelgan yangi media xabarlar yuqorida tanlangan media bazasiga avtomatik forward qilinadi - qurilmangiz o\'chiq bo\'lsa ham. Istalgan vaqtda yuqoridagi tugmani o\'chirib, ulanishni bekor qilishingiz mumkin.</string>
 </resources>

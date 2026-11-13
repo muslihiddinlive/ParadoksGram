@@ -1,11 +1,8 @@
 package org.telegram.ui;
 
 import android.content.Context;
-import android.text.InputType;
-import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.EditText;
 import android.widget.FrameLayout;
 import android.widget.Toast;
 
@@ -96,7 +93,9 @@ public class MediaBackupSettingsActivity extends BaseFragment {
         }
     }
 
-    // "Media bazasini ulash" - yoqilganda avval manzil (target chat id) so'raladi
+    // "Media bazasini ulash" - alohida manzil so'ralmaydi, Sozlamalar -> ParadoksGram ->
+    // "O'chirilgan media bazasi"da allaqachon tanlangan maqsad (ParadoksConfig.dbTarget)
+    // to'g'ridan-to'g'ri ishlatiladi.
     private void onConnectToggleClicked() {
         boolean enabled = MediaBackupController.getInstance().isEnabled();
         if (enabled) {
@@ -113,36 +112,24 @@ public class MediaBackupSettingsActivity extends BaseFragment {
             });
             return;
         }
-        askTargetChatId();
+        long target = uz.paradoks.gram.ParadoksConfig.dbTarget(currentAccount);
+        if (target == 0) {
+            showError("Avval \"Media bazasi\"ni tanlang: Sozlamalar → ParadoksGram → \"O'chirilgan media bazasi\".");
+            return;
+        }
+        confirmConnect(target);
     }
 
-    private void askTargetChatId() {
+    private void confirmConnect(long targetChatId) {
         Context context = getParentActivity();
         if (context == null) {
             return;
         }
-        EditText editText = new EditText(context);
-        editText.setInputType(InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_FLAG_SIGNED);
-        editText.setHint("-100...");
-        FrameLayout container = new FrameLayout(context);
-        container.addView(editText, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, Gravity.CENTER, 24, 8, 24, 8));
-
+        String name = uz.paradoks.gram.ParadoksDeletedDbActivity.nameOf(getMessagesController(), targetChatId);
         AlertDialog.Builder builder = new AlertDialog.Builder(context);
         builder.setTitle(LocaleController.getString("MediaBackupConnectTitle", R.string.MediaBackupConnectTitle));
-        builder.setMessage(LocaleController.getString("MediaBackupConnectMessage", R.string.MediaBackupConnectMessage));
-        builder.setView(container);
+        builder.setMessage("Media bazasi sifatida allaqachon tanlangan \"" + name + "\" ishlatiladi. Ulansinmi?");
         builder.setPositiveButton(LocaleController.getString("Connect", R.string.Connect), (dialog, which) -> {
-            String text = editText.getText().toString().trim();
-            if (text.isEmpty()) {
-                return;
-            }
-            long targetChatId;
-            try {
-                targetChatId = Long.parseLong(text);
-            } catch (NumberFormatException e) {
-                showError("Chat ID noto'g'ri");
-                return;
-            }
             MediaBackupController.getInstance().enable(currentAccount, targetChatId, new MediaBackupController.Callback() {
                 @Override
                 public void onSuccess() {
