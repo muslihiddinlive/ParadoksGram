@@ -36,6 +36,9 @@ public final class ParadoksMusicVideo {
 
     public static final int WIDTH = 1024, HEIGHT = 576, FPS = 30;
 
+    /** Timing summary of the last GPU-path export (for the user and for tuning); null if not available. */
+    public static volatile String lastStats;
+
     private ParadoksMusicVideo() {
     }
 
@@ -149,6 +152,8 @@ public final class ParadoksMusicVideo {
         volatile boolean initOk;
         volatile boolean stop;
         volatile Throwable error;
+        volatile long drawNs, uploadNs, drainNs, idleNs;
+        volatile int frames;
 
         VideoWorker(MediaCodec venc, Surface surface, Writer writer, ParadoksVizRenderer.Settings settings, int rate) {
             super("ParadoksMusicVideoGL");
@@ -199,7 +204,9 @@ public final class ParadoksMusicVideo {
                 final int uTex = GLES20.glGetUniformLocation(program, "uTex");
 
                 while (!stop) {
+                    long tIdle = System.nanoTime();
                     Job job = queue.poll(50, TimeUnit.MILLISECONDS);
+                    idleNs += System.nanoTime() - tIdle;
                     if (job == null) {
                         drain(venc, info, writer, false, false);
                         continue;
@@ -207,7 +214,10 @@ public final class ParadoksMusicVideo {
                     if (job == END) break;
                     System.arraycopy(job.db, 0, sp.db, 0, sp.db.length);
                     System.arraycopy(job.wave, 0, sp.wave, 0, sp.wave.length);
+                    long t1 = System.nanoTime();
                     renderer.draw(canvas, WIDTH, HEIGHT, dpr, sp, rate, true, job.index * 1000L / FPS);
+                    long t2 = System.nanoTime();
+                    drawNs += t2 - t1;
 
                     GLES20.glUseProgram(program);
                     GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, tex[0]);
@@ -222,7 +232,11 @@ public final class ParadoksMusicVideo {
                     GLES20.glDrawArrays(GLES20.GL_TRIANGLE_STRIP, 0, 4);
                     input.setPresentationTime(job.index * 1_000_000_000L / FPS);
                     input.swapBuffers();
+                    long t3 = System.nanoTime();
+                    uploadNs += t3 - t2;
                     drain(venc, info, writer, false, false);
+                    drainNs += System.nanoTime() - t3;
+                    frames++;
                 }
                 if (!stop) {
                     venc.signalEndOfInputStream();
@@ -324,6 +338,8 @@ public final class ParadoksMusicVideo {
             boolean sourceDone = false;
             long audioFramesSent = 0;
             long frameIndex = 0;
+            long blockedNs = 0;
+            final long startNs = System.nanoTime();
             final double total = pcm.frames;
             boolean cancelled = false;
 
@@ -368,6 +384,7 @@ public final class ParadoksMusicVideo {
                 System.arraycopy(r, n - copy, winR, win - copy, copy);
                 spectrum.analyze(winL, winR, win);
                 Job job = new Job(frameIndex, spectrum.db.clone(), spectrum.wave.clone());
+                long tBlock = System.nanoTime();
                 while (!worker.queue.offer(job, 50, TimeUnit.MILLISECONDS)) {
                     if ((cancel != null && cancel.isCancelled()) || worker.error != null || !worker.isAlive()) {
                         cancelled = true;
@@ -375,6 +392,7 @@ public final class ParadoksMusicVideo {
                     }
                     drain(aenc, ainfo, writer, false, true);
                 }
+                blockedNs += System.nanoTime() - tBlock;
                 if (cancelled) break;
 
                 drain(aenc, ainfo, writer, false, true);
@@ -410,6 +428,17 @@ public final class ParadoksMusicVideo {
             worker.join();
             if (worker.error != null) {
                 throw new IOException(String.valueOf(worker.error.getMessage()), worker.error);
+            }
+            {
+                final double total = (System.nanoTime() - startNs) / 1e9;
+                final int fr = Math.max(1, worker.frames);
+                final double draw = worker.drawNs / 1e6 / fr, up = worker.uploadNs / 1e6 / fr, enc = worker.drainNs / 1e6 / fr;
+                final int audioWait = (int) Math.round(100.0 * blockedNs / 1e9 / Math.max(0.001, total));
+                final int videoWait = (int) Math.round(100.0 * worker.idleNs / 1e9 / Math.max(0.001, total));
+                String bottleneck = audioWait > 40 ? "video chizish" : videoWait > 40 ? "audio/spektr" : "ikkalasi teng";
+                lastStats = String.format(java.util.Locale.US,
+                        "%d kadr, %.0f s | chizish %.1f ms, GPU %.1f ms, kodlash %.1f ms (kadr boshiga) | kutish: audio %d%%, video %d%% | sekinroq: %s",
+                        worker.frames, total, draw, up, enc, audioWait, videoWait, bottleneck);
             }
             ok = true;
             return true;

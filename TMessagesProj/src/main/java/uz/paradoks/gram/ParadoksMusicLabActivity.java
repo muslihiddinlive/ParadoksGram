@@ -2540,7 +2540,8 @@ public class ParadoksMusicLabActivity extends BaseFragment {
         if (getParentActivity() == null) return;
         MediaController.saveFile(file.getAbsolutePath(), getParentActivity(), type, file.getName(), mime, uri -> {
             lastSavedUri = uri;
-            exportFinished("Tayyor! " + (type == 1 ? "Movies/Telegram" : "Music/Telegram") + " papkasiga va Saved Messages'ga saqlandi");
+            exportFinished("Tayyor! " + (type == 1 ? "Movies/Telegram" : "Music/Telegram") + " papkasiga va Saved Messages'ga saqlandi"
+                    + (type == 1 && ParadoksMusicVideo.lastStats != null ? "\n" + ParadoksMusicVideo.lastStats : ""));
             flash("Saqlandi ✅");
             sendToSavedMessages(file, type, mime);
             if (shareButton != null) {
