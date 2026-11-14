@@ -147,7 +147,8 @@ public final class ParadoksMusicDsp {
                         moved = true;
                     }
                 }
-                int outIndex = codec.dequeueOutputBuffer(info, 10_000);
+                // just fed input: do not block on the output, keep the codec busy
+                int outIndex = codec.dequeueOutputBuffer(info, moved ? 0 : 10_000);
                 if (outIndex == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
                     MediaFormat nf = codec.getOutputFormat();
                     if (nf.containsKey(MediaFormat.KEY_SAMPLE_RATE)) {
@@ -182,7 +183,10 @@ public final class ParadoksMusicDsp {
                             }
                         }
                         n = Math.min(n, (out.length / 2) - frames);
-                        for (int i = 0; i < n; i++) {
+                        if (!floatPcm && ch == 2) {
+                            // bulk copy of interleaved 16-bit stereo
+                            buf.asShortBuffer().get(out, frames * 2, n * 2);
+                        } else for (int i = 0; i < n; i++) {
                             short l, r;
                             if (floatPcm) {
                                 l = floatToShort(buf.getFloat());

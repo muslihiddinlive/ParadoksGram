@@ -613,6 +613,9 @@ public final class ParadoksMusicVideo {
         return sent;
     }
 
+    // Row buffers are reused: one bulk put per plane row is far cheaper than ~600k absolute puts per frame.
+    private static final byte[] Y_ROW = new byte[WIDTH], U_ROW = new byte[WIDTH / 2], V_ROW = new byte[WIDTH / 2];
+
     private static void feedVideo(MediaCodec venc, MediaCodec.BufferInfo info, Writer writer, int[] argb, long ptsUs) {
         int idx;
         while ((idx = venc.dequeueInputBuffer(10_000)) < 0) {
@@ -624,17 +627,40 @@ public final class ParadoksMusicVideo {
         final int ys = planes[0].getRowStride(), yp = planes[0].getPixelStride();
         final int us = planes[1].getRowStride(), up = planes[1].getPixelStride();
         final int vs = planes[2].getRowStride(), vp = planes[2].getPixelStride();
+        final byte[] yRow = Y_ROW, uRow = U_ROW, vRow = V_ROW;
+        final int half = WIDTH / 2;
         for (int y = 0; y < HEIGHT; y++) {
             int row = y * WIDTH;
             boolean chroma = (y & 1) == 0;
             for (int x = 0; x < WIDTH; x++) {
                 int c = argb[row + x];
                 int R = (c >> 16) & 0xFF, G = (c >> 8) & 0xFF, B = c & 0xFF;
-                yb.put(y * ys + x * yp, (byte) (((66 * R + 129 * G + 25 * B + 128) >> 8) + 16));
+                yRow[x] = (byte) (((66 * R + 129 * G + 25 * B + 128) >> 8) + 16);
                 if (chroma && (x & 1) == 0) {
-                    int cx = x >> 1, cy = y >> 1;
-                    ub.put(cy * us + cx * up, (byte) (((-38 * R - 74 * G + 112 * B + 128) >> 8) + 128));
-                    vb.put(cy * vs + cx * vp, (byte) (((112 * R - 94 * G - 18 * B + 128) >> 8) + 128));
+                    int cx = x >> 1;
+                    uRow[cx] = (byte) (((-38 * R - 74 * G + 112 * B + 128) >> 8) + 128);
+                    vRow[cx] = (byte) (((112 * R - 94 * G - 18 * B + 128) >> 8) + 128);
+                }
+            }
+            if (yp == 1) {
+                yb.position(y * ys);
+                yb.put(yRow, 0, WIDTH);
+            } else {
+                for (int x = 0; x < WIDTH; x++) yb.put(y * ys + x * yp, yRow[x]);
+            }
+            if (chroma) {
+                int cy = y >> 1;
+                if (up == 1) {
+                    ub.position(cy * us);
+                    ub.put(uRow, 0, half);
+                } else {
+                    for (int cx = 0; cx < half; cx++) ub.put(cy * us + cx * up, uRow[cx]);
+                }
+                if (vp == 1) {
+                    vb.position(cy * vs);
+                    vb.put(vRow, 0, half);
+                } else {
+                    for (int cx = 0; cx < half; cx++) vb.put(cy * vs + cx * vp, vRow[cx]);
                 }
             }
         }
