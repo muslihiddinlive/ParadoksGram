@@ -1,0 +1,78 @@
+run: 43544389874  sha: 5437afeff394c3abaaa2dd86641b76f26b68e3da
+2999:* What went wrong:
+3000-Execution failed for task ':TMessagesProj:compileReleaseJavaWithJavac'.
+3001-> Compilation failed; see the compiler output below.
+3002-  /home/runner/work/ParadoksGram/ParadoksGram/TMessagesProj/src/main/java/uz/paradoks/gram/ParadoksMusicVideo.java:433: error: variable total is already defined in method renderGpu(Pcm,Params,Settings,File,Progress,Cancel)
+3003-                  final double total = (System.nanoTime() - startNs) / 1e9;
+3004-                               ^
+3005-  Note: Some input files use or override a deprecated API.
+3006-  Note: Recompile with -Xlint:deprecation for details.
+3007-  Note: Some input files use unchecked or unsafe operations.
+3008-  Note: Recompile with -Xlint:unchecked for details.
+3009-  1 error
+3010-
+3011-* Try:
+2982:/home/runner/work/ParadoksGram/ParadoksGram/TMessagesProj/src/main/java/uz/paradoks/gram/ParadoksMusicVideo.java:433: error: variable total is already defined in method renderGpu(Pcm,Params,Settings,File,Progress,Cancel)
+3002:  /home/runner/work/ParadoksGram/ParadoksGram/TMessagesProj/src/main/java/uz/paradoks/gram/ParadoksMusicVideo.java:433: error: variable total is already defined in method renderGpu(Pcm,Params,Settings,File,Progress,Cancel)
+3018:/home/runner/work/ParadoksGram/ParadoksGram/TMessagesProj/src/main/java/uz/paradoks/gram/ParadoksMusicVideo.java:433: error: variable total is already defined in method renderGpu(Pcm,Params,Settings,File,Progress,Cancel)
+=== tail of cleaned log ===
+Size: 93932 bytes
+
+> Task :TMessagesProj_App:mergeAfatReleaseAssets
+> Task :TMessagesProj_App:compressAfatReleaseAssets
+
+> Task :TMessagesProj:compileReleaseJavaWithJavac
+/home/runner/work/ParadoksGram/ParadoksGram/TMessagesProj/src/main/java/uz/paradoks/gram/ParadoksMusicVideo.java:433: error: variable total is already defined in method renderGpu(Pcm,Params,Settings,File,Progress,Cancel)
+                final double total = (System.nanoTime() - startNs) / 1e9;
+                             ^
+Note: Some input files use or override a deprecated API.
+Note: Recompile with -Xlint:deprecation for details.
+Note: Some input files use unchecked or unsafe operations.
+Note: Recompile with -Xlint:unchecked for details.
+
+> Task :TMessagesProj_App:mergeAfatReleaseNativeDebugMetadata
+
+> Task :TMessagesProj:compileReleaseJavaWithJavac FAILED
+1 error
+
+[Incubating] Problems report is available at: file:///home/runner/work/ParadoksGram/ParadoksGram/build/reports/problems/problems-report.html
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':TMessagesProj:compileReleaseJavaWithJavac'.
+> Compilation failed; see the compiler output below.
+  /home/runner/work/ParadoksGram/ParadoksGram/TMessagesProj/src/main/java/uz/paradoks/gram/ParadoksMusicVideo.java:433: error: variable total is already defined in method renderGpu(Pcm,Params,Settings,File,Progress,Cancel)
+                  final double total = (System.nanoTime() - startNs) / 1e9;
+                               ^
+  Note: Some input files use or override a deprecated API.
+  Note: Recompile with -Xlint:deprecation for details.
+  Note: Some input files use unchecked or unsafe operations.
+  Note: Recompile with -Xlint:unchecked for details.
+  1 error
+
+* Try:
+> Check your code and dependencies to fix the compilation error(s)
+> Run with --scan to get full insights.
+
+* Exception is:
+org.gradle.api.tasks.TaskExecutionException: Execution failed for task ':TMessagesProj:compileReleaseJavaWithJavac'.
+Caused by: org.gradle.api.internal.tasks.compile.CompilationFailedException: Compilation failed; see the compiler output below.
+/home/runner/work/ParadoksGram/ParadoksGram/TMessagesProj/src/main/java/uz/paradoks/gram/ParadoksMusicVideo.java:433: error: variable total is already defined in method renderGpu(Pcm,Params,Settings,File,Progress,Cancel)
+                final double total = (System.nanoTime() - startNs) / 1e9;
+                             ^
+Note: Some input files use or override a deprecated API.
+Note: Recompile with -Xlint:deprecation for details.
+Note: Some input files use unchecked or unsafe operations.
+Note: Recompile with -Xlint:unchecked for details.
+1 error
+
+
+Deprecated Gradle features were used in this build, making it incompatible with Gradle 9.0.
+
+You can use '--warning-mode all' to show the individual deprecation warnings and determine if they come from your own scripts or plugins.
+
+For more on this, please refer to https://docs.gradle.org/8.13/userguide/command_line_interface.html#sec:command_line_warnings in the Gradle documentation.
+
+BUILD FAILED in 4m 33s
+326 actionable tasks: 326 executed
