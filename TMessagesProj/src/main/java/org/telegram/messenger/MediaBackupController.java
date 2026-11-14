@@ -88,15 +88,15 @@ public class MediaBackupController {
                 body.put("port", port);
                 body.put("target_chat_id", targetChatId);
 
-                int code = postJson("/sessions/register", body);
-                if (code == 200) {
+                Response response = postJson("/sessions/register", body);
+                if (response.code == 200) {
                     SharedPreferences.Editor editor = prefs().edit();
                     editor.putBoolean(KEY_ENABLED, true);
                     editor.putLong(KEY_TARGET_CHAT_ID, targetChatId);
                     editor.apply();
                     notifyResult(callback, null);
                 } else {
-                    notifyResult(callback, "Backend xato qaytardi (kod: " + code + ")");
+                    notifyResult(callback, extractMessage(response.body, response.code));
                 }
             } catch (Exception e) {
                 FileLog.e(e);
@@ -109,14 +109,14 @@ public class MediaBackupController {
         long userId = UserConfig.getInstance(currentAccount).getClientUserId();
         Utilities.globalQueue.postRunnable(() -> {
             try {
-                int code = postJson("/sessions/" + userId + "/disconnect", new JSONObject());
-                if (code == 200) {
+                Response response = postJson("/sessions/" + userId + "/disconnect", new JSONObject());
+                if (response.code == 200) {
                     SharedPreferences.Editor editor = prefs().edit();
                     editor.putBoolean(KEY_ENABLED, false);
                     editor.apply();
                     notifyResult(callback, null);
                 } else {
-                    notifyResult(callback, "Backend xato qaytardi (kod: " + code + ")");
+                    notifyResult(callback, extractMessage(response.body, response.code));
                 }
             } catch (Exception e) {
                 FileLog.e(e);
@@ -138,7 +138,17 @@ public class MediaBackupController {
         });
     }
 
-    private int postJson(String path, JSONObject body) throws Exception {
+    private static final class Response {
+        final int code;
+        final String body;
+
+        Response(int code, String body) {
+            this.code = code;
+            this.body = body;
+        }
+    }
+
+    private Response postJson(String path, JSONObject body) throws Exception {
         URL url = new URL(BACKEND_URL + path);
         HttpURLConnection connection = (HttpURLConnection) url.openConnection();
         try {
@@ -152,9 +162,49 @@ public class MediaBackupController {
             try (OutputStream os = connection.getOutputStream()) {
                 os.write(data);
             }
-            return connection.getResponseCode();
+            int code = connection.getResponseCode();
+            java.io.InputStream stream = code >= 400 ? connection.getErrorStream() : connection.getInputStream();
+            String text = readStream(stream);
+            return new Response(code, text);
         } finally {
             connection.disconnect();
         }
+    }
+
+    private static String readStream(java.io.InputStream stream) {
+        if (stream == null) {
+            return "";
+        }
+        try {
+            java.io.ByteArrayOutputStream out = new java.io.ByteArrayOutputStream();
+            byte[] buffer = new byte[1024];
+            int len;
+            while ((len = stream.read(buffer)) != -1) {
+                out.write(buffer, 0, len);
+            }
+            return out.toString("UTF-8");
+        } catch (Exception e) {
+            return "";
+        } finally {
+            try {
+                stream.close();
+            } catch (Exception ignore) {
+            }
+        }
+    }
+
+    /** Backend javobidagi {"message": "..."} qiymatini, bo'lmasa xom matnni qaytaradi. */
+    private static String extractMessage(String body, int code) {
+        if (body != null && !body.isEmpty()) {
+            try {
+                String msg = new JSONObject(body).optString("message", null);
+                if (msg != null && !msg.isEmpty()) {
+                    return msg;
+                }
+            } catch (Exception ignore) {
+            }
+            return body;
+        }
+        return "Backend xato qaytardi (kod: " + code + ")";
     }
 }
