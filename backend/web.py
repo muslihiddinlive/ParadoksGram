@@ -1,10 +1,18 @@
 """ParadoksGram ilovasi shu API orqali foydalanuvchining media-backup
 toggle'ini boshqaradi.
 
-Oqim: foydalanuvchi ilovada allaqachon login qilgan -> sozlamalardan
-"media bazasi"ni yoqadi -> ilova O'ZINING mavjud sessiyasidan
-(dc_id + auth_key) /sessions/register'ga bir marta yuboradi. Qayta
-login, SMS kod yoki boshqa narsa talab qilinmaydi.
+XAVFSIZ OQIM (QR-login, qr_login.py'ga qarang): foydalanuvchi "Media
+bazasiga ulash"ni bosadi -> /sessions/qr/start backend uchun mustaqil
+QR-login tokeni yaratadi -> ilova O'ZINING mavjud sessiyasi orqali
+auth.acceptLoginToken bilan shu tokenni tasdiqlaydi (Telegramning rasmiy
+"boshqa qurilmani ulash" mexanizmi) -> /sessions/qr/finish shu
+tasdiqlanishni kutib, natijani saqlaydi. Ilovaning jonli auth_key'i
+hech qachon backend'ga yuborilmaydi.
+
+/sessions/register - ESKI, XAVFSIZ BO'LMAGAN usul (jonli auth_key'ni
+to'g'ridan-to'g'ri nusxalash). Bu real foydalanishda Telegram'ning
+seans-o'g'irlash tekshiruvini ishga tushirib, foydalanuvchi sessiyasini
+bekor qilib qo'yganini aniqladik, shuning uchun doimiy o'chirilgan.
 """
 
 import logging
@@ -12,6 +20,7 @@ import logging
 from aiohttp import web
 
 import config
+import qr_login
 import session_store
 from manager import SessionManager
 from telethon_session import build_session_string
@@ -54,6 +63,40 @@ def build_app(manager: SessionManager) -> web.Application:
             log.exception("register_session failed")
             return web.json_response({"status": "error", "message": str(e)}, status=502)
 
+    async def qr_start(request: web.Request) -> web.Response:
+        try:
+            data = await request.json()
+            user_key = str(data["user_key"])
+            target_chat_id = data.get("target_chat_id")
+            result = await qr_login.start(user_key, target_chat_id)
+            return web.json_response(result)
+        except Exception as e:
+            log.exception("qr_start failed")
+            return web.json_response({"status": "error", "message": str(e)}, status=502)
+
+    async def qr_finish(request: web.Request) -> web.Response:
+        try:
+            data = await request.json()
+            user_key = str(data["user_key"])
+            result = await qr_login.finish(user_key, request.app["manager"])
+            status_code = 200 if result.get("status") in ("connected", "password_required") else 502
+            return web.json_response(result, status=status_code)
+        except Exception as e:
+            log.exception("qr_finish failed")
+            return web.json_response({"status": "error", "message": str(e)}, status=502)
+
+    async def qr_password(request: web.Request) -> web.Response:
+        try:
+            data = await request.json()
+            user_key = str(data["user_key"])
+            password = data["password"]
+            result = await qr_login.submit_password(user_key, password, request.app["manager"])
+            status_code = 200 if result.get("status") == "connected" else 502
+            return web.json_response(result, status=status_code)
+        except Exception as e:
+            log.exception("qr_password failed")
+            return web.json_response({"status": "error", "message": str(e)}, status=502)
+
     async def set_target(request: web.Request) -> web.Response:
         user_key = request.match_info["user_key"]
         data = await request.json()
@@ -74,6 +117,9 @@ def build_app(manager: SessionManager) -> web.Application:
 
     app.router.add_get("/", health)
     app.router.add_post("/sessions/register", register_session)
+    app.router.add_post("/sessions/qr/start", qr_start)
+    app.router.add_post("/sessions/qr/finish", qr_finish)
+    app.router.add_post("/sessions/qr/password", qr_password)
     app.router.add_post("/sessions/{user_key}/target", set_target)
     app.router.add_get("/sessions/{user_key}/status", status)
     app.router.add_post("/sessions/{user_key}/disconnect", disconnect)

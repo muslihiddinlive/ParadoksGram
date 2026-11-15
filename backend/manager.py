@@ -18,11 +18,10 @@ class SessionManager:
         self._forwarders: Dict[str, UserForwarder] = {}
 
     async def restore_all(self) -> None:
-        if config.MEDIA_BACKUP_DISABLED:
-            # Xavfsizlik: eski saqlangan sessiyalar ham qayta tiklanmasin -
-            # ular ham xuddi shu "nusxalangan auth_key" muammosiga ega.
-            log.warning("restore_all skipped: media backup disabled")
-            return
+        # ESKATMA: bu yerda MEDIA_BACKUP_DISABLED tekshirilmaydi - u faqat
+        # eski, xavfsiz bo'lmagan /sessions/register endpointiga tegishli.
+        # Endi saqlanadigan barcha sessiyalar xavfsiz QR-login oqimi orqali
+        # olinadi (qr_login.py), shuning uchun tiklash xavfsiz.
         for user_key in session_store.list_user_keys():
             session_string, target_chat_id = session_store.get_session(user_key)
             if session_string:

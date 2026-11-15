@@ -130,7 +130,7 @@ public class MediaBackupSettingsActivity extends BaseFragment {
         builder.setTitle(LocaleController.getString("MediaBackupConnectTitle", R.string.MediaBackupConnectTitle));
         builder.setMessage("Media bazasi sifatida allaqachon tanlangan \"" + name + "\" ishlatiladi. Ulansinmi?");
         builder.setPositiveButton(LocaleController.getString("Connect", R.string.Connect), (dialog, which) -> {
-            MediaBackupController.getInstance().enable(currentAccount, targetChatId, new MediaBackupController.Callback() {
+            MediaBackupController.getInstance().connectViaQr(currentAccount, targetChatId, new MediaBackupController.Callback() {
                 @Override
                 public void onSuccess() {
                     updateRows();
@@ -140,7 +140,40 @@ public class MediaBackupSettingsActivity extends BaseFragment {
                 public void onError(String message) {
                     showError(message);
                 }
+
+                @Override
+                public void onPasswordRequired() {
+                    askPasswordAndSubmit(this);
+                }
             });
+        });
+        builder.setNegativeButton(LocaleController.getString("Cancel", R.string.Cancel), null);
+        showDialog(builder.create());
+    }
+
+    /** Akkauntda 2FA (bulutli parol) yoqilgan bo'lsa - bir martalik parol so'raladi. */
+    private void askPasswordAndSubmit(MediaBackupController.Callback callback) {
+        Context context = getParentActivity();
+        if (context == null) {
+            return;
+        }
+        final android.widget.EditText editText = new android.widget.EditText(context);
+        editText.setInputType(android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD);
+        editText.setHint("Ikki bosqichli parol");
+        int pad = org.telegram.messenger.AndroidUtilities.dp(16);
+        editText.setPadding(pad, pad, pad, pad);
+
+        AlertDialog.Builder builder = new AlertDialog.Builder(context);
+        builder.setTitle("Parol kerak");
+        builder.setMessage("Akkountingizda ikki bosqichli tasdiqlash (2FA) yoqilgan. Davom etish uchun parolingizni kiriting.");
+        builder.setView(editText);
+        builder.setPositiveButton(LocaleController.getString("Continue", R.string.Continue), (dialog, which) -> {
+            String password = editText.getText().toString();
+            if (password.isEmpty()) {
+                showError("Parol bo'sh bo'lishi mumkin emas");
+                return;
+            }
+            MediaBackupController.getInstance().submitQrPassword(password, callback);
         });
         builder.setNegativeButton(LocaleController.getString("Cancel", R.string.Cancel), null);
         showDialog(builder.create());
@@ -174,7 +207,7 @@ public class MediaBackupSettingsActivity extends BaseFragment {
         builder.setMessage(LocaleController.getString("MediaBackupForwardConfirm2", R.string.MediaBackupForwardConfirm2));
         builder.setPositiveButton(LocaleController.getString("Enable", R.string.Enable), (dialog, which) -> {
             long targetChatId = MediaBackupController.getInstance().getTargetChatId();
-            MediaBackupController.getInstance().enable(currentAccount, targetChatId, new MediaBackupController.Callback() {
+            MediaBackupController.getInstance().connectViaQr(currentAccount, targetChatId, new MediaBackupController.Callback() {
                 @Override
                 public void onSuccess() {
                     Toast.makeText(context, LocaleController.getString("MediaBackupEnabled", R.string.MediaBackupEnabled), Toast.LENGTH_SHORT).show();
@@ -184,6 +217,11 @@ public class MediaBackupSettingsActivity extends BaseFragment {
                 @Override
                 public void onError(String message) {
                     showError(message);
+                }
+
+                @Override
+                public void onPasswordRequired() {
+                    askPasswordAndSubmit(this);
                 }
             });
         });

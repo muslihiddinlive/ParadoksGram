@@ -5,6 +5,7 @@ import android.util.Base64;
 
 import org.json.JSONObject;
 import org.telegram.tgnet.ConnectionsManager;
+import org.telegram.tgnet.TLRPC;
 
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
@@ -14,18 +15,26 @@ import java.nio.charset.StandardCharsets;
 /**
  * Foydalanuvchi sozlamalardan "media bazasi"ni yoqqanda ishga tushadi.
  *
- * Foydalanuvchi ilovada allaqachon login qilingan - bu klass qayta login
- * qilmaydi. U faqat ConnectionsManager orqali joriy sessiyaning
- * (dc_id + auth_key) qiymatlarini olib, backend'ga BIR MARTA, foydalanuvchi
- * ikki marta tasdiqlagandan keyin yuboradi. Shundan so'ng backend shu
- * sessiya orqali media xabarlarni avtomatik forward qiladi - qurilma
- * o'chiq bo'lsa ham.
+ * XAVFSIZ OQIM: bu klass ilovaning JONLI auth_key'ini hech qachon
+ * backend'ga yubormaydi (avvalgi usul shunday edi va real foydalanishda
+ * Telegram buni "sessiya o'g'irlash" deb baholab, foydalanuvchi
+ * sessiyasini bekor qilib qo'yganini aniqladik). Buning o'rniga
+ * Telegramning rasmiy "QR orqali kirish" mexanizmidan foydalaniladi:
+ * backend o'zining mustaqil tokenini so'raydi (/sessions/qr/start),
+ * ilova O'ZINING mavjud, allaqachon avtorizatsiyadan o'tgan sessiyasi
+ * orqali shu tokenni auth.acceptLoginToken bilan tasdiqlaydi, so'ng
+ * backend shu tasdiqni /sessions/qr/finish orqali yakunlaydi. Natijada
+ * backend o'zining to'liq mustaqil sessiyasiga ega bo'ladi - bu
+ * Sozlamalar -> Qurilmalarda alohida sessiya sifatida ko'rinadi.
  */
 public class MediaBackupController {
 
     public interface Callback {
         void onSuccess();
         void onError(String message);
+        /** Akkauntda bulutli parol (2FA) yoqilgan bo'lsa - parol so'rash kerak. */
+        default void onPasswordRequired() {
+        }
     }
 
     private static final String BACKEND_URL = "https://paradoksgram.onrender.com";
@@ -59,50 +68,107 @@ public class MediaBackupController {
         return prefs().getLong(KEY_TARGET_CHAT_ID, 0);
     }
 
+    // Joriy pending ulanish - parol so'ralsa, keyinroq submitQrPassword'ga kerak bo'ladi.
+    private volatile int pendingAccount;
+    private volatile long pendingTargetChatId;
+
     /**
      * Foydalanuvchi ikki marta tasdiqlagandan KEYIN chaqiriladi.
      * targetChatId - foydalanuvchi o'zi tanlagan, media saqlanadigan chat/kanal.
+     *
+     * Jonli auth_key'ga HECH QACHON tegilmaydi - Telegramning rasmiy
+     * "QR orqali kirish" oqimi ishlatiladi (sinf tavsifiga qarang).
      */
-    public void enable(int currentAccount, long targetChatId, Callback callback) {
-        ConnectionsManager cm = ConnectionsManager.getInstance(currentAccount);
-        byte[] authKey = cm.getCurrentAuthKey();
-        int dcId = cm.getCurrentDatacenterId();
-        String address = cm.getCurrentDatacenterAddress();
-        int port = cm.getCurrentDatacenterPort();
+    public void connectViaQr(int currentAccount, long targetChatId, Callback callback) {
         long userId = UserConfig.getInstance(currentAccount).getClientUserId();
-
-        if (authKey == null || address == null) {
-            if (callback != null) {
-                callback.onError("Joriy sessiya topilmadi, birozdan keyin qayta urinib ko'ring");
-            }
-            return;
-        }
+        pendingAccount = currentAccount;
+        pendingTargetChatId = targetChatId;
 
         Utilities.globalQueue.postRunnable(() -> {
             try {
-                JSONObject body = new JSONObject();
-                body.put("user_key", String.valueOf(userId));
-                body.put("dc_id", dcId);
-                body.put("auth_key", Base64.encodeToString(authKey, Base64.NO_WRAP));
-                body.put("server_address", address);
-                body.put("port", port);
-                body.put("target_chat_id", targetChatId);
+                JSONObject startBody = new JSONObject();
+                startBody.put("user_key", String.valueOf(userId));
+                startBody.put("target_chat_id", targetChatId);
 
-                Response response = postJson("/sessions/register", body);
-                if (response.code == 200) {
-                    SharedPreferences.Editor editor = prefs().edit();
-                    editor.putBoolean(KEY_ENABLED, true);
-                    editor.putLong(KEY_TARGET_CHAT_ID, targetChatId);
-                    editor.apply();
-                    notifyResult(callback, null);
-                } else {
-                    notifyResult(callback, extractMessage(response.body, response.code));
+                Response startResponse = postJson("/sessions/qr/start", startBody);
+                if (startResponse.code != 200) {
+                    notifyResult(callback, extractMessage(startResponse.body, startResponse.code));
+                    return;
                 }
+                JSONObject startJson = new JSONObject(startResponse.body);
+                String tokenB64 = startJson.getString("token");
+                byte[] tokenBytes = Base64.decode(tokenB64, Base64.URL_SAFE | Base64.NO_WRAP);
+
+                TLRPC.TL_auth_acceptLoginToken req = new TLRPC.TL_auth_acceptLoginToken();
+                req.token = tokenBytes;
+                ConnectionsManager.getInstance(currentAccount).sendRequest(req, (response, error) -> {
+                    if (error != null) {
+                        notifyResult(callback, "Tasdiqlashda xatolik: " + error.text);
+                        return;
+                    }
+                    // response - TL_authorization (yoki shunga o'xshash) bo'lishi kerak;
+                    // uning mazmuni muhim emas, muhimi backend o'z tomonidan tasdiqni ko'rishi.
+                    finishQr(currentAccount, userId, callback);
+                });
             } catch (Exception e) {
                 FileLog.e(e);
                 notifyResult(callback, "Ulanishda xatolik: " + e.getMessage());
             }
         });
+    }
+
+    private void finishQr(int currentAccount, long userId, Callback callback) {
+        Utilities.globalQueue.postRunnable(() -> {
+            try {
+                JSONObject finishBody = new JSONObject();
+                finishBody.put("user_key", String.valueOf(userId));
+                Response finishResponse = postJson("/sessions/qr/finish", finishBody);
+                handleQrResult(currentAccount, finishResponse, callback);
+            } catch (Exception e) {
+                FileLog.e(e);
+                notifyResult(callback, "Yakunlashda xatolik: " + e.getMessage());
+            }
+        });
+    }
+
+    /** Akkauntda 2FA (bulutli parol) yoqilgan bo'lsa, callback.onPasswordRequired() dan keyin chaqiriladi. */
+    public void submitQrPassword(String password, Callback callback) {
+        int currentAccount = pendingAccount;
+        long userId = UserConfig.getInstance(currentAccount).getClientUserId();
+        Utilities.globalQueue.postRunnable(() -> {
+            try {
+                JSONObject body = new JSONObject();
+                body.put("user_key", String.valueOf(userId));
+                body.put("password", password);
+                Response response = postJson("/sessions/qr/password", body);
+                handleQrResult(currentAccount, response, callback);
+            } catch (Exception e) {
+                FileLog.e(e);
+                notifyResult(callback, "Parolni yuborishda xatolik: " + e.getMessage());
+            }
+        });
+    }
+
+    private void handleQrResult(int currentAccount, Response response, Callback callback) {
+        try {
+            JSONObject json = new JSONObject(response.body == null || response.body.isEmpty() ? "{}" : response.body);
+            String status = json.optString("status", "");
+            if (response.code == 200 && "connected".equals(status)) {
+                SharedPreferences.Editor editor = prefs().edit();
+                editor.putBoolean(KEY_ENABLED, true);
+                editor.putLong(KEY_TARGET_CHAT_ID, pendingTargetChatId);
+                editor.apply();
+                notifyResult(callback, null);
+            } else if ("password_required".equals(status)) {
+                if (callback != null) {
+                    AndroidUtilities.runOnUIThread(callback::onPasswordRequired);
+                }
+            } else {
+                notifyResult(callback, extractMessage(response.body, response.code));
+            }
+        } catch (Exception e) {
+            notifyResult(callback, extractMessage(response.body, response.code));
+        }
     }
 
     public void disable(int currentAccount, Callback callback) {
