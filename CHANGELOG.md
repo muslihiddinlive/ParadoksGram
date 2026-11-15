@@ -8,6 +8,9 @@ Versiya formati Telegram kabi: `MAJOR.MINOR.PATCH`, qavs ichida build raqami (ma
 
 Versiya raqami `VERSION` faylida turadi. Har versiya uchun foydalanuvchiga ko'rinadigan matn `changelog/<versiya>.md` fayliga yoziladi: CI shuni reliz matniga qo'yadi, ilova yangilanish oynasida shuni ko'rsatadi. Commit xabari reliz matniga tushmaydi.
 
+## 3.41.0 (12-noyabr)
+Pastki panel uchun jonli, gorizontal suriladigan namuna va mustaqil rang tanlash
+
 ## 3.40.0 (12-noyabr)
 Pastki menyudagi tanlov foni: 6 ta liquid glass uslub, Sozlamalardan tanlanadi
 

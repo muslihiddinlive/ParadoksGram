@@ -56,6 +56,7 @@ public class ParadoksSettingsPageActivity extends BaseFragment {
     private static final int T_VALUE = 2;
     private static final int T_INFO = 3;
     private static final int T_PREVIEW = 4;
+    private static final int T_NAV_PREVIEW = 5;
 
     private static final String[] VOICE_EFFECT_NAMES = {"O'chiq", "Robot", "G'or (cave)", "Minecraft villager"};
 
@@ -73,6 +74,7 @@ public class ParadoksSettingsPageActivity extends BaseFragment {
     private final ArrayList<Row> rows = new ArrayList<>();
     private RecyclerListView listView;
     private ParadoksGlassPreview glassPreview;
+    private ParadoksGlassNavPreview navPreview;
     private Adapter adapter;
 
     public ParadoksSettingsPageActivity(int page) {
@@ -98,6 +100,12 @@ public class ParadoksSettingsPageActivity extends BaseFragment {
     private void preview() {
         Row row = new Row();
         row.type = T_PREVIEW;
+        rows.add(row);
+    }
+
+    private void navPreview() {
+        Row row = new Row();
+        row.type = T_NAV_PREVIEW;
         rows.add(row);
     }
 
@@ -328,9 +336,9 @@ public class ParadoksSettingsPageActivity extends BaseFragment {
                         + "Haqiqiy chatda xabar ortidagi fon ilovaga ma'lum emas, shuning uchun u yerda faqat oq yorug'lik bilan taqlid qilinadi. "
                         + "Tugmalar uchun shisha hozircha chat ro'yxatidagi asosiy yumaloq tugmaga qo'llanadi; ilovani qayta ochganda ko'rinadi.");
                 check("Pastki navigatsiya paneli", ParadoksConfig::glassNavEnabled, ParadoksConfig::setGlassNavEnabled);
-                value("Panel ko'rinishi", () -> GLASS_NAV_STYLE_NAMES[Math.max(0, Math.min(GLASS_NAV_STYLE_NAMES.length - 1, ParadoksConfig.glassNavStyle()))], this::showGlassNavStyleDialog);
-                info("Chat ro'yxati ostida va mini-app oynasida suzib turadigan shisha panel: bosh sahifa, qo'ng'iroqlar, yangi xabar, profil va saqlangan xabarlar "
-                        + "(mini-appda: yopish, qayta yuklash, menyu). Yoqish/o'chirish va ko'rinishni almashtirish shu ekranlarni qayta ochganda ko'rinadi.");
+                navPreview();
+                info("Chatlar/Kontaktlar/Sozlamalar/Profil menyusidagi tanlangan tugma foni: yuqoridagi qatordan ko'rinishni, pastidan rangni tanlang \u2014 har ikkisi darrov shu kichik namunada ko'rinadi. "
+                        + "Yoqish/o'chirish va tanlov shu menyuni qayta ochganda ko'rinadi.");
                 header("Yuklash");
                 value("Yuklash rejimi", () -> {
                     int m = ParadoksConfig.downloadMode();
@@ -634,20 +642,6 @@ public class ParadoksSettingsPageActivity extends BaseFragment {
     }
 
     private static final String[] GLASS_TINT_NAMES = {"Rangsiz", "Moviy", "Binafsha", "Yashil", "Pushti", "Oltin"};
-    private static final String[] GLASS_NAV_STYLE_NAMES = {"Linza", "Neon linza", "Sakrash", "To'lqin", "Projektor", "Suzuvchi tugma"};
-
-    private void showGlassNavStyleDialog() {
-        if (getParentActivity() == null) {
-            return;
-        }
-        android.app.AlertDialog.Builder builder = new android.app.AlertDialog.Builder(getParentActivity());
-        builder.setTitle("Panel ko'rinishi");
-        builder.setItems(GLASS_NAV_STYLE_NAMES, (d, which) -> {
-            ParadoksConfig.setGlassNavStyle(which);
-            refresh();
-        });
-        showDialog(builder.create());
-    }
 
     private void showGlassTintDialog() {
         if (getParentActivity() == null) {
@@ -886,6 +880,10 @@ public class ParadoksSettingsPageActivity extends BaseFragment {
             } else if (viewType == T_PREVIEW) {
                 glassPreview = new ParadoksGlassPreview(context);
                 view = glassPreview;
+            } else if (viewType == T_NAV_PREVIEW) {
+                navPreview = new ParadoksGlassNavPreview(context);
+                navPreview.setBackgroundColor(Theme.getColor(Theme.key_windowBackgroundWhite));
+                view = navPreview;
             } else {
                 view = new TextInfoPrivacyCell(context);
             }
@@ -910,6 +908,8 @@ public class ParadoksSettingsPageActivity extends BaseFragment {
                     break;
                 case T_PREVIEW:
                     holder.itemView.invalidate();
+                    break;
+                case T_NAV_PREVIEW:
                     break;
                 default:
                     TextInfoPrivacyCell cell = (TextInfoPrivacyCell) holder.itemView;

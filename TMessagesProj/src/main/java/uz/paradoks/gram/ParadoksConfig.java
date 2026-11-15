@@ -525,6 +525,15 @@ public final class ParadoksConfig {
         prefs().edit().putInt("glass_nav_style", style).apply();
     }
 
+    /** Tint of the bottom nav's highlight (same 6 colours as glassTint(), chosen independently). */
+    public static int glassNavTint() {
+        return prefs().getInt("glass_nav_tint", 0);
+    }
+
+    public static void setGlassNavTint(int tint) {
+        prefs().edit().putInt("glass_nav_tint", tint).apply();
+    }
+
     /** 0 standard, 1 weak internet, 2 auto. */
     public static int downloadMode() {
         return prefs().getInt("download_mode", 0);

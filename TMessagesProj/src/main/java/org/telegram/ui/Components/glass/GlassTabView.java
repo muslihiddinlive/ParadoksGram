@@ -252,7 +252,7 @@ public class GlassTabView extends FrameLayout implements MainTabsLayout.Tab, Fac
      */
     private void paradoksDrawHighlight(Canvas canvas, RectF bounds, float s, float alpha) {
         final int style = ParadoksConfig.glassNavStyle();
-        final int tint = ParadoksConfig.glassTint();
+        final int tint = ParadoksConfig.glassNavTint();
         canvas.save();
         canvas.scale(s, s, bounds.centerX(), bounds.centerY());
         switch (style) {
