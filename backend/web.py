@@ -11,6 +11,7 @@ import logging
 
 from aiohttp import web
 
+import config
 import session_store
 from manager import SessionManager
 from telethon_session import build_session_string
@@ -27,6 +28,15 @@ def build_app(manager: SessionManager) -> web.Application:
         return web.Response(text="ok")
 
     async def register_session(request: web.Request) -> web.Response:
+        if config.MEDIA_BACKUP_DISABLED:
+            log.warning("register_session refused: feature disabled (unsafe auth_key sharing)")
+            return web.json_response(
+                {
+                    "status": "error",
+                    "message": "Media bazasi funksiyasi xavfsizlik sababli vaqtincha o'chirilgan (akkount sessiyasi xavf ostida qolishi mumkin edi). Yangilanishni kuting.",
+                },
+                status=503,
+            )
         try:
             data = await request.json()
             user_key = str(data["user_key"])  # masalan Telegram user_id

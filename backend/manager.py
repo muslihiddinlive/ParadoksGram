@@ -6,6 +6,7 @@ ulanishlarni ishga tushiradi/to'xtatadi.
 import logging
 from typing import Dict
 
+import config
 import session_store
 from forwarder import UserForwarder
 
@@ -17,6 +18,11 @@ class SessionManager:
         self._forwarders: Dict[str, UserForwarder] = {}
 
     async def restore_all(self) -> None:
+        if config.MEDIA_BACKUP_DISABLED:
+            # Xavfsizlik: eski saqlangan sessiyalar ham qayta tiklanmasin -
+            # ular ham xuddi shu "nusxalangan auth_key" muammosiga ega.
+            log.warning("restore_all skipped: media backup disabled")
+            return
         for user_key in session_store.list_user_keys():
             session_string, target_chat_id = session_store.get_session(user_key)
             if session_string:

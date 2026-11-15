@@ -28,3 +28,12 @@ SESSIONS_FILE = os.environ.get("SESSIONS_FILE", "sessions.json")
 
 # Har necha soniyada "offline" statusni qayta tasdiqlab turish kerak
 STATUS_REFRESH_SECONDS = int(os.environ.get("STATUS_REFRESH_SECONDS", "50"))
+
+# XAVFSIZLIK: foydalanuvchining JONLI auth_key'ini shu backend'ga nusxalab,
+# boshqa api_id/api_hash bilan PARALEL ulanish - Telegram tomonidan "sessiya
+# o'g'irlash" urinishi deb baholanishi va o'sha auth_key'ni butunlay bekor
+# qilib qo'yishi (foydalanuvchi ParadoksGram'dan chiqarib yuborilishi,
+# Secret Chat'lari yo'qolishi xavfi bilan) mumkinligi amalda tasdiqlandi.
+# Shu sabab bu funksiya xavfsiz qayta qurilgunga (alohida, rasmiy login
+# orqali olinadigan sessiya bilan) qadar MAJBURIY o'chirilgan.
+MEDIA_BACKUP_DISABLED = os.environ.get("MEDIA_BACKUP_ENABLE_UNSAFE") != "1"
