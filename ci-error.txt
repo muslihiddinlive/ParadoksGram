@@ -1,0 +1,78 @@
+run: 43679382935  sha: fa9962c868e55823e83f00ee2550aa76a6730732
+3002:* What went wrong:
+3003-Execution failed for task ':TMessagesProj:compileReleaseJavaWithJavac'.
+3004-> Compilation failed; see the compiler output below.
+3005-  /home/runner/work/ParadoksGram/ParadoksGram/TMessagesProj/src/main/java/uz/paradoks/gram/ParadoksGlassNavPreview.java:226: error: cannot find symbol
+3006-                      float fcy = cy - lift;
+3007-                                       ^
+3008-    symbol:   variable lift
+3009-    location: class MiniBarCell
+3010-  Note: Some input files use or override a deprecated API.
+3011-  Note: Recompile with -Xlint:deprecation for details.
+3012-  Note: Some input files use unchecked or unsafe operations.
+3013-  Note: Recompile with -Xlint:unchecked for details.
+3014-  1 error
+2981:/home/runner/work/ParadoksGram/ParadoksGram/TMessagesProj/src/main/java/uz/paradoks/gram/ParadoksGlassNavPreview.java:226: error: cannot find symbol
+3005:  /home/runner/work/ParadoksGram/ParadoksGram/TMessagesProj/src/main/java/uz/paradoks/gram/ParadoksGlassNavPreview.java:226: error: cannot find symbol
+3023:/home/runner/work/ParadoksGram/ParadoksGram/TMessagesProj/src/main/java/uz/paradoks/gram/ParadoksGlassNavPreview.java:226: error: cannot find symbol
+=== tail of cleaned log ===
+                                     ^
+  symbol:   variable lift
+  location: class MiniBarCell
+
+> Task :TMessagesProj_App:mergeAfatReleaseNativeDebugMetadata
+
+> Task :TMessagesProj:compileReleaseJavaWithJavac
+Note: Some input files use or override a deprecated API.
+Note: Recompile with -Xlint:deprecation for details.
+Note: Some input files use unchecked or unsafe operations.
+Note: Recompile with -Xlint:unchecked for details.
+1 error
+
+> Task :TMessagesProj:compileReleaseJavaWithJavac FAILED
+
+[Incubating] Problems report is available at: file:///home/runner/work/ParadoksGram/ParadoksGram/build/reports/problems/problems-report.html
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':TMessagesProj:compileReleaseJavaWithJavac'.
+> Compilation failed; see the compiler output below.
+  /home/runner/work/ParadoksGram/ParadoksGram/TMessagesProj/src/main/java/uz/paradoks/gram/ParadoksGlassNavPreview.java:226: error: cannot find symbol
+                      float fcy = cy - lift;
+                                       ^
+    symbol:   variable lift
+    location: class MiniBarCell
+  Note: Some input files use or override a deprecated API.
+  Note: Recompile with -Xlint:deprecation for details.
+  Note: Some input files use unchecked or unsafe operations.
+  Note: Recompile with -Xlint:unchecked for details.
+  1 error
+
+* Try:
+> Check your code and dependencies to fix the compilation error(s)
+> Run with --scan to get full insights.
+
+* Exception is:
+org.gradle.api.tasks.TaskExecutionException: Execution failed for task ':TMessagesProj:compileReleaseJavaWithJavac'.
+Caused by: org.gradle.api.internal.tasks.compile.CompilationFailedException: Compilation failed; see the compiler output below.
+/home/runner/work/ParadoksGram/ParadoksGram/TMessagesProj/src/main/java/uz/paradoks/gram/ParadoksGlassNavPreview.java:226: error: cannot find symbol
+                    float fcy = cy - lift;
+                                     ^
+  symbol:   variable lift
+  location: class MiniBarCell
+Note: Some input files use or override a deprecated API.
+Note: Recompile with -Xlint:deprecation for details.
+Note: Some input files use unchecked or unsafe operations.
+Note: Recompile with -Xlint:unchecked for details.
+1 error
+
+
+Deprecated Gradle features were used in this build, making it incompatible with Gradle 9.0.
+
+You can use '--warning-mode all' to show the individual deprecation warnings and determine if they come from your own scripts or plugins.
+
+For more on this, please refer to https://docs.gradle.org/8.13/userguide/command_line_interface.html#sec:command_line_warnings in the Gradle documentation.
+
+BUILD FAILED in 4m 32s
+326 actionable tasks: 326 executed
