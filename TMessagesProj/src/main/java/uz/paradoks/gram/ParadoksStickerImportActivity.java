@@ -145,11 +145,14 @@ public class ParadoksStickerImportActivity extends BaseFragment {
             return;
         }
         Uri uri = data.getData();
-        String name = queryDisplayName(uri);
-        if (name != null && !name.toLowerCase(Locale.US).endsWith(".zip")) {
-            showError("Bu ZIP fayl emasga o'xshaydi: " + name);
-            return;
-        }
+        // ESKATMA: avval bu yerda fayl nomini (uri.getLastPathSegment() orqali)
+        // tekshirib, ".zip" bilan tugamasa rad etardik. Bu XATO edi - ko'pgina
+        // provider'lar (Google Drive, ba'zi fayl menejerlari) haqiqiy fayl
+        // nomini emas, ichki ID qaytaradi, shuning uchun TO'G'RI ZIP fayllar
+        // ham "Bu ZIP fayl emasga o'xshaydi" deb noto'g'ri rad etilar edi.
+        // Haqiqiy tekshiruv importZip() ichida (faylni ochib ko'rish orqali)
+        // allaqachon bor, shuning uchun bu yerda oldindan taxmin qilish shart
+        // emas - to'g'ridan-to'g'ri ochib ko'ramiz.
         importZip(uri);
     }
 
@@ -273,15 +276,6 @@ public class ParadoksStickerImportActivity extends BaseFragment {
             FileLog.e(e);
         }
         return false;
-    }
-
-    @Nullable
-    private String queryDisplayName(Uri uri) {
-        try {
-            return uri.getLastPathSegment();
-        } catch (Exception e) {
-            return null;
-        }
     }
 
     private void showProgress(String message) {
