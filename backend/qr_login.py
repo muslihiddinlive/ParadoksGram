@@ -20,6 +20,14 @@ tegilmaydi va u hech qayerga yuborilmaydi. Buning o'rniga:
 Natijada ikki sessiya (asosiy ilova + backend) bir-biriga mutlaqo
 bog'liq emas - Telegramning "bitta auth_key ikki xil ilova sifatida
 ishlatilyapti" degan seans-o'g'irlash tekshiruvi endi ishga tushmaydi.
+
+MUHIM (arxitektura eslatmasi): tasdiqlanishni kutish BITTA uzun HTTP
+so'rovda emas, FON VAZIFASI (background task) + Android tomonidan tez-tez
+QISQA so'rovlar (polling) orqali amalga oshiriladi. Avvalgi versiyada
+/sessions/qr/finish kutish tugamaguncha (20 soniyagacha) HTTP javobini
+ushlab turar edi - bu Android'ning o'zining readTimeout'idan (15s) uzunroq
+bo'lib, deyarli har doim mijoz tomonida oldinroq timeout berar edi va
+funksiya "sekin ishlayapti/ishlamayapti" bo'lib ko'rinar edi.
 """
 
 import asyncio
@@ -42,26 +50,36 @@ _PENDING_TTL_SECONDS = 180  # shundan ortiq kutib turgan pending yozuvlar tozala
 
 
 class _Pending:
-    __slots__ = ("client", "qr", "target_chat_id", "created_at")
+    __slots__ = ("client", "qr", "target_chat_id", "created_at", "status", "message", "task", "saved_session_string")
 
     def __init__(self, client, qr, target_chat_id):
         self.client = client
         self.qr = qr
         self.target_chat_id = target_chat_id
         self.created_at = time.monotonic()
+        self.status = "waiting"  # waiting | password_required | connected | error
+        self.message: Optional[str] = None
+        self.task: Optional[asyncio.Task] = None
+        self.saved_session_string: Optional[str] = None
 
 
 _pending: Dict[str, _Pending] = {}
 
 
+async def _disconnect_quiet(client) -> None:
+    try:
+        if client.is_connected():
+            await client.disconnect()
+    except Exception:
+        log.exception("mijozni uzishda xatolik")
+
+
 async def _drop(user_key: str) -> None:
     p = _pending.pop(user_key, None)
     if p is not None:
-        try:
-            if p.client.is_connected():
-                await p.client.disconnect()
-        except Exception:
-            log.exception("pending mijozni uzishda xatolik (%s)", user_key)
+        if p.task is not None:
+            p.task.cancel()
+        await _disconnect_quiet(p.client)
 
 
 async def _cleanup_stale() -> None:
@@ -72,14 +90,17 @@ async def _cleanup_stale() -> None:
 
 
 async def start(user_key: str, target_chat_id: Optional[int]) -> dict:
-    """Yangi, mustaqil mijoz yaratadi va QR-login tokenini qaytaradi."""
+    """Yangi, mustaqil mijoz yaratadi va QR-login tokenini qaytaradi.
+    Tasdiqlanishni FON VAZIFASI kutadi - bu chaqiruv darhol qaytadi."""
     await _cleanup_stale()
     await _drop(user_key)
 
     client = TelegramClient(StringSession(), config.API_ID, config.API_HASH)
     await client.connect()
     qr = await client.qr_login()
-    _pending[user_key] = _Pending(client, qr, target_chat_id)
+    pending = _Pending(client, qr, target_chat_id)
+    _pending[user_key] = pending
+    pending.task = asyncio.create_task(_watch(user_key))
 
     expires_in = (qr.expires - datetime.datetime.now(tz=datetime.timezone.utc)).total_seconds()
     return {
@@ -90,32 +111,58 @@ async def start(user_key: str, target_chat_id: Optional[int]) -> dict:
     }
 
 
-async def finish(user_key: str, manager, timeout: float = 20.0) -> dict:
-    """Android ilovasi auth.acceptLoginToken'ni chaqirganidan KEYIN
-    chaqiriladi - tasdiqlanishini kutadi va muvaffaqiyatli bo'lsa
-    sessiyani saqlab, forwarder'ni ishga tushiradi."""
+async def _watch(user_key: str) -> None:
+    """Fon vazifasi: tasdiqlanishini (yoki muddati tugashini) kutadi va
+    pending.status'ni yangilaydi - Android buni poll() orqali so'raydi."""
+    pending = _pending.get(user_key)
+    if pending is None:
+        return
+    try:
+        await asyncio.wait_for(pending.qr.wait(), timeout=_PENDING_TTL_SECONDS)
+    except SessionPasswordNeededError:
+        pending.status = "password_required"
+        return
+    except asyncio.CancelledError:
+        return
+    except asyncio.TimeoutError:
+        pending.status = "error"
+        pending.message = "Tasdiqlash vaqti tugadi. Qaytadan urinib ko'ring."
+        return
+    except Exception as e:
+        log.exception("qr watch failed for %s", user_key)
+        pending.status = "error"
+        pending.message = str(e)
+        return
+
+    await _complete(user_key, pending)
+
+
+async def poll(user_key: str, manager) -> dict:
+    """Android bu funksiyani 1-2 soniyada bir chaqirib, joriy holatni
+    so'raydi. Hech qachon uzoq bloklamaydi - darhol qaytadi."""
     pending = _pending.get(user_key)
     if pending is None:
         return {"status": "error", "message": "Avval QR so'rovi boshlanmagan yoki muddati tugagan. Qaytadan urinib ko'ring."}
 
-    try:
-        await asyncio.wait_for(pending.qr.wait(), timeout=timeout)
-    except SessionPasswordNeededError:
-        return {"status": "password_required"}
-    except asyncio.TimeoutError:
+    if pending.status == "connected":
+        # forwarder'ni ishga tushirish BIROZ vaqt olishi mumkin - buni
+        # fon vazifasiga qoldiramiz, shunda bu poll chaqiruvi darhol
+        # qaytadi va Android tomonida yana timeout bo'lib qolmaydi.
+        _pending.pop(user_key, None)
+        asyncio.create_task(_finalize_forwarder(user_key, pending, manager))
+        return {"status": "connected"}
+    if pending.status == "error":
+        message = pending.message or "Nomaʼlum xatolik"
         await _drop(user_key)
-        return {"status": "error", "message": "Tasdiqlash vaqti tugadi. Qaytadan urinib ko'ring."}
-    except Exception as e:
-        await _drop(user_key)
-        log.exception("qr finish failed for %s", user_key)
-        return {"status": "error", "message": str(e)}
-
-    return await _complete(user_key, manager)
+        return {"status": "error", "message": message}
+    # waiting | password_required
+    return {"status": pending.status}
 
 
 async def submit_password(user_key: str, password: str, manager) -> dict:
-    """Agar akkountda bulutli parol (2FA) yoqilgan bo'lsa, `finish`
-    "password_required" qaytargandan keyin shu chaqiriladi."""
+    """Agar akkountda bulutli parol (2FA) yoqilgan bo'lsa, poll()
+    "password_required" qaytargandan keyin shu chaqiriladi. Natija ham
+    poll() orqali kuzatiladi (status darhol "waiting"ga qaytariladi)."""
     pending = _pending.get(user_key)
     if pending is None:
         return {"status": "error", "message": "Avval QR so'rovi boshlanmagan yoki muddati tugagan. Qaytadan urinib ko'ring."}
@@ -124,25 +171,33 @@ async def submit_password(user_key: str, password: str, manager) -> dict:
     except Exception as e:
         log.exception("qr password sign-in failed for %s", user_key)
         return {"status": "error", "message": "Parol noto'g'ri yoki xatolik yuz berdi: " + str(e)}
-    return await _complete(user_key, manager)
+
+    await _complete(user_key, pending)
+    return {"status": "ok"}
 
 
-async def _complete(user_key: str, manager) -> dict:
-    pending = _pending.pop(user_key, None)
-    if pending is None:
-        return {"status": "error", "message": "Ichki xatolik: pending topilmadi"}
-
-    session_string = pending.client.session.save()
-    target_chat_id = pending.target_chat_id
+async def _complete(user_key: str, pending: "_Pending") -> None:
+    """Login muvaffaqiyatli bo'lgach chaqiriladi - sessiya satrini olib,
+    pending.status'ni "connected" qiladi. Forwarder'ni ishga tushirish
+    poll() ichida (manager mavjud bo'lganda) amalga oshiriladi."""
     try:
-        await pending.client.disconnect()
-    except Exception:
-        pass
-
-    try:
-        await manager.start_forwarder(user_key, session_string, target_chat_id)
-        session_store.save_session(user_key, session_string, target_chat_id)
+        session_string = pending.client.session.save()
     except Exception as e:
+        log.exception("session.save() failed for %s", user_key)
+        pending.status = "error"
+        pending.message = str(e)
+        return
+    pending.saved_session_string = session_string
+    pending.status = "connected"
+
+
+async def _finalize_forwarder(user_key: str, pending: "_Pending", manager) -> None:
+    session_string = pending.saved_session_string
+    if session_string is None:
+        return
+    await _disconnect_quiet(pending.client)
+    try:
+        await manager.start_forwarder(user_key, session_string, pending.target_chat_id)
+        session_store.save_session(user_key, session_string, pending.target_chat_id)
+    except Exception:
         log.exception("failed to start forwarder after qr login for %s", user_key)
-        return {"status": "error", "message": "Sessiya olindi, lekin ulanishda xatolik: " + str(e)}
-    return {"status": "connected"}

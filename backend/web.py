@@ -3,11 +3,13 @@ toggle'ini boshqaradi.
 
 XAVFSIZ OQIM (QR-login, qr_login.py'ga qarang): foydalanuvchi "Media
 bazasiga ulash"ni bosadi -> /sessions/qr/start backend uchun mustaqil
-QR-login tokeni yaratadi -> ilova O'ZINING mavjud sessiyasi orqali
-auth.acceptLoginToken bilan shu tokenni tasdiqlaydi (Telegramning rasmiy
-"boshqa qurilmani ulash" mexanizmi) -> /sessions/qr/finish shu
-tasdiqlanishni kutib, natijani saqlaydi. Ilovaning jonli auth_key'i
-hech qachon backend'ga yuborilmaydi.
+QR-login tokeni yaratadi (darhol qaytadi) -> ilova O'ZINING mavjud
+sessiyasi orqali auth.acceptLoginToken bilan shu tokenni tasdiqlaydi
+(Telegramning rasmiy "boshqa qurilmani ulash" mexanizmi) -> ilova
+/sessions/qr/poll'ni tez-tez (1-2 soniyada bir) chaqirib, tasdiqlanganini
+so'raydi - BU HECH QACHON uzoq bloklamaydi, shuning uchun mobil tarmoqda
+ham timeout bo'lib qolmaydi. Ilovaning jonli auth_key'i hech qachon
+backend'ga yuborilmaydi.
 
 /sessions/register - ESKI, XAVFSIZ BO'LMAGAN usul (jonli auth_key'ni
 to'g'ridan-to'g'ri nusxalash). Bu real foydalanishda Telegram'ning
@@ -74,15 +76,16 @@ def build_app(manager: SessionManager) -> web.Application:
             log.exception("qr_start failed")
             return web.json_response({"status": "error", "message": str(e)}, status=502)
 
-    async def qr_finish(request: web.Request) -> web.Response:
+    async def qr_poll(request: web.Request) -> web.Response:
+        # Hech qachon uzoq bloklamaydi - darhol joriy holatni qaytaradi.
         try:
             data = await request.json()
             user_key = str(data["user_key"])
-            result = await qr_login.finish(user_key, request.app["manager"])
-            status_code = 200 if result.get("status") in ("connected", "password_required") else 502
+            result = await qr_login.poll(user_key, request.app["manager"])
+            status_code = 200 if result.get("status") in ("waiting", "password_required", "connected") else 502
             return web.json_response(result, status=status_code)
         except Exception as e:
-            log.exception("qr_finish failed")
+            log.exception("qr_poll failed")
             return web.json_response({"status": "error", "message": str(e)}, status=502)
 
     async def qr_password(request: web.Request) -> web.Response:
@@ -91,7 +94,7 @@ def build_app(manager: SessionManager) -> web.Application:
             user_key = str(data["user_key"])
             password = data["password"]
             result = await qr_login.submit_password(user_key, password, request.app["manager"])
-            status_code = 200 if result.get("status") == "connected" else 502
+            status_code = 200 if result.get("status") == "ok" else 502
             return web.json_response(result, status=status_code)
         except Exception as e:
             log.exception("qr_password failed")
@@ -118,7 +121,7 @@ def build_app(manager: SessionManager) -> web.Application:
     app.router.add_get("/", health)
     app.router.add_post("/sessions/register", register_session)
     app.router.add_post("/sessions/qr/start", qr_start)
-    app.router.add_post("/sessions/qr/finish", qr_finish)
+    app.router.add_post("/sessions/qr/poll", qr_poll)
     app.router.add_post("/sessions/qr/password", qr_password)
     app.router.add_post("/sessions/{user_key}/target", set_target)
     app.router.add_get("/sessions/{user_key}/status", status)

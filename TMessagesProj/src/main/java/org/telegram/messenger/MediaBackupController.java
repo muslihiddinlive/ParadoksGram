@@ -23,7 +23,8 @@ import java.nio.charset.StandardCharsets;
  * backend o'zining mustaqil tokenini so'raydi (/sessions/qr/start),
  * ilova O'ZINING mavjud, allaqachon avtorizatsiyadan o'tgan sessiyasi
  * orqali shu tokenni auth.acceptLoginToken bilan tasdiqlaydi, so'ng
- * backend shu tasdiqni /sessions/qr/finish orqali yakunlaydi. Natijada
+ * ilova /sessions/qr/poll'ni tez-tez (hech qachon uzoq bloklamaydigan)
+ * so'rovlar bilan chaqirib, tasdiqlanganini bilib oladi. Natijada
  * backend o'zining to'liq mustaqil sessiyasiga ega bo'ladi - bu
  * Sozlamalar -> Qurilmalarda alohida sessiya sifatida ko'rinadi.
  */
@@ -108,7 +109,7 @@ public class MediaBackupController {
                     }
                     // response - TL_authorization (yoki shunga o'xshash) bo'lishi kerak;
                     // uning mazmuni muhim emas, muhimi backend o'z tomonidan tasdiqni ko'rishi.
-                    finishQr(currentAccount, userId, callback);
+                    pollQr(userId, callback, 0);
                 });
             } catch (Exception e) {
                 FileLog.e(e);
@@ -117,16 +118,46 @@ public class MediaBackupController {
         });
     }
 
-    private void finishQr(int currentAccount, long userId, Callback callback) {
+    private static final int QR_POLL_MAX_ATTEMPTS = 20;      // ~30 soniya
+    private static final long QR_POLL_INTERVAL_MS = 1500;
+
+    /**
+     * Backend hech qachon uzoq bloklamaydi (/sessions/qr/poll darhol
+     * qaytadi) - shuning uchun tasdiqlanishini bilish uchun BU YERDA,
+     * mijoz tomonida, qisqa so'rovlar bilan tez-tez so'raymiz. Bu
+     * avvalgi "bitta uzun so'rov" usuliga nisbatan ham tezroq sezilib,
+     * ham mobil tarmoq uzilishlariga chidamli.
+     */
+    private void pollQr(long userId, Callback callback, int attempt) {
         Utilities.globalQueue.postRunnable(() -> {
             try {
-                JSONObject finishBody = new JSONObject();
-                finishBody.put("user_key", String.valueOf(userId));
-                Response finishResponse = postJson("/sessions/qr/finish", finishBody);
-                handleQrResult(currentAccount, finishResponse, callback);
+                JSONObject body = new JSONObject();
+                body.put("user_key", String.valueOf(userId));
+                Response response = postJson("/sessions/qr/poll", body);
+                String status = parseStatus(response.body);
+
+                if ("connected".equals(status)) {
+                    SharedPreferences.Editor editor = prefs().edit();
+                    editor.putBoolean(KEY_ENABLED, true);
+                    editor.putLong(KEY_TARGET_CHAT_ID, pendingTargetChatId);
+                    editor.apply();
+                    notifyResult(callback, null);
+                } else if ("password_required".equals(status)) {
+                    if (callback != null) {
+                        AndroidUtilities.runOnUIThread(callback::onPasswordRequired);
+                    }
+                } else if ("waiting".equals(status)) {
+                    if (attempt + 1 >= QR_POLL_MAX_ATTEMPTS) {
+                        notifyResult(callback, "Tasdiqlash vaqti tugadi. Qaytadan urinib ko'ring.");
+                        return;
+                    }
+                    Utilities.globalQueue.postRunnable(() -> pollQr(userId, callback, attempt + 1), QR_POLL_INTERVAL_MS);
+                } else {
+                    notifyResult(callback, extractMessage(response.body, response.code));
+                }
             } catch (Exception e) {
                 FileLog.e(e);
-                notifyResult(callback, "Yakunlashda xatolik: " + e.getMessage());
+                notifyResult(callback, "Holatni tekshirishda xatolik: " + e.getMessage());
             }
         });
     }
@@ -141,7 +172,13 @@ public class MediaBackupController {
                 body.put("user_key", String.valueOf(userId));
                 body.put("password", password);
                 Response response = postJson("/sessions/qr/password", body);
-                handleQrResult(currentAccount, response, callback);
+                String status = parseStatus(response.body);
+                if (response.code == 200 && "ok".equals(status)) {
+                    // Parol qabul qilindi - endi "connected" bo'lishini kutib pollashni davom ettiramiz.
+                    pollQr(userId, callback, 0);
+                } else {
+                    notifyResult(callback, extractMessage(response.body, response.code));
+                }
             } catch (Exception e) {
                 FileLog.e(e);
                 notifyResult(callback, "Parolni yuborishda xatolik: " + e.getMessage());
@@ -149,25 +186,11 @@ public class MediaBackupController {
         });
     }
 
-    private void handleQrResult(int currentAccount, Response response, Callback callback) {
+    private static String parseStatus(String body) {
         try {
-            JSONObject json = new JSONObject(response.body == null || response.body.isEmpty() ? "{}" : response.body);
-            String status = json.optString("status", "");
-            if (response.code == 200 && "connected".equals(status)) {
-                SharedPreferences.Editor editor = prefs().edit();
-                editor.putBoolean(KEY_ENABLED, true);
-                editor.putLong(KEY_TARGET_CHAT_ID, pendingTargetChatId);
-                editor.apply();
-                notifyResult(callback, null);
-            } else if ("password_required".equals(status)) {
-                if (callback != null) {
-                    AndroidUtilities.runOnUIThread(callback::onPasswordRequired);
-                }
-            } else {
-                notifyResult(callback, extractMessage(response.body, response.code));
-            }
+            return new JSONObject(body == null || body.isEmpty() ? "{}" : body).optString("status", "");
         } catch (Exception e) {
-            notifyResult(callback, extractMessage(response.body, response.code));
+            return "";
         }
     }
 
