@@ -26,6 +26,15 @@ PORT = int(os.environ.get("PORT", 8080))
 # bu fayl o'chib ketadi - pastdagi README'dagi eslatmaga qarang)
 SESSIONS_FILE = os.environ.get("SESSIONS_FILE", "sessions.json")
 
+# "Manba xabar -> backup nusxa" moslashtirish xaritasi saqlanadigan fayl
+# (copy_store.py). Xuddi SESSIONS_FILE kabi Render bepul diskida vaqtinchalik.
+COPIES_FILE = os.environ.get("COPIES_FILE", "copies.json")
+
+# Har bir foydalanuvchi uchun saqlanadigan moslashtirish yozuvlarining
+# yuqori chegarasi (eskisi tashlab yuboriladi) - faylning cheksiz
+# o'sib ketishining oldini oladi.
+MAX_COPIES_PER_USER = int(os.environ.get("MAX_COPIES_PER_USER", "20000"))
+
 # Har necha soniyada "offline" statusni qayta tasdiqlab turish kerak
 STATUS_REFRESH_SECONDS = int(os.environ.get("STATUS_REFRESH_SECONDS", "50"))
 

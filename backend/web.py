@@ -22,6 +22,7 @@ import logging
 from aiohttp import web
 
 import config
+import copy_store
 import qr_login
 import session_store
 from manager import SessionManager
@@ -116,7 +117,30 @@ def build_app(manager: SessionManager) -> web.Application:
         user_key = request.match_info["user_key"]
         await request.app["manager"].stop_forwarder(user_key)
         session_store.delete_session(user_key)
+        copy_store.delete_user(user_key)
         return web.json_response({"status": "disconnected"})
+
+    async def lookup_copy(request: web.Request) -> web.Response:
+        # Klient (Android/Windows) o'chirilgan/yo'qolgan xabarni tiklash
+        # uchun shu yerdan so'raydi: "bu manba xabarning (chat_id, msg_id)
+        # backup nusxasi qayerda?" - javob serverdagi xaritadan keladi,
+        # shuning uchun boshqa qurilmadan login qilingan bo'lsa ham ishlaydi.
+        user_key = request.match_info["user_key"]
+        try:
+            chat_id = int(request.query["chat_id"])
+            msg_id = int(request.query["msg_id"])
+        except (KeyError, ValueError):
+            return web.json_response(
+                {"status": "error", "message": "chat_id va msg_id (son) kerak"},
+                status=400,
+            )
+        found = copy_store.get_copy(user_key, chat_id, msg_id)
+        if found is None:
+            return web.json_response({"found": False})
+        target_chat_id, copy_msg_id = found
+        return web.json_response(
+            {"found": True, "target_chat_id": target_chat_id, "copy_msg_id": copy_msg_id}
+        )
 
     app.router.add_get("/", health)
     app.router.add_post("/sessions/register", register_session)
@@ -126,4 +150,5 @@ def build_app(manager: SessionManager) -> web.Application:
     app.router.add_post("/sessions/{user_key}/target", set_target)
     app.router.add_get("/sessions/{user_key}/status", status)
     app.router.add_post("/sessions/{user_key}/disconnect", disconnect)
+    app.router.add_get("/sessions/{user_key}/copy", lookup_copy)
     return app

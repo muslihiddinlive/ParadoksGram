@@ -1,5 +1,7 @@
 sessions.json
 sessions.json.tmp
+copies.json
+copies.json.tmp
 __pycache__/
 *.pyc
 .env

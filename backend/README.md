@@ -2,9 +2,27 @@
 
 Foydalanuvchi sozlamalardan "media bazasi"ni ulaganda va forward
 toggle'ini ikki marta tasdiqlaganda ishga tushadigan server: foydalanuvchi
-nomidan (userbot sifatida) kiradigan Telegram sessiyasi orqali yangi media
-xabarlarni avtomatik forward qiladi, qurilma o'chiq bo'lsa ham. Shu bilan
-birga akkauntning "online"/"last seen" holatini yashirib turadi.
+nomidan (userbot sifatida) kiradigan Telegram sessiyasi orqali yangi
+xabarlarni (MEDIALI HAM, ODDIY MATNLI HAM) avtomatik forward qiladi,
+qurilma o'chiq bo'lsa ham. Shu bilan birga akkauntning "online"/"last
+seen" holatini yashirib turadi.
+
+Bu sessiya butunlay serverda, foydalanuvchining akkounti nomidan mustaqil
+ishlaydi (Telegram "Qurilmalar" ro'yxatida alohida seans sifatida
+ko'rinadi) - shuning uchun u biror aniq qurilma yoki ilovaga (Android,
+Windows va h.k.) bog'liq EMAS. Qaysi klientdan login qilingan bo'lishidan
+qat'i nazar, forward va tiklash (pastga qarang) bir xil ishlaydi.
+
+### Serverda saqlanadigan "manba -> nusxa" xaritasi
+
+Har bir forward qilingan xabar uchun backend `copy_store.py` orqali
+`(manba chat_id, manba msg_id) -> (nishon chat_id, nusxa msg_id)`
+moslashtirishni serverda saqlaydi (`copies.json`). Shu tufayli: agar asl
+xabar keyinchalik ASL chatdan o'chirilsa (backup chatdan EMAS), klient
+`GET /sessions/{user_key}/copy?chat_id=...&msg_id=...` orqali backup
+nusxasini so'rab topa oladi - HATTO o'sha xabar hech qachon o'sha
+qurilmaga yuklab olinmagan yoki umuman boshqa qurilmadan login qilingan
+bo'lsa ham, chunki xarita klientning lokal faylida emas, shu serverda.
 
 ## Render.com'da deploy qilish
 
@@ -66,7 +84,17 @@ jo'natadi:
   forward manzilini o'zgartiradi
 - `GET /sessions/{user_key}/status` — ulanganmi yo'qmi
 - `POST /sessions/{user_key}/disconnect` — forward'ni to'xtatadi va
-  sessiyani o'chiradi (ilovadagi toggle o'chirilganda chaqiriladi)
+  sessiyani o'chiradi (ilovadagi toggle o'chirilganda chaqiriladi); shu
+  bilan birga o'sha foydalanuvchining serverdagi "manba -> nusxa"
+  xaritasi (`copies.json`dagi yozuvlari) ham o'chiriladi
+- `GET /sessions/{user_key}/copy?chat_id=<manba chat>&msg_id=<manba xabar>`
+  — o'sha manba xabarning backup chatdagi nusxasini qaytaradi:
+  ```json
+  {"found": true, "target_chat_id": -100123456789, "copy_msg_id": 4521}
+  ```
+  yoki topilmasa `{"found": false}`. Klient bu javob bilan
+  `messages.getMessages`/`channels.getMessages` chaqirib, backup
+  chatdagi nusxani (undagi media bilan birga) olib ko'rsatishi mumkin.
 
 ### Android (client) tomonida nima kerak
 
