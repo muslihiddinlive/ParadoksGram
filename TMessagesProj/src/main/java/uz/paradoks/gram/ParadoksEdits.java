@@ -49,6 +49,21 @@ public final class ParadoksEdits {
             String mediaPath = mediaChanged ? copyOldMedia(account, old, dialogId, messageId, ts) : null;
             ParadoksDb.get().insertEdit(account, dialogId, messageId, ts, before, blob, mediaPath);
         });
+        // PARADOKS: foydalanuvchi so'ragani kabi - media bazasidagi "bitta chatga
+        // forward qilish" usuli tahrirlangan xabarlar uchun ham, xuddi shu tarzda
+        // (qurilma ustida, serversiz) ishlasin. Faqat matn haqiqatan o'zgarganda
+        // yuboramiz - faqat media yoki formatlash o'zgargan hollarda emas.
+        if (!before.equals(after)) {
+            long target = ParadoksConfig.dbTarget(account);
+            if (target != 0) {
+                String chatTitle = ParadoksBroadcast.titleOf(account, dialogId);
+                StringBuilder sb = new StringBuilder();
+                sb.append("✏️ Tahrirlangan xabar (").append(chatTitle).append(")\n\n");
+                sb.append("Eski matn:\n").append(before.isEmpty() ? "(matnsiz)" : before);
+                sb.append("\n\nYangi matn:\n").append(after.isEmpty() ? "(matnsiz)" : after);
+                ParadoksDbForward.enqueueText(account, sb.toString());
+            }
+        }
     }
 
     /** Identifies the attached photo / file so a replaced media can be noticed. */

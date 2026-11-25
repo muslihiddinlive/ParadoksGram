@@ -51,6 +51,45 @@ final class ParadoksDbForward {
     /** Local (temporary) message id in the database chat to the source it was forwarded from. */
     private static final java.util.HashMap<String, Pending> temp = new java.util.HashMap<>();
 
+    /** Plain-text notices (e.g. "message was edited") queued the same way, same flood pacing. */
+    private static final class TextPending {
+        final int account;
+        final String text;
+
+        TextPending(int account, String text) {
+            this.account = account;
+            this.text = text;
+        }
+    }
+
+    private static final ArrayDeque<TextPending> textQueue = new ArrayDeque<>();
+
+    /**
+     * Queues a plain text message to the same "bitta chat" the media backup forwards to
+     * (used by ParadoksEdits for pre-edit text). Sent with the same pacing/queue as media
+     * forwards, so it never floods on its own and needs no separate server connection -
+     * this is the on-device model, exactly like media forwarding.
+     */
+    static void enqueueText(int account, String text) {
+        if (text == null || text.isEmpty()) {
+            return;
+        }
+        AndroidUtilities.runOnUIThread(() -> {
+            long target = ParadoksConfig.dbTarget(account);
+            if (target == 0 || !UserConfig.getInstance(account).isClientActivated()) {
+                return;
+            }
+            textQueue.add(new TextPending(account, text));
+            if (textQueue.size() > MAX_QUEUE) {
+                textQueue.poll();
+            }
+            if (!draining) {
+                draining = true;
+                AndroidUtilities.runOnUIThread(ParadoksDbForward::drain, 500);
+            }
+        });
+    }
+
     private ParadoksDbForward() {
     }
 
@@ -76,7 +115,7 @@ final class ParadoksDbForward {
                     enqueue(account, object);
                 }
             }
-            if (!queue.isEmpty() && !draining) {
+            if ((!queue.isEmpty() || !textQueue.isEmpty()) && !draining) {
                 draining = true;
                 AndroidUtilities.runOnUIThread(ParadoksDbForward::drain, 500);
             }
@@ -158,23 +197,36 @@ final class ParadoksDbForward {
 
     private static void drain() {
         Pending pending = queue.poll();
-        if (pending == null) {
-            draining = false;
+        if (pending != null) {
+            try {
+                long target = ParadoksConfig.dbTarget(pending.account);
+                if (target != 0 && UserConfig.getInstance(pending.account).isClientActivated()) {
+                    ArrayList<MessageObject> one = new ArrayList<>();
+                    one.add(pending.object);
+                    SendMessagesHelper.getInstance(pending.account).sendMessage(one, target, false, false, false, 0, 0);
+                    awaiting.add(pending);
+                    if (awaiting.size() > 50) {
+                        awaiting.remove(0);
+                    }
+                }
+            } catch (Throwable ignore) {
+            }
+            AndroidUtilities.runOnUIThread(ParadoksDbForward::drain, INTERVAL_MS);
             return;
         }
-        try {
-            long target = ParadoksConfig.dbTarget(pending.account);
-            if (target != 0 && UserConfig.getInstance(pending.account).isClientActivated()) {
-                ArrayList<MessageObject> one = new ArrayList<>();
-                one.add(pending.object);
-                SendMessagesHelper.getInstance(pending.account).sendMessage(one, target, false, false, false, 0, 0);
-                awaiting.add(pending);
-                if (awaiting.size() > 50) {
-                    awaiting.remove(0);
+        TextPending textPending = textQueue.poll();
+        if (textPending != null) {
+            try {
+                long target = ParadoksConfig.dbTarget(textPending.account);
+                if (target != 0 && UserConfig.getInstance(textPending.account).isClientActivated()) {
+                    SendMessagesHelper.getInstance(textPending.account).sendMessage(
+                            SendMessagesHelper.SendMessageParams.of(textPending.text, target, null, null, null, false, null, null, null, true, 0, 0, null, false));
                 }
+            } catch (Throwable ignore) {
             }
-        } catch (Throwable ignore) {
+            AndroidUtilities.runOnUIThread(ParadoksDbForward::drain, INTERVAL_MS);
+            return;
         }
-        AndroidUtilities.runOnUIThread(ParadoksDbForward::drain, INTERVAL_MS);
+        draining = false;
     }
 }
