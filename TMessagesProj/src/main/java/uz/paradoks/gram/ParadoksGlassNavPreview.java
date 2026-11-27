@@ -189,14 +189,14 @@ public class ParadoksGlassNavPreview extends LinearLayout {
             for (int i = 0; i < n; i++) {
                 float cx = bounds.left + bounds.width() * (i + 0.5f) / n;
                 if (i == 0) {
-                    drawHighlight(canvas, cx, cy, barH);
+                    drawHighlight(canvas, cx, cy, barH, lift);
                 }
                 float dy = i == 0 ? cy - lift : cy;
                 canvas.drawCircle(cx, dy, AndroidUtilities.dpf2(i == 0 ? 4.5f : 3.5f), i == 0 ? selectedDotPaint : dotPaint);
             }
         }
 
-        private void drawHighlight(Canvas canvas, float cx, float cy, float barH) {
+        private void drawHighlight(Canvas canvas, float cx, float cy, float barH, float lift) {
             int tint = Math.max(0, Math.min(ParadoksGlass.TINTS.length - 1, ParadoksConfig.glassNavTint()));
             float r = barH * 0.4f;
             switch (style) {
