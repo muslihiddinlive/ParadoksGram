@@ -2,8 +2,17 @@ name: Build APK
 
 on:
   workflow_dispatch:
+    inputs:
+      fast:
+        description: 'Fast test build: arm64 only, not published to the public releases repo (updater never sees it)'
+        type: boolean
+        default: false
   push:
     branches: [ main ]
+  # GitHub deletes caches unused for 7 days; a cold NDK build takes ~60 min, a warm one ~8.
+  # This tiny run only touches the caches so they never expire.
+  schedule:
+    - cron: '23 4 */4 * *'
 
 permissions:
   contents: write
@@ -13,7 +22,20 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  keepalive:
+    if: github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/cache/restore@v4
+        with:
+          path: ~/.ccache
+          key: ccache-keepalive-${{ github.run_id }}
+          restore-keys: |
+            ccache-
+
   build:
+    if: github.event_name != 'schedule'
     runs-on: ubuntu-latest
     timeout-minutes: 150
     env:
@@ -57,6 +79,11 @@ jobs:
           distribution: temurin
           java-version: '17'
 
+      - name: Set up Gradle (dependency + build cache)
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-read-only: ${{ github.ref != 'refs/heads/main' }}
+
       - name: Install Android SDK components
         run: |
           yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null || true
@@ -83,8 +110,11 @@ jobs:
             echo "::warning title=APP_ID/APP_HASH secrets missing::Building with Telegram's public sample API keys. Login can be rate-limited and the build is not using your own api_id. Add APP_ID and APP_HASH in Settings > Secrets and variables > Actions."
           fi
 
-      - name: Limit ABIs to arm64 and 32-bit arm (x86 is not needed)
-        run: sed -i 's/abiFilters "armeabi-v7a", "arm64-v8a", "x86", "x86_64"/abiFilters "armeabi-v7a", "arm64-v8a"/' TMessagesProj_App/build.gradle
+      - name: Limit ABIs (x86 is not needed; fast mode = arm64 only)
+        run: |
+          if [ "${{ inputs.fast }}" = "true" ]; then ABIS='"arm64-v8a"'; else ABIS='"armeabi-v7a", "arm64-v8a"'; fi
+          sed -i "s/abiFilters \"armeabi-v7a\", \"arm64-v8a\", \"x86\", \"x86_64\"/abiFilters $ABIS/" TMessagesProj_App/build.gradle
+          grep -n abiFilters TMessagesProj_App/build.gradle
 
       - name: Install ccache
         run: sudo apt-get install -y ccache >/dev/null && ccache --version | head -1
@@ -115,6 +145,8 @@ jobs:
           CCACHE_BASEDIR: ${{ github.workspace }}
           CCACHE_COMPILERCHECK: content
           CCACHE_NOHASHDIR: "true"
+          CCACHE_COMPRESS: "true"
+          CCACHE_SLOPPINESS: "time_macros,include_file_mtime,include_file_ctime"
           CMAKE_C_COMPILER_LAUNCHER: ccache
           CMAKE_CXX_COMPILER_LAUNCHER: ccache
           ORG_GRADLE_PROJECT_RELEASE_STORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
@@ -123,7 +155,8 @@ jobs:
         run: |
           set -o pipefail
           chmod +x gradlew
-          ./gradlew :TMessagesProj_App:assembleAfatRelease --no-daemon --stacktrace 2>&1 | tee build.log
+          ./gradlew :TMessagesProj_App:assembleAfatRelease --build-cache --parallel --max-workers=4 --stacktrace 2>&1 | tee build.log
+          ccache -s || true
 
       - name: Save ccache
         if: always()
@@ -180,7 +213,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Publish release to the public ParadoksGram-releases repo
-        if: ${{ env.RELEASES_TOKEN != '' }}
+        if: ${{ env.RELEASES_TOKEN != '' && !inputs.fast }}
         continue-on-error: true
         uses: softprops/action-gh-release@v2
         with:
